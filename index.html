@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WebAR Editor v2.2.5</title>
+  <title>WebAR Editor v2.2.7</title>
   <style>
     :root{
       --bg:#0e1116;--panel:#111828;--panel2:#192339;--text:#e9ecf5;--muted:#9fb3d9;--border:#24314a;--accent:#60a5fa;--accent2:#93c5fd;
@@ -194,7 +194,8 @@
         <label class="menuitem" role="menuitem">Projekt öffnen <input id="file-project" type="file" accept=".webar,.json"></label>
         <button id="btn-save" class="menuitem" role="menuitem">Speichern</button>
         <button id="btn-save-as" class="menuitem" role="menuitem">Speichern unter…</button>
-        <button id="btn-publish" class="menuitem" role="menuitem">Veröffentlichen / Vorschau…</button>
+        <button id="btn-preview" class="menuitem" role="menuitem">Vorschau (Module)…</button>
+        <button id="btn-publish" class="menuitem" role="menuitem">Veröffentlichen (Link &amp; QR)…</button>
       </div>
     </div>
 
@@ -431,7 +432,7 @@
 
     // --- State ---
     let projectName = 'Unbenanntes Projekt';
-    function setProjectName(n){ projectName = (n||'').trim()||'Unbenanntes Projekt'; $('#projNamePill').textContent = projectName; document.title = 'WebAR Editor v2.2.5 — '+projectName; }
+    function setProjectName(n){ projectName = (n||'').trim()||'Unbenanntes Projekt'; $('#projNamePill').textContent = projectName; document.title = 'WebAR Editor v2.2.7 — '+projectName; }
     function promptNewName(){ const v = prompt('Projektname:', projectName==='Unbenanntes Projekt'?'Mein AR-Projekt':projectName); if(v!=null) setProjectName(v); }
     $('#projNamePill').addEventListener('dblclick', promptNewName);
 
@@ -1134,6 +1135,41 @@ function updateAnchorUI(){
 requestAnimationFrame(updateAnchorUI);
 $('#anchorMode')?.addEventListener('change', updateAnchorUI);
 
+
+// ===== Vorschau (deine bestehenden Module auf GitHub Pages) =====
+function previewModules(){
+  const mode   = $('#anchorMode')?.value || 'surface-webxr';
+  const target = ($('#imageTargetUrl')?.value || '').trim();
+  const glb    = ($('#nativeGlbUrl')?.value  || '').trim();
+  const usdz   = ($('#nativeUsdzUrl')?.value || '').trim();
+
+  // Mapping auf deine vorhandenen Module
+  const baseByMode = {
+    'surface-webxr': 'https://krischihh.github.io/area/surface-ar/webxr.html',
+    'native':        'https://krischihh.github.io/area/surface-ar/index.html'
+    'image':         'https://krischihh.github.io/area/image-ar/viewer.html'
+  };
+
+  (async () => {
+    const data = await buildProjectData();
+    const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
+    const src  = URL.createObjectURL(blob);
+
+    let url = `${baseByMode[mode]}?src=${encodeURIComponent(src)}&anchor=${encodeURIComponent(mode)}`;
+    if (mode === 'image' && target) {
+      url += `&target=${encodeURIComponent(target)}`;
+    }
+    if (mode === 'native') {
+      if (glb)  url += `&glb=${encodeURIComponent(glb)}`;
+      if (usdz) url += `&usdz=${encodeURIComponent(usdz)}`;
+    }
+
+    window.open(url, '_blank');
+    toast('Vorschau geöffnet');
+  })();
+}
+// ===== Ende Vorschau =====
+
 // ===== Export → Worker-Publish → QR =====
 function sanitizeId(s){ return (s||'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').replace(/^-+|-+$/g,'').slice(0,64)||'scene'; }
 
@@ -1232,7 +1268,7 @@ async function publish(){
 
     // Hint FAB + Projektmenü
     (function(){ const hint=$('.hint'); const fab=$('#hintFab'); if(!hint||!fab) return; let timer=null; function open(){ if(timer){clearTimeout(timer);timer=null;} hint.classList.remove('hidden'); fab.setAttribute('aria-expanded','true'); fab.textContent='×'; } function close(){ if(timer){clearTimeout(timer);timer=null;} hint.classList.add('hidden'); fab.setAttribute('aria-expanded','false'); fab.textContent='i'; } fab.addEventListener('mouseenter', open); fab.addEventListener('mouseleave', ()=>{ timer=setTimeout(()=>{ if(!hint.matches(':hover')) close(); },200); }); hint.addEventListener('mouseleave', ()=>{ timer=setTimeout(()=>{ if(!fab.matches(':hover')) close(); },100); }); hint.addEventListener('mouseenter', ()=>{ if(timer){clearTimeout(timer);timer=null;} }); fab.addEventListener('click', e=>{ e.preventDefault(); if(hint.classList.contains('hidden')) open(); else close(); }, {passive:false}); })();
-    (function(){ const menu=$('#projectMenu'); const btn=$('#btn-project-menu'); function close(){ menu.classList.remove('open'); btn.setAttribute('aria-expanded','false'); } btn.addEventListener('click', e=>{ e.stopPropagation(); menu.classList.toggle('open'); btn.setAttribute('aria-expanded', menu.classList.contains('open')?'true':'false'); }); document.addEventListener('click', e=>{ if(!menu.contains(e.target)) close(); }); window.addEventListener('keydown', e=>{ if(e.key==='Escape') close(); }); $('#btn-new').addEventListener('click', ()=>{ close(); if(!confirm('Aktuelle Szene leeren und neues Projekt anlegen?')) return; setProjectName(prompt('Projektname:', 'Neues AR-Projekt')||'Unbenanntes Projekt'); $('#btn-clear').click(); }); $('#btn-save').addEventListener('click', ()=>{ close(); saveProject({saveAs:false}); }); $('#btn-save-as').addEventListener('click', ()=>{ close(); saveProject({saveAs:true}); }); $('#file-project').addEventListener('change', e=>{ close(); const f=e.target.files?.[0]; if(!f){ e.target.value=''; return;} importProjectFile(f); e.target.value=''; }); $('#btn-publish').addEventListener('click', ()=>{ close(); publish(); }); })();
+    (function(){ const menu=$('#projectMenu'); const btn=$('#btn-project-menu'); function close(){ menu.classList.remove('open'); btn.setAttribute('aria-expanded','false'); } btn.addEventListener('click', e=>{ e.stopPropagation(); menu.classList.toggle('open'); btn.setAttribute('aria-expanded', menu.classList.contains('open')?'true':'false'); }); document.addEventListener('click', e=>{ if(!menu.contains(e.target)) close(); }); window.addEventListener('keydown', e=>{ if(e.key==='Escape') close(); }); $('#btn-new').addEventListener('click', ()=>{ close(); if(!confirm('Aktuelle Szene leeren und neues Projekt anlegen?')) return; setProjectName(prompt('Projektname:', 'Neues AR-Projekt')||'Unbenanntes Projekt'); $('#btn-clear').click(); }); $('#btn-save').addEventListener('click', ()=>{ close(); saveProject({saveAs:false}); }); $('#btn-save-as').addEventListener('click', ()=>{ close(); saveProject({saveAs:true}); }); $('#file-project').addEventListener('change', e=>{ close(); const f=e.target.files?.[0]; if(!f){ e.target.value=''; return;} importProjectFile(f); e.target.value=''; }); $('#btn-preview').addEventListener('click', ()=>{ close(); previewModules(); }); $('#btn-publish').addEventListener('click', ()=>{ close(); publish(); }); })();
 
     // Render
     const clock=new THREE.Clock();
