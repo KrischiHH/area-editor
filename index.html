@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WebAR Editor v2.2.4</title>
+  <title>WebAR Editor v2.2.5</title>
   <style>
     :root{
       --bg:#0e1116;--panel:#111828;--panel2:#192339;--text:#e9ecf5;--muted:#9fb3d9;--border:#24314a;--accent:#60a5fa;--accent2:#93c5fd;
@@ -162,11 +162,21 @@
     .viewport,#stage{min-width:0}
   </style>
 
+  <!-- IMPORTANT: Minimal Config für Publish (eintragen!) -->
+  <script>
+    window.__AREA = Object.assign({
+      PUBLISH_ENDPOINT: "https://area-publish.YOUR-SUBDOMAIN.workers.dev/publish", // TODO: anpassen
+      PUBLISH_KEY: "YOUR-PUBLISH-KEY", // TODO: anpassen
+      VIEWER_BASE: "https://area-viewer.pages.dev" // optional; Worker sendet i.d.R. viewerUrl zurück
+    }, window.__AREA||{});
+  </script>
+
   <script type="importmap">
   {
     "imports": {
       "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+      "qrcode": "https://esm.sh/qrcode@1.5.3"
     }
   }
   </script>
@@ -184,11 +194,12 @@
         <label class="menuitem" role="menuitem">Projekt öffnen <input id="file-project" type="file" accept=".webar,.json"></label>
         <button id="btn-save" class="menuitem" role="menuitem">Speichern</button>
         <button id="btn-save-as" class="menuitem" role="menuitem">Speichern unter…</button>
-<button id="btn-publish" class="menuitem" role="menuitem">Veröffentlichen / Vorschau…</button>
+        <button id="btn-publish" class="menuitem" role="menuitem">Veröffentlichen / Vorschau…</button>
       </div>
     </div>
 
-    <label class="btn">Objekt import<input id="file-glb" type="file" accept=".glb,.gltf" style="display:none"></label>
+    <!-- erweitert: FBX zulassen -->
+    <label class="btn">Objekt import<input id="file-glb" type="file" accept=".glb,.gltf,.fbx" style="display:none"></label>
 
     <!-- ==== MEDIA: neuer Import-Button -->
     <label class="btn">Medien import
@@ -405,11 +416,14 @@
     import { TransformControls } from 'three/addons/controls/TransformControls.js';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+    import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
     import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
     import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
     import { RenderPass }     from 'three/addons/postprocessing/RenderPass.js';
     import { OutlinePass }    from 'three/addons/postprocessing/OutlinePass.js';
     import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import QRCode from 'qrcode';
 
     const $ = s=>document.querySelector(s);
     const toastEl = $('#toast');
@@ -417,7 +431,7 @@
 
     // --- State ---
     let projectName = 'Unbenanntes Projekt';
-    function setProjectName(n){ projectName = (n||'').trim()||'Unbenanntes Projekt'; $('#projNamePill').textContent = projectName; document.title = 'WebAR Editor v2.2.4 — '+projectName; }
+    function setProjectName(n){ projectName = (n||'').trim()||'Unbenanntes Projekt'; $('#projNamePill').textContent = projectName; document.title = 'WebAR Editor v2.2.5 — '+projectName; }
     function promptNewName(){ const v = prompt('Projektname:', projectName==='Unbenanntes Projekt'?'Mein AR-Projekt':projectName); if(v!=null) setProjectName(v); }
     $('#projNamePill').addEventListener('dblclick', promptNewName);
 
@@ -433,6 +447,9 @@
     const scene = new THREE.Scene(); scene.background = new THREE.Color('#0b1323');
     const overlayScene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30,1,0.01,2000); camera.position.set(15,6,15);
+
+    // Alle Nutzerobjekte hängen an contentRoot -> saubere Exporte
+    const contentRoot = new THREE.Group(); contentRoot.name = 'ContentRoot'; scene.add(contentRoot);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true; controls.enablePan = true; controls.minDistance=0.2; controls.maxDistance=400;
@@ -524,6 +541,7 @@
 
     const gltfLoader = new GLTFLoader();
     const draco = new DRACOLoader(); draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/'); gltfLoader.setDRACOLoader(draco);
+    const fbxLoader = new FBXLoader();
 
     function forEachRec(fn){ function visit(rec){ fn(rec); if(rec.type==='group' && rec.children) rec.children.forEach(visit); } state.objects.forEach(visit); }
 
@@ -546,7 +564,7 @@
         row.append(eye,lock,tab,del); root.appendChild(row);
 
         eye.addEventListener('click', ()=>{ o.hidden=!o.hidden; if(o.group) o.group.visible=!o.hidden; eye.textContent=o.hidden?'🚫':'👁️'; eye.title=o.hidden?'Einblenden':'Ausblenden'; updateOutlineSelection(); });
-        lock.addEventListener('click', ()=>{ o.locked=!o.locked; lock.innerHTML=`<span class="ico-mask ${o.locked?'ico--lock-closed':'ico--lock-open'}"></span>`; lock.title=o.locked?'Entsperren':'Sperren';
+        lock.addEventListener('click', ()=>{ o.locked=!o.locked; lock.innerHTML=`<span class=\"ico-mask ${o.locked?'ico--lock-closed':'ico--lock-open'}\"></span>`; lock.title=o.locked?'Entsperren':'Sperren';
           if (o.locked && state.selection.has(o.id)){ state.selection.delete(o.id); if(state.selectedId===o.id) state.selectedId=null; tcontrols.detach(); syncPropFromSel(); updateGroupButtons(); updateOutlineSelection(); }
         });
         tab.addEventListener('click', (ev)=>{ if(o.locked){ toast('Objekt ist gesperrt'); return; } if(ev.shiftKey) toggleSelect(o.id); else selectOnly(o.id); });
@@ -595,7 +613,7 @@
       const targets = state.objects.filter(o=>!o.hidden && !o.locked).map(o=>o.group);
       const hits = raycaster.intersectObjects(targets,true);
       if(hits.length){
-        let obj3=hits[0].object; while(obj3 && obj3.parent && obj3.parent!==scene) obj3=obj3.parent;
+        let obj3=hits[0].object; while(obj3 && obj3.parent && obj3.parent!==contentRoot) obj3=obj3.parent;
         const rec=state.objects.find(o=>o.group===obj3);
         if(rec){ if(e.shiftKey) toggleSelect(rec.id); else selectOnly(rec.id); }
       }
@@ -609,16 +627,21 @@
       if(hits.length===0) clearSelection();
     }, {passive:true});
 
-    // Import GLB
-    async function createGroupedFromURL(url,name){
+    // Import 3D
+    async function createFromGLTF(url,name){
       const gltf = await gltfLoader.loadAsync(url);
       const root = gltf.scene || gltf.scenes?.[0];
       const group = new THREE.Group(); group.name = name || 'Objekt';
       group.add(root);
-      const box=new THREE.Box3().setFromObject(group); const center=new THREE.Vector3(); box.getCenter(center);
-      group.children.forEach(c=>c.position.sub(center)); group.position.add(center);
       const clips=(gltf.animations||[]).slice();
       return { group, root, clips };
+    }
+    async function createFromFBX(url,name){
+      const obj = await fbxLoader.loadAsync(url); // Group mit evtl. obj.animations
+      const group = new THREE.Group(); group.name = name || 'Objekt';
+      group.add(obj);
+      const clips=(obj.animations||[]).slice();
+      return { group, root: obj, clips };
     }
     function fitUniformScale(group, fit=1.5){ const b=new THREE.Box3().setFromObject(group); const s=new THREE.Vector3(); b.getSize(s); const maxDim=Math.max(s.x,s.y,s.z)||1; group.scale.setScalar(fit/maxDim); }
 
@@ -642,17 +665,26 @@
     async function addFromFile(file){
       const id=uid(); const url=URL.createObjectURL(file);
       try{
-        const name=(file.name||'Objekt').replace(/\.(glb|gltf)$/i,'');
-        const {group,root,clips}=await createGroupedFromURL(url,name); URL.revokeObjectURL(url);
+        const name=(file.name||'Objekt').replace(/\.(glb|gltf|fbx)$/i,'');
+        let group, root, clips;
+        if(/\.fbx$/i.test(file.name)){
+          ({group,root,clips} = await createFromFBX(url,name));
+        } else {
+          ({group,root,clips} = await createFromGLTF(url,name));
+        }
+        URL.revokeObjectURL(url);
+        // Zentrieren um Ursprung + angenehme Startgröße
+        const box=new THREE.Box3().setFromObject(group); const center=new THREE.Vector3(); box.getCenter(center);
+        group.children.forEach(c=>c.position.sub(center)); group.position.add(center);
         fitUniformScale(group,1.5);
-        prepareMaterialBases(group); scene.add(group);
+        prepareMaterialBases(group); updateMaterialLook();
+        contentRoot.add(group);
         const rec={id,type:'object',name:group.name,file, url:null, group, root, clips, mixer:null, actions:{}, hidden:false, locked:false, media:null};
-        state.objects.push(rec); addPickProxy(rec); selectOnly(id); populateAnimUI(rec); updateMaterialLook(); toast('Importiert: '+group.name);
-      }catch(e){console.error(e); toast('Import fehlgeschlagen'); URL.revokeObjectURL(url);}
-    }
+        state.objects.push(rec); addPickProxy(rec); selectOnly(id); populateAnimUI(rec); toast('Importiert: '+group.name);
+      }catch(e){console.error(e); toast('Import fehlgeschlagen'); URL.revokeObjectURL(url);}    }
     $('#file-glb').addEventListener('change', e=>{ const f=e.target.files?.[0]; if(!f){ e.target.value=''; return;} addFromFile(f); e.target.value=''; });
     stage.addEventListener('dragover', e=>e.preventDefault());
-    stage.addEventListener('drop', e=>{ e.preventDefault(); const f=e.dataTransfer?.files?.[0]; if(f && /(\.glb|\.gltf)$/i.test(f.name)) addFromFile(f); });
+    stage.addEventListener('drop', e=>{ e.preventDefault(); const f=e.dataTransfer?.files?.[0]; if(f && /(\.glb|\.gltf|\.fbx)$/i.test(f.name)) addFromFile(f); });
 
     // Material helpers
     function iterateMaterials(root, cb){
@@ -719,9 +751,7 @@
       const ids=[...state.selection]; if(!ids.length) return; const newIds=[];
       ids.forEach(id=>{
         const src=findRec(id); if(!src || src.type!=='object') return;
-        // Medien können dupliziert werden:
         const g=new THREE.Group(); g.name=src.name+' (Kopie)';
-        // If media object, clone inner
         if(src.media?.kind==='video'){
           const vid = document.createElement('video'); vid.src = src.media.src; vid.loop=src.media.loop; vid.crossOrigin='anonymous'; vid.playsInline=true; vid.preload='auto';
           const tex = new THREE.VideoTexture(vid); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false;
@@ -736,13 +766,12 @@
           const loader=new THREE.AudioLoader(); loader.load(src.media.src, buffer=>{ sound.setBuffer(buffer); sound.setRefDistance(1.5); sound.setDistanceModel('inverse'); sound.setLoop(!!src.media.loop); });
           g.userData.__media={kind:'audio', sound, loop:!!src.media.loop, repeats:src.media.repeats||1, count:0, src:src.media.src};
         } else {
-          // normales 3D Objekt
           const clonedRoot = SkeletonUtils.clone(src.root);
           g.add(clonedRoot);
           prepareMaterialBases(g); updateMaterialLook();
         }
 
-        scene.add(g);
+        contentRoot.add(g);
         const t=src.group;
         g.position.copy(t.position); g.quaternion.copy(t.quaternion); g.scale.copy(t.scale);
         g.position.add(new THREE.Vector3(0.25,0,0.25));
@@ -777,14 +806,13 @@
     function deleteIds(ids){
       ids.forEach(id=>{
         const rec=findRec(id); if(!rec) return;
-        // Medien säubern
         if(rec.media?.kind==='video'){
           try{ rec.media.el.pause(); rec.media.el.src=''; rec.media.tex?.dispose?.(); }catch{}
         }
         if(rec.media?.kind==='audio'){
           try{ rec.media.sound?.stop?.(); rec.media.sound?.disconnect?.(); }catch{}
         }
-        if(rec.group){ disposeObject3DTree(rec.group); scene.remove(rec.group); }
+        if(rec.group){ disposeObject3DTree(rec.group); contentRoot.remove(rec.group); }
         const i=state.objects.indexOf(rec); if(i>=0) state.objects.splice(i,1);
       });
       clearSelection(); rebuildList(); updateOutlineSelection();
@@ -803,7 +831,7 @@
       const box=new THREE.Box3(); let ok=false;
       recs.forEach(r=>{ const b=new THREE.Box3().setFromObject(r.group); if(isFinite(b.min.x)){ if(!ok){box.copy(b); ok=true;} else box.union(b);} });
       const center=new THREE.Vector3(); box.getCenter(center);
-      const parent=new THREE.Group(); parent.name='Gruppe'; parent.position.copy(center); scene.add(parent); parent.updateMatrixWorld(true);
+      const parent=new THREE.Group(); parent.name='Gruppe'; parent.position.copy(center); contentRoot.add(parent); parent.updateMatrixWorld(true);
       const inv=new THREE.Matrix4().copy(parent.matrixWorld).invert();
       recs.forEach(r=>{ r.group.updateMatrixWorld(true); r.group.applyMatrix4(inv); parent.add(r.group); });
       const gid=uid(); const grec={id:gid,type:'group',name:'Gruppe',group:parent,children:recs,hidden:false,locked:false};
@@ -813,8 +841,8 @@
     function ungroupSelected(){
       if(state.selection.size!==1) return; const rec=findRec(state.selectedId); if(!rec||rec.type!=='group') return;
       const parent=rec.group; parent.updateMatrixWorld(true); const newIds=[];
-      (rec.children||[]).forEach(child=>{ child.group.updateMatrixWorld(true); child.group.applyMatrix4(parent.matrixWorld); scene.add(child.group); state.objects.push(child); newIds.push(child.id); });
-      scene.remove(parent); const i=state.objects.indexOf(rec); if(i>=0) state.objects.splice(i,1);
+      (rec.children||[]).forEach(child=>{ child.group.updateMatrixWorld(true); child.group.applyMatrix4(parent.matrixWorld); contentRoot.add(child.group); state.objects.push(child); newIds.push(child.id); });
+      contentRoot.remove(parent); const i=state.objects.indexOf(rec); if(i>=0) state.objects.splice(i,1);
       state.selection=new Set(newIds); state.selectedId=newIds[newIds.length-1]||null; tcontrols.attach(findRec(state.selectedId)?.group||null); rebuildList(); updateGroupButtons(); updateOutlineSelection(); toast('Gruppierung aufgehoben');
     }
     $('#btn-group').addEventListener('click', groupSelected);
@@ -843,7 +871,7 @@
       const dir=camera.position.clone().sub(controls.target).normalize(); const pos=c.clone().add(dir.multiplyScalar(dist));
       goCamera([pos.x,pos.y,pos.z],[c.x,c.y,c.z]);
     });
-    $('#btn-clear').addEventListener('click', ()=>{ if(!confirm('Szene leeren?')) return; state.objects.forEach(o=>{ if(o.group){ disposeObject3DTree(o.group); scene.remove(o.group); }}); state.objects=[]; clearSelection(); rebuildList(); updateGroupButtons(); updateOutlineSelection(); });
+    $('#btn-clear').addEventListener('click', ()=>{ if(!confirm('Szene leeren?')) return; state.objects.forEach(o=>{ if(o.group){ disposeObject3DTree(o.group); contentRoot.remove(o.group); }}); state.objects=[]; clearSelection(); rebuildList(); updateGroupButtons(); updateOutlineSelection(); });
 
     // Animation UI
     function populateAnimUI(rec){
@@ -883,18 +911,16 @@
 
     async function addVideoFromFile(file){
       const id=uid(); const url=URL.createObjectURL(file);
-      const name=(file.name||'Video').replace(/\.[^/.]+$/,'');
-      // Plane mit 16:9 initial, passt sich nach Metadata an
+      const name=(file.name||'Video').replace(/\.[^/.]+$/, '');
       const vid=document.createElement('video');
       vid.src=url; vid.crossOrigin='anonymous'; vid.playsInline=true; vid.preload='auto'; vid.loop=false; vid.muted=false; vid.controls=false;
       let w=1.6, h=0.9;
       const tex=new THREE.VideoTexture(vid); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false;
       const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({map:tex, toneMapped:false}));
       const group=new THREE.Group(); group.name=name; group.add(plane);
-      // Nachladen der realen Dimensionen
       vid.addEventListener('loadedmetadata', ()=>{ if(vid.videoWidth && vid.videoHeight){ const ar=vid.videoWidth/vid.videoHeight; w=1.6; h=w/ar; plane.geometry.dispose(); plane.geometry=new THREE.PlaneGeometry(w,h); const rec=findRec(id); if(rec && rec.media){ rec.media.w=w; rec.media.h=h; } }}, {once:true});
 
-      scene.add(group);
+      contentRoot.add(group);
       const rec={id,type:'object',name, file, url:null, group, root:null, clips:[], mixer:null, actions:{}, hidden:false, locked:false,
         media:{kind:'video', el:vid, tex, loop:false, repeats:1, count:0, w, h, src:url}
       };
@@ -903,19 +929,14 @@
 
     async function addAudioFromFile(file){
       const id=uid(); const url=URL.createObjectURL(file);
-      const name=(file.name||'Audio').replace(/\.[^/.]+$/,'');
+      const name=(file.name||'Audio').replace(/\.[^/.]+$/, '');
       const group=new THREE.Group(); group.name=name;
       const gizmo=new THREE.Mesh(new THREE.SphereGeometry(0.08,16,16), new THREE.MeshStandardMaterial({color:0x66aaff, emissive:0x0a1e3a, roughness:0.3, metalness:0.1}));
       const sound=new THREE.PositionalAudio(audioListener);
       group.add(gizmo); gizmo.add(sound);
-      scene.add(group);
+      contentRoot.add(group);
 
-      audioLoader.load(url, buffer=>{
-        sound.setBuffer(buffer);
-        sound.setRefDistance(1.5);
-        sound.setDistanceModel('inverse');
-        sound.setLoop(false);
-      });
+      audioLoader.load(url, buffer=>{ sound.setBuffer(buffer); sound.setRefDistance(1.5); sound.setDistanceModel('inverse'); sound.setLoop(false); });
 
       const rec={id,type:'object',name, file, url:null, group, root:null, clips:[], mixer:null, actions:{}, hidden:false, locked:false,
         media:{kind:'audio', sound, loop:false, repeats:1, count:0, src:url}
@@ -950,37 +971,19 @@
       rec.media.count = 0;
       if(rec.media.kind==='video'){
         const v=rec.media.el; v.currentTime = v.currentTime||0; v.play().catch(()=>{ toast('Autoplay blockiert? Tipp: einmal manuell Play drücken.'); });
-        // Ended-Handling
         v.onended = null;
-        if(!rec.media.loop){
-          v.onended = ()=>{
-            rec.media.count++;
-            if(rec.media.count < (rec.media.repeats||1)) v.play();
-          };
-        }
+        if(!rec.media.loop){ v.onended = ()=>{ rec.media.count++; if(rec.media.count < (rec.media.repeats||1)) v.play(); }; }
       } else {
         const s=rec.media.sound; if(!s?.buffer){ toast('Audio lädt noch…'); return; }
         s.setLoop(!!rec.media.loop);
-        s.stop(); // sauber starten
+        s.stop();
         if(!rec.media.loop){
-          let played=0;
-          const playOnce=()=>{ s.play(); s.source.onended = ()=>{ played++; if(played < (rec.media.repeats||1)) playOnce(); }; };
-          playOnce();
-        } else {
-          s.play();
-        }
+          let played=0; const playOnce=()=>{ s.play(); s.source.onended = ()=>{ played++; if(played < (rec.media.repeats||1)) playOnce(); }; }; playOnce();
+        } else { s.play(); }
       }
     }
-    function mediaPause(rec){
-      if(!rec?.media) return;
-      if(rec.media.kind==='video'){ rec.media.el.pause(); }
-      else { if(rec.media.sound?.isPlaying){ rec.media.sound.source.stop(); /* kein echtes Pause in PositionalAudio */ } }
-    }
-    function mediaStop(rec){
-      if(!rec?.media) return;
-      if(rec.media.kind==='video'){ const v=rec.media.el; v.pause(); try{ v.currentTime=0; }catch{} rec.media.count=0; }
-      else { try{ rec.media.sound?.stop?.(); }catch{} rec.media.count=0; }
-    }
+    function mediaPause(rec){ if(!rec?.media) return; if(rec.media.kind==='video'){ rec.media.el.pause(); } else { if(rec.media.sound?.isPlaying){ rec.media.sound.source.stop(); } } }
+    function mediaStop(rec){ if(!rec?.media) return; if(rec.media.kind==='video'){ const v=rec.media.el; v.pause(); try{ v.currentTime=0; }catch{} rec.media.count=0; } else { try{ rec.media.sound?.stop?.(); }catch{} rec.media.count=0; } }
 
     $('#mediaPlay').addEventListener('click', ()=>{ if(state.selection.size!==1) return; const rec=findRec(state.selectedId); mediaPlay(rec); });
     $('#mediaPause').addEventListener('click', ()=>{ if(state.selection.size!==1) return; const rec=findRec(state.selectedId); mediaPause(rec); });
@@ -1003,7 +1006,6 @@
         if(rec.file){ asset=await fileToBase64(rec.file); }
         else if(rec.url){ asset=await blobUrlToBase64(rec.url); }
 
-        // Medien separat serialisieren
         let media=null;
         if(rec.media){
           if(rec.media.kind==='video'){
@@ -1028,7 +1030,7 @@
       }
       for(const rec of state.objects) await pushRec(rec);
       return {
-        version:'2.2.4',
+        version:'2.2.5',
         meta:{ app:'WebAR Editor', projectName, savedAt:new Date().toISOString() },
         settings:{ roomSize: parseFloat($('#roomSize').value)||24, gridVisible: $('#gridVisible').checked },
         objects: out
@@ -1063,7 +1065,7 @@
     }
 
     async function importProjectData(data){
-      state.objects.forEach(o=>{ if(o.group){ disposeObject3DTree(o.group); scene.remove(o.group);} });
+      state.objects.forEach(o=>{ if(o.group){ disposeObject3DTree(o.group); contentRoot.remove(o.group);} });
       state.objects=[]; clearSelection();
 
       if (data.meta?.projectName) setProjectName(data.meta.projectName);
@@ -1095,14 +1097,9 @@
           if(src){ audioLoader.load(src, buffer=>{ sound.setBuffer(buffer); sound.setRefDistance(1.5); sound.setDistanceModel('inverse'); sound.setLoop(!!obj.media.loop); }); }
           media={kind:'audio', sound, loop:!!obj.media.loop, repeats:obj.media.repeats||1, count:0, src};
         } else {
-          // normales 3D Objekt
           const url = obj.asset || null;
-          if(url){
-            const r = await createGroupedFromURL(url, name);
-            group=r.group; root=r.root; clips=r.clips;
-          } else {
-            group=new THREE.Group(); group.name=name;
-          }
+          if(url){ const r = await createFromGLTF(url, name); group=r.group; root=r.root; clips=r.clips; }
+          else { group=new THREE.Group(); group.name=name; }
         }
 
         const t = obj.transform || { position:[0,0,0], rotationDeg:[0,0,0], scale:1 };
@@ -1111,7 +1108,7 @@
         group.scale.setScalar(t.scale);
 
         if(!media){ prepareMaterialBases(group); }
-        scene.add(group);
+        contentRoot.add(group);
 
         const rec = { id: uid(), type:'object', name, file:null, url:obj.asset||null, group, root, clips, mixer:null, actions:{}, hidden:false, locked:false, media };
         state.objects.push(rec); addPickProxy(rec);
@@ -1128,7 +1125,7 @@
     function applyExposure(){ const e=parseFloat($('#exposure').value)||1; renderer.toneMappingExposure=e; hemi.intensity=LIGHT_BASE.hemi*e; dir.intensity=LIGHT_BASE.dir*e; amb.intensity=LIGHT_BASE.amb*e; }
     $('#exposure').addEventListener('input', applyExposure); applyExposure();
 
-// ===== Anchor-UI toggeln und Publish-Flow (modulspezifisch) =====
+// ===== Anchor-UI toggeln =====
 function updateAnchorUI(){
   const m = $('#anchorMode')?.value || 'surface-webxr';
   if ($('#imageTargetRow')) $('#imageTargetRow').style.display = (m==='image')  ? 'grid' : 'none';
@@ -1137,42 +1134,105 @@ function updateAnchorUI(){
 requestAnimationFrame(updateAnchorUI);
 $('#anchorMode')?.addEventListener('change', updateAnchorUI);
 
-// Öffnet DEINE Modul-Seiten (Pfade relativ zu /editor/)
-async function publish(){
-  const data = await buildProjectData();                         // existiert bereits
-  const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
-  const src  = URL.createObjectURL(blob);                        // Sofort-Vorschau
+// ===== Export → Worker-Publish → QR =====
+function sanitizeId(s){ return (s||'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').replace(/^-+|-+$/g,'').slice(0,64)||'scene'; }
 
-  const mode   = $('#anchorMode')?.value || 'surface-webxr';
-  const target = ($('#imageTargetUrl')?.value || '').trim();
-  const glb    = ($('#nativeGlbUrl')?.value  || '').trim();
-  const usdz   = ($('#nativeUsdzUrl')?.value || '').trim();
-
-  // >>> deine Modul-Pfade (von /editor/ aus eine Ebene hoch):
-  const baseByMode = {
-    'surface-webxr': '../surface-ar/webxr.html',
-    'native':        '../surfaces-ar/surface-viewer.html',
-    'image':         '../image-ar/viewer.html'
-  };
-
-  let url = `${baseByMode[mode]}?src=${encodeURIComponent(src)}&anchor=${encodeURIComponent(mode)}`;
-  if (mode === 'image' && target) {
-    url += `&target=${encodeURIComponent(target)}`;
-  }
-  if (mode === 'native') {
-    if (glb)  url += `&glb=${encodeURIComponent(glb)}`;
-    if (usdz) url += `&usdz=${encodeURIComponent(usdz)}`;
-  }
-
-  // Hinweis: WebXR braucht HTTPS/localhost. blob:-src ist nur lokal teilbar.
-  window.open(url, '_blank');
+function cloneForExport(){
+  // Nur 3D-Objekte ohne Media exportieren
+  const root = new THREE.Group(); root.name='ExportRoot';
+  state.objects.filter(r=>!r.media).forEach(r=>{
+    const c = SkeletonUtils.clone(r.group);
+    // Hilfsmeshes entfernen
+    c.traverse(n=>{ if(n.userData?.__pickProxy){ n.parent?.remove(n); n.geometry?.dispose?.(); n.material?.dispose?.(); } });
+    root.add(c);
+  });
+  return root;
 }
-// ===== Ende Anchor/Publish =====
 
+async function exportSceneGLB(){
+  const exporter = new GLTFExporter();
+  const exportRoot = cloneForExport();
+  return new Promise((resolve, reject)=>{
+    exporter.parse(exportRoot, (bin)=>{
+      try{ resolve(new Blob([bin], {type:'model/gltf-binary'})); }catch(e){ reject(e); }
+    }, { binary:true, onlyVisible:true, embedImages:true });
+  });
+}
 
-    // Hint FAB + Projektmenü identisch wie zuvor
+function buildSceneJSON({sceneId, title}){
+  // sehr einfach – der Viewer lädt scene.glb relativ zum Ordner
+  return {
+    id: sceneId,
+    title: title || sceneId,
+    version: 1,
+    createdAt: new Date().toISOString(),
+    assets: [{ id: "main", type: "glb", uri: "scene.glb" }],
+    nodes: [{ id: "root", asset: "main", transform: { position:[0,0,0], rotation:[0,0,0], scale:[1,1,1] } }]
+  };
+}
+
+function showSharePanel(url){
+  let el = document.getElementById('shareOverlay');
+  if(el) el.remove();
+  el = document.createElement('div'); el.id='shareOverlay';
+  el.style.cssText='position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:3000;';
+  const card=document.createElement('div');
+  card.style.cssText='background:#0b1220;border:1px solid var(--border);border-radius:14px;padding:16px;max-width:520px;width:92%;color:var(--text);box-shadow:0 10px 30px rgba(0,0,0,.4)';
+  const h=document.createElement('div'); h.textContent='Veröffentlicht – teilen & scannen'; h.style.cssText='font-weight:800;margin-bottom:8px;color:var(--muted)';
+  const qr=document.createElement('canvas'); qr.width=0; qr.height=0; qr.style.cssText='display:block;margin:8px auto;';
+  const link=document.createElement('div'); link.textContent=url; link.style.cssText='font-size:12px;word-break:break-all;margin:8px 0;color:#aecdff;';
+  const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;justify-content:flex-end;margin-top:10px;';
+  const btnCopy=document.createElement('button'); btnCopy.className='btn'; btnCopy.textContent='Link kopieren';
+  const btnOpen=document.createElement('button'); btnOpen.className='btn'; btnOpen.textContent='Im neuen Tab öffnen';
+  const btnClose=document.createElement('button'); btnClose.className='btn'; btnClose.textContent='Schließen';
+  row.append(btnCopy,btnOpen,btnClose);
+  card.append(h,qr,link,row); el.append(card); document.body.append(el);
+  QRCode.toCanvas(qr, url, {margin:1, scale:6});
+  btnCopy.onclick=async()=>{ try{ await navigator.clipboard.writeText(url); toast('Link kopiert'); }catch{ toast('Konnte nicht kopieren'); } };
+  btnOpen.onclick=()=>{ window.open(url,'_blank'); };
+  btnClose.onclick=()=>{ el.remove(); };
+}
+
+async function publish(){
+  // 0) Sanity
+  const EP = (window.__AREA||{}).PUBLISH_ENDPOINT || '';
+  const KEY = (window.__AREA||{}).PUBLISH_KEY || '';
+  if(!EP || /YOUR-SUBDOMAIN/.test(EP) || !KEY || /YOUR-PUBLISH-KEY/.test(KEY)){
+    alert('Publish ist noch nicht konfiguriert. Bitte in <script> window.__AREA.PUBLISH_ENDPOINT & PUBLISH_KEY setzen.');
+    return;
+  }
+
+  // 1) Szene exportieren (GLB ohne Medien)
+  const defaultId = sanitizeId(projectName);
+  const sceneId = sanitizeId(prompt('Scene ID:', defaultId) || defaultId);
+  toast('Exportiere Szene…');
+  let glbBlob;
+  try{ glbBlob = await exportSceneGLB(); }catch(e){ console.error(e); alert('GLB-Export fehlgeschlagen.'); return; }
+
+  // 2) scene.json bauen
+  const sceneJson = buildSceneJSON({ sceneId, title: projectName });
+
+  // 3) Upload an Worker
+  toast('Lade hoch…');
+  const form = new FormData();
+  form.append('sceneId', sceneId);
+  form.append('file', new File([JSON.stringify(sceneJson,null,2)], 'scene.json', {type:'application/json'}));
+  form.append('file', new File([glbBlob], 'scene.glb', {type:'model/gltf-binary'}));
+
+  try{
+    const res = await fetch(EP, { method:'POST', body: form, headers:{ 'X-AREA-Key': KEY } });
+    if(!res.ok){ const t=await res.text(); throw new Error(t||('HTTP '+res.status)); }
+    const json = await res.json();
+    const viewerUrl = json.viewerUrl || ((window.__AREA||{}).VIEWER_BASE + '/?scene=' + encodeURIComponent(sceneId));
+    showSharePanel(viewerUrl);
+    try{ await navigator.clipboard.writeText(viewerUrl); }catch{}
+    toast('Veröffentlicht');
+  }catch(err){ console.error(err); alert('Publish fehlgeschlagen: '+err.message); }
+}
+
+    // Hint FAB + Projektmenü
     (function(){ const hint=$('.hint'); const fab=$('#hintFab'); if(!hint||!fab) return; let timer=null; function open(){ if(timer){clearTimeout(timer);timer=null;} hint.classList.remove('hidden'); fab.setAttribute('aria-expanded','true'); fab.textContent='×'; } function close(){ if(timer){clearTimeout(timer);timer=null;} hint.classList.add('hidden'); fab.setAttribute('aria-expanded','false'); fab.textContent='i'; } fab.addEventListener('mouseenter', open); fab.addEventListener('mouseleave', ()=>{ timer=setTimeout(()=>{ if(!hint.matches(':hover')) close(); },200); }); hint.addEventListener('mouseleave', ()=>{ timer=setTimeout(()=>{ if(!fab.matches(':hover')) close(); },100); }); hint.addEventListener('mouseenter', ()=>{ if(timer){clearTimeout(timer);timer=null;} }); fab.addEventListener('click', e=>{ e.preventDefault(); if(hint.classList.contains('hidden')) open(); else close(); }, {passive:false}); })();
-    (function(){ const menu=$('#projectMenu'); const btn=$('#btn-project-menu'); function close(){ menu.classList.remove('open'); btn.setAttribute('aria-expanded','false'); } btn.addEventListener('click', e=>{ e.stopPropagation(); menu.classList.toggle('open'); btn.setAttribute('aria-expanded', menu.classList.contains('open')?'true':'false'); }); document.addEventListener('click', e=>{ if(!menu.contains(e.target)) close(); }); window.addEventListener('keydown', e=>{ if(e.key==='Escape') close(); }); $('#btn-new').addEventListener('click', ()=>{ close(); if(!confirm('Aktuelle Szene leeren und neues Projekt anlegen?')) return; setProjectName(prompt('Projektname:', 'Neues AR-Projekt')||'Unbenanntes Projekt'); $('#btn-clear').click(); }); $('#btn-save').addEventListener('click', ()=>{ close(); saveProject({saveAs:false}); }); $('#btn-save-as').addEventListener('click', ()=>{ close(); saveProject({saveAs:true}); }); $('#file-project').addEventListener('change', e=>{ close(); const f=e.target.files?.[0]; if(!f){ e.target.value=''; return;} importProjectFile(f); e.target.value=''; }); })();$('#btn-publish').addEventListener('click', ()=>{ close(); publish(); });
+    (function(){ const menu=$('#projectMenu'); const btn=$('#btn-project-menu'); function close(){ menu.classList.remove('open'); btn.setAttribute('aria-expanded','false'); } btn.addEventListener('click', e=>{ e.stopPropagation(); menu.classList.toggle('open'); btn.setAttribute('aria-expanded', menu.classList.contains('open')?'true':'false'); }); document.addEventListener('click', e=>{ if(!menu.contains(e.target)) close(); }); window.addEventListener('keydown', e=>{ if(e.key==='Escape') close(); }); $('#btn-new').addEventListener('click', ()=>{ close(); if(!confirm('Aktuelle Szene leeren und neues Projekt anlegen?')) return; setProjectName(prompt('Projektname:', 'Neues AR-Projekt')||'Unbenanntes Projekt'); $('#btn-clear').click(); }); $('#btn-save').addEventListener('click', ()=>{ close(); saveProject({saveAs:false}); }); $('#btn-save-as').addEventListener('click', ()=>{ close(); saveProject({saveAs:true}); }); $('#file-project').addEventListener('change', e=>{ close(); const f=e.target.files?.[0]; if(!f){ e.target.value=''; return;} importProjectFile(f); e.target.value=''; }); $('#btn-publish').addEventListener('click', ()=>{ close(); publish(); }); })();
 
     // Render
     const clock=new THREE.Clock();
