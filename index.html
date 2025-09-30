@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WebAR Editor v2.2.7</title>
+  <title>WebAR Editor v2.2.8</title>
   <style>
     :root{
       --bg:#0e1116;--panel:#111828;--panel2:#192339;--text:#e9ecf5;--muted:#9fb3d9;--border:#24314a;--accent:#60a5fa;--accent2:#93c5fd;
@@ -165,8 +165,8 @@
   <!-- IMPORTANT: Minimal Config für Publish (eintragen!) -->
   <script>
     window.__AREA = Object.assign({
-      PUBLISH_ENDPOINT: "https://area-publish.YOUR-SUBDOMAIN.workers.dev/publish", // TODO: anpassen
-      PUBLISH_KEY: "YOUR-PUBLISH-KEY", // TODO: anpassen
+      PUBLISH_ENDPOINT: "https://area-webar.workers.dev/publish", // TODO: anpassen
+      PUBLISH_KEY: "REPLACE_ME_WITH_YOUR_SECRET", // TODO: anpassen
       VIEWER_BASE: "https://area-viewer.pages.dev" // optional; Worker sendet i.d.R. viewerUrl zurück
     }, window.__AREA||{});
   </script>
@@ -432,7 +432,7 @@
 
     // --- State ---
     let projectName = 'Unbenanntes Projekt';
-    function setProjectName(n){ projectName = (n||'').trim()||'Unbenanntes Projekt'; $('#projNamePill').textContent = projectName; document.title = 'WebAR Editor v2.2.7 — '+projectName; }
+    function setProjectName(n){ projectName = (n||'').trim()||'Unbenanntes Projekt'; $('#projNamePill').textContent = projectName; document.title = 'WebAR Editor v2.2.8 — '+projectName; }
     function promptNewName(){ const v = prompt('Projektname:', projectName==='Unbenanntes Projekt'?'Mein AR-Projekt':projectName); if(v!=null) setProjectName(v); }
     $('#projNamePill').addEventListener('dblclick', promptNewName);
 
