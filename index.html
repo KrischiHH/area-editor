@@ -1195,17 +1195,17 @@ async function exportSceneGLB(){
   });
 }
 
-function buildSceneJSON({sceneId, title}){
-  // sehr einfach – der Viewer lädt scene.glb relativ zum Ordner
-  return {
-    id: sceneId,
-    title: title || sceneId,
-    version: 1,
-    createdAt: new Date().toISOString(),
-    assets: [{ id: "main", type: "glb", uri: "scene.glb" }],
-    nodes: [{ id: "root", asset: "main", transform: { position:[0,0,0], rotation:[0,0,0], scale:[1,1,1] } }]
+function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
+  const json = {
+    meta: { version: "1.0", mode, title: title || sceneId, createdAt: new Date().toISOString() },
+    model: { url: glbUrl, usdzUrl: usdzUrl || null, animation: "*" }
   };
+  if (mode === "image") {
+    json.target = { mindUrl: targetUrl || null };
+  }
+  return json;
 }
+
 
 function showSharePanel(url){
   let el = document.getElementById('shareOverlay');
