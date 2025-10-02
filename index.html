@@ -1238,82 +1238,55 @@ async function publish(){
     return;
   }
 
-  // 1) Szene exportieren (GLB ohne Medien)
-  const defaultId = sanitizeId(projectName);
-  const sceneId   = sanitizeId(prompt('Scene ID:', defaultId) || defaultId);
-  toast('Exportiere Szene…');
+// 1) Szene exportieren (GLB ohne Medien)
+const defaultId = sanitizeId(projectName);
+const sceneId   = sanitizeId(prompt('Scene ID:', defaultId) || defaultId);
+toast('Exportiere Szene…');
 
-  let glbBlob;
-  try {
-    glbBlob = await exportSceneGLB();
-  } catch (e) {
-    console.error(e);
-    alert('GLB-Export fehlgeschlagen.');
-    return;
-  }
+let glbBlob;
+try { glbBlob = await exportSceneGLB(); }
+catch(e){ console.error(e); alert('GLB-Export fehlgeschlagen.'); return; }
 
-  // 2) URLs festlegen, die der Viewer später lädt
-  const mode         = document.getElementById('anchorMode')?.value || 'surface-webxr';
-  const workerOrigin = new URL(EP).origin; // z.B. https://area-publish.area-webar.workers.dev
-  const sceneBaseUrl = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
-  const glbUrlWorker = `${sceneBaseUrl}/scene.glb`;
-  const sceneJsonUrl = `${sceneBaseUrl}/scene.json`;
+// ---- NEU: Modus & Ziel-URLs bestimmen ----
+const mode   = ($('#anchorMode')?.value || 'surface-webxr');          // surface-webxr | native | image
+const target = ($('#imageTargetUrl')?.value || '').trim();            // .mind für Image
+const usdz   = ($('#nativeUsdzUrl')?.value || '').trim();             // iOS-USDZ (optional)
 
-  // optionale Overrides aus der UI (nur relevant für "native")
-  const glbOverride  = (document.getElementById('nativeGlbUrl')?.value  || '').trim();
-  const usdzOverride = (document.getElementById('nativeUsdzUrl')?.value || '').trim();
+const workerOrigin = new URL(EP).origin;                              // z.B. https://area-publish.area-webar.workers.dev
+const sceneBase    = `${workerOrigin}/scenes/${sceneId}/`;            // …/scenes/<id>/
+const glbUrl       = sceneBase + 'scene.glb';
+const usdzUrl      = (mode === 'native' && usdz) ? usdz : null;
+const targetUrl    = (mode === 'image'  && target) ? target : null;
 
-  // Target aus der UI (nur für "image")
-  const targetUrlUI  = (document.getElementById('imageTargetUrl')?.value || '').trim();
+// 2) scene.json bauen (mit ABSOLUTEN URLs)
+const sceneJson = buildSceneJSON({
+  sceneId,
+  title: projectName,
+  mode,
+  glbUrl,
+  usdzUrl,
+  targetUrl
+});
 
-  // 3) scene.json im Format deiner Viewer bauen
-  const sceneJson = buildSceneJSON({
-    sceneId,
-    title: projectName,
-    mode,
-    glbUrl:  (mode === 'native' && glbOverride) ? glbOverride : glbUrlWorker,
-    usdzUrl: (mode === 'native' && usdzOverride) ? usdzOverride : null,
-    targetUrl: (mode === 'image') ? (targetUrlUI || null) : null
-  });
+// 3) Upload an Worker
+toast('Lade hoch…');
+const form = new FormData();
+form.append('sceneId', sceneId);
+form.append('file', new File([JSON.stringify(sceneJson,null,2)], 'scene.json', {type:'application/json'}));
+form.append('file', new File([glbBlob], 'scene.glb', {type:'model/gltf-binary'}));
 
-  // 4) Upload an den Worker
-  toast('Lade hoch…');
-  const form = new FormData();
-  form.append('sceneId', sceneId);
-  form.append('file', new File([JSON.stringify(sceneJson, null, 2)], 'scene.json', { type: 'application/json' }));
-  form.append('file', new File([glbBlob], 'scene.glb', { type: 'model/gltf-binary' }));
+const res = await fetch(EP, { method:'POST', body: form, headers:{ 'X-AREA-Key': KEY } });
+if(!res.ok){ const t=await res.text(); throw new Error(t||('HTTP '+res.status)); }
 
-  let resp;
-  try {
-    resp = await fetch(EP, { method: 'POST', body: form, headers: { 'X-AREA-Key': KEY } });
-  } catch (e) {
-    console.error(e);
-    alert('Netzwerkfehler beim Upload.');
-    return;
-  }
-  if (!resp.ok) {
-    const t = await resp.text().catch(()=> '');
-    alert('Publish fehlgeschlagen: ' + (t || ('HTTP ' + resp.status)));
-    return;
-  }
+const json = await res.json();
+// Falls der Worker dir bereits viewerUrl liefert: nutze die.
+// Sonst fallback mit absoluter scene.json:
+const viewerUrl = json.viewerUrl || ((window.__AREA||{}).VIEWER_BASE + '/?scene=' + encodeURIComponent(sceneBase + 'scene.json'));
 
-  // 5) Viewer-URL zusammenbauen (immer mit VOLLER scene.json-URL)
-  const VIEWERS = {
-    // falls deine Datei wirklich "wbxr.html" heißt, hier "webxr.html" → "wbxr.html" ändern
-    'surface-webxr': 'https://krischihh.github.io/area/surface-ar/webxr.html',
-    'native':        'https://krischihh.github.io/area/surface-ar/index.html',
-    'image':         'https://krischihh.github.io/area/image-ar/viewer.html'
-  };
+showSharePanel(viewerUrl);
+try{ await navigator.clipboard.writeText(viewerUrl); }catch{}
+toast('Veröffentlicht');
 
-  let viewerUrl = `${VIEWERS[mode]}?scene=${encodeURIComponent(sceneJsonUrl)}`;
-  if (mode === 'image' && targetUrlUI) {
-    viewerUrl += `&target=${encodeURIComponent(targetUrlUI)}`;
-  }
-
-  showSharePanel(viewerUrl);
-  try { await navigator.clipboard.writeText(viewerUrl); } catch {}
-  toast('Veröffentlicht');
-}
 
     // Hint FAB + Projektmenü
     (function(){ const hint=$('.hint'); const fab=$('#hintFab'); if(!hint||!fab) return; let timer=null; function open(){ if(timer){clearTimeout(timer);timer=null;} hint.classList.remove('hidden'); fab.setAttribute('aria-expanded','true'); fab.textContent='×'; } function close(){ if(timer){clearTimeout(timer);timer=null;} hint.classList.add('hidden'); fab.setAttribute('aria-expanded','false'); fab.textContent='i'; } fab.addEventListener('mouseenter', open); fab.addEventListener('mouseleave', ()=>{ timer=setTimeout(()=>{ if(!hint.matches(':hover')) close(); },200); }); hint.addEventListener('mouseleave', ()=>{ timer=setTimeout(()=>{ if(!fab.matches(':hover')) close(); },100); }); hint.addEventListener('mouseenter', ()=>{ if(timer){clearTimeout(timer);timer=null;} }); fab.addEventListener('click', e=>{ e.preventDefault(); if(hint.classList.contains('hidden')) open(); else close(); }, {passive:false}); })();
