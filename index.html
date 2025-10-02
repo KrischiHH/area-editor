@@ -1145,10 +1145,16 @@ function previewModules(){
 
   // Mapping auf deine vorhandenen Module
   const baseByMode = {
-    'surface-webxr': 'https://krischihh.github.io/area/surface-ar/webxr.html',
-    'native':        'https://krischihh.github.io/area/surface-ar/index.html',
-    'image':         'https://krischihh.github.io/area/image-ar/viewer.html'
+    'surface-webxr': 'https://krischihh.github.io/area-viewer/surface-ar/webxr.html',
+    'native':        'https://krischihh.github.io/area-viewer/surface-ar/index.html',
+    'image':         'https://krischihh.github.io/area-viewer/image-ar/viewer.html'
   };
+
+  const entry = viewerPathByMode[mode] || '/index.html';
+const viewerUrl = json.viewerUrl 
+  || (entry.startsWith('http')
+        ? `${entry}?scene=${encodeURIComponent(sceneBase + 'scene.json')}`
+        : `${viewerBase}${entry}?scene=${encodeURIComponent(sceneBase + 'scene.json')}`);
 
   (async () => {
     const data = await buildProjectData();
