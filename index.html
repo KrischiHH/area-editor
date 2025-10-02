@@ -1238,54 +1238,63 @@ async function publish(){
     return;
   }
 
-// 1) Szene exportieren (GLB ohne Medien)
-const defaultId = sanitizeId(projectName);
-const sceneId   = sanitizeId(prompt('Scene ID:', defaultId) || defaultId);
-toast('Exportiere Szene…');
+  try {
+    // 1) Szene exportieren (GLB ohne Medien)
+    const defaultId = sanitizeId(projectName);
+    const sceneId   = sanitizeId(prompt('Scene ID:', defaultId) || defaultId);
+    toast('Exportiere Szene…');
 
-let glbBlob;
-try { glbBlob = await exportSceneGLB(); }
-catch(e){ console.error(e); alert('GLB-Export fehlgeschlagen.'); return; }
+    let glbBlob;
+    try { glbBlob = await exportSceneGLB(); }
+    catch(e){ console.error(e); alert('GLB-Export fehlgeschlagen.'); return; }
 
-// ---- NEU: Modus & Ziel-URLs bestimmen ----
-const mode   = ($('#anchorMode')?.value || 'surface-webxr');          // surface-webxr | native | image
-const target = ($('#imageTargetUrl')?.value || '').trim();            // .mind für Image
-const usdz   = ($('#nativeUsdzUrl')?.value || '').trim();             // iOS-USDZ (optional)
+    // 2) Modus & Ziel-URLs bestimmen
+    const mode      = ($('#anchorMode')?.value || 'surface-webxr'); // surface-webxr | native | image
+    const target    = ($('#imageTargetUrl')?.value || '').trim();   // .mind (Image)
+    const usdzInput = ($('#nativeUsdzUrl')?.value || '').trim();    // iOS-USDZ (optional)
+    const glbInput  = ($('#nativeGlbUrl')?.value  || '').trim();    // Android-GLB (optional)
 
-const workerOrigin = new URL(EP).origin;                              // z.B. https://area-publish.area-webar.workers.dev
-const sceneBase    = `${workerOrigin}/scenes/${sceneId}/`;            // …/scenes/<id>/
-const glbUrl       = sceneBase + 'scene.glb';
-const usdzUrl      = (mode === 'native' && usdz) ? usdz : null;
-const targetUrl    = (mode === 'image'  && target) ? target : null;
+    const workerOrigin = new URL(EP).origin;                        // z.B. https://area-publish.area-webar.workers.dev
+    const sceneBase    = `${workerOrigin}/scenes/${sceneId}/`;      // …/scenes/<id>/
 
-// 2) scene.json bauen (mit ABSOLUTEN URLs)
-const sceneJson = buildSceneJSON({
-  sceneId,
-  title: projectName,
-  mode,
-  glbUrl,
-  usdzUrl,
-  targetUrl
-});
+    // Falls im Native-Modus ein eigenes GLB eingetragen wurde, nutze das – sonst das exportierte:
+    const glbUrl  = (mode === 'native' && glbInput) ? glbInput : (sceneBase + 'scene.glb');
+    const usdzUrl = (mode === 'native' && usdzInput) ? usdzInput : null;
+    const targetUrl = (mode === 'image' && target) ? target : null;
 
-// 3) Upload an Worker
-toast('Lade hoch…');
-const form = new FormData();
-form.append('sceneId', sceneId);
-form.append('file', new File([JSON.stringify(sceneJson,null,2)], 'scene.json', {type:'application/json'}));
-form.append('file', new File([glbBlob], 'scene.glb', {type:'model/gltf-binary'}));
+    // 3) scene.json bauen (mit ABSOLUTEN URLs)
+    const sceneJson = buildSceneJSON({
+      sceneId,
+      title: projectName,
+      mode,
+      glbUrl,
+      usdzUrl,
+      targetUrl
+    });
 
-const res = await fetch(EP, { method:'POST', body: form, headers:{ 'X-AREA-Key': KEY } });
-if(!res.ok){ const t=await res.text(); throw new Error(t||('HTTP '+res.status)); }
+    // 4) Upload an Worker
+    toast('Lade hoch…');
+    const form = new FormData();
+    form.append('sceneId', sceneId);
+    form.append('file', new File([JSON.stringify(sceneJson,null,2)], 'scene.json', {type:'application/json'}));
+    form.append('file', new File([glbBlob], 'scene.glb', {type:'model/gltf-binary'}));
 
-const json = await res.json();
-// Falls der Worker dir bereits viewerUrl liefert: nutze die.
-// Sonst fallback mit absoluter scene.json:
-const viewerUrl = json.viewerUrl || ((window.__AREA||{}).VIEWER_BASE + '/?scene=' + encodeURIComponent(sceneBase + 'scene.json'));
+    const res = await fetch(EP, { method:'POST', body: form, headers:{ 'X-AREA-Key': KEY } });
+    if(!res.ok){ const t=await res.text(); throw new Error(t || ('HTTP '+res.status)); }
 
-showSharePanel(viewerUrl);
-try{ await navigator.clipboard.writeText(viewerUrl); }catch{}
-toast('Veröffentlicht');
+    const json = await res.json();
+    const viewerUrl = json.viewerUrl
+      || ((window.__AREA||{}).VIEWER_BASE + '/?scene=' + encodeURIComponent(sceneBase + 'scene.json'));
+
+    // 5) UI
+    showSharePanel(viewerUrl);
+    try{ await navigator.clipboard.writeText(viewerUrl); }catch{}
+    toast('Veröffentlicht');
+  } catch (err) {
+    console.error(err);
+    alert('Publish fehlgeschlagen: ' + err.message);
+  }
+}
 
 
     // Hint FAB + Projektmenü
