@@ -1231,39 +1231,88 @@ function showSharePanel(url){
 
 async function publish(){
   // 0) Sanity
-  const EP = (window.__AREA||{}).PUBLISH_ENDPOINT || '';
+  const EP  = (window.__AREA||{}).PUBLISH_ENDPOINT || '';
   const KEY = (window.__AREA||{}).PUBLISH_KEY || '';
-  if(!EP || /YOUR-SUBDOMAIN/.test(EP) || !KEY || /YOUR-PUBLISH-KEY/.test(KEY)){
+  if (!EP || /YOUR-SUBDOMAIN/.test(EP) || !KEY || /YOUR-PUBLISH-KEY/.test(KEY)) {
     alert('Publish ist noch nicht konfiguriert. Bitte in <script> window.__AREA.PUBLISH_ENDPOINT & PUBLISH_KEY setzen.');
     return;
   }
 
   // 1) Szene exportieren (GLB ohne Medien)
   const defaultId = sanitizeId(projectName);
-  const sceneId = sanitizeId(prompt('Scene ID:', defaultId) || defaultId);
+  const sceneId   = sanitizeId(prompt('Scene ID:', defaultId) || defaultId);
   toast('Exportiere Szene…');
+
   let glbBlob;
-  try{ glbBlob = await exportSceneGLB(); }catch(e){ console.error(e); alert('GLB-Export fehlgeschlagen.'); return; }
+  try {
+    glbBlob = await exportSceneGLB();
+  } catch (e) {
+    console.error(e);
+    alert('GLB-Export fehlgeschlagen.');
+    return;
+  }
 
-  // 2) scene.json bauen
-  const sceneJson = buildSceneJSON({ sceneId, title: projectName });
+  // 2) URLs festlegen, die der Viewer später lädt
+  const mode         = document.getElementById('anchorMode')?.value || 'surface-webxr';
+  const workerOrigin = new URL(EP).origin; // z.B. https://area-publish.area-webar.workers.dev
+  const sceneBaseUrl = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
+  const glbUrlWorker = `${sceneBaseUrl}/scene.glb`;
+  const sceneJsonUrl = `${sceneBaseUrl}/scene.json`;
 
-  // 3) Upload an Worker
+  // optionale Overrides aus der UI (nur relevant für "native")
+  const glbOverride  = (document.getElementById('nativeGlbUrl')?.value  || '').trim();
+  const usdzOverride = (document.getElementById('nativeUsdzUrl')?.value || '').trim();
+
+  // Target aus der UI (nur für "image")
+  const targetUrlUI  = (document.getElementById('imageTargetUrl')?.value || '').trim();
+
+  // 3) scene.json im Format deiner Viewer bauen
+  const sceneJson = buildSceneJSON({
+    sceneId,
+    title: projectName,
+    mode,
+    glbUrl:  (mode === 'native' && glbOverride) ? glbOverride : glbUrlWorker,
+    usdzUrl: (mode === 'native' && usdzOverride) ? usdzOverride : null,
+    targetUrl: (mode === 'image') ? (targetUrlUI || null) : null
+  });
+
+  // 4) Upload an den Worker
   toast('Lade hoch…');
   const form = new FormData();
   form.append('sceneId', sceneId);
-  form.append('file', new File([JSON.stringify(sceneJson,null,2)], 'scene.json', {type:'application/json'}));
-  form.append('file', new File([glbBlob], 'scene.glb', {type:'model/gltf-binary'}));
+  form.append('file', new File([JSON.stringify(sceneJson, null, 2)], 'scene.json', { type: 'application/json' }));
+  form.append('file', new File([glbBlob], 'scene.glb', { type: 'model/gltf-binary' }));
 
-  try{
-    const res = await fetch(EP, { method:'POST', body: form, headers:{ 'X-AREA-Key': KEY } });
-    if(!res.ok){ const t=await res.text(); throw new Error(t||('HTTP '+res.status)); }
-    const json = await res.json();
-    const viewerUrl = json.viewerUrl || ((window.__AREA||{}).VIEWER_BASE + '/?scene=' + encodeURIComponent(sceneId));
-    showSharePanel(viewerUrl);
-    try{ await navigator.clipboard.writeText(viewerUrl); }catch{}
-    toast('Veröffentlicht');
-  }catch(err){ console.error(err); alert('Publish fehlgeschlagen: '+err.message); }
+  let resp;
+  try {
+    resp = await fetch(EP, { method: 'POST', body: form, headers: { 'X-AREA-Key': KEY } });
+  } catch (e) {
+    console.error(e);
+    alert('Netzwerkfehler beim Upload.');
+    return;
+  }
+  if (!resp.ok) {
+    const t = await resp.text().catch(()=> '');
+    alert('Publish fehlgeschlagen: ' + (t || ('HTTP ' + resp.status)));
+    return;
+  }
+
+  // 5) Viewer-URL zusammenbauen (immer mit VOLLER scene.json-URL)
+  const VIEWERS = {
+    // falls deine Datei wirklich "wbxr.html" heißt, hier "webxr.html" → "wbxr.html" ändern
+    'surface-webxr': 'https://krischihh.github.io/area/surface-ar/webxr.html',
+    'native':        'https://krischihh.github.io/area/surface-ar/index.html',
+    'image':         'https://krischihh.github.io/area/image-ar/viewer.html'
+  };
+
+  let viewerUrl = `${VIEWERS[mode]}?scene=${encodeURIComponent(sceneJsonUrl)}`;
+  if (mode === 'image' && targetUrlUI) {
+    viewerUrl += `&target=${encodeURIComponent(targetUrlUI)}`;
+  }
+
+  showSharePanel(viewerUrl);
+  try { await navigator.clipboard.writeText(viewerUrl); } catch {}
+  toast('Veröffentlicht');
 }
 
     // Hint FAB + Projektmenü
