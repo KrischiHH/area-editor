@@ -9,35 +9,31 @@
       --bg:#0e1116;--panel:#111828;--panel2:#192339;--text:#e9ecf5;--muted:#9fb3d9;--border:#24314a;--accent:#60a5fa;--accent2:#93c5fd;
       color-scheme: dark;
     }
-/* Eingestanzte Pill (reine Vertiefung) */
-.top .brand-pill{
-  --pill-h: 36px;
-  height: var(--pill-h);
-  display: inline-flex;
-  align-items: stretch;              /* Bild füllt die Höhe */
-  border-radius: 999px;
-  overflow: hidden;                  /* Kante frisst das Bild */
-  padding: 0;                        /* kein Rand -> voll gefüllt */
-  background: #0b1220;               /* minimal dunkler als Topbar = Tiefe */
-  border: none;
-  outline: none;
-  /* nur INNEN-Schatten, keine äußeren Linien */
-  box-shadow:
-    inset 10px 10px 18px rgba(0,0,0,0.65),   /* unten/rechts dunkel */
-    inset -8px -8px 16px rgba(255,255,255,0.05); /* oben/links zarter Lichtsaum */
-}
-
-/* kein zusätzliches Overlay mehr */
-.top .brand-pill::before{ content:none; }
-
-.top .brand-pill img{
-  height: 100%;
-  width: auto;
-  display: block;
-  border-radius: inherit;            /* Bild folgt Pill-Kante */
-  z-index: 1;
-  opacity: 1;
-}
+    /* Eingestanzte Pill (reine Vertiefung) */
+    .top .brand-pill{
+      --pill-h: 36px;
+      height: var(--pill-h);
+      display: inline-flex;
+      align-items: stretch;
+      border-radius: 999px;
+      overflow: hidden;
+      padding: 0;
+      background: #0b1220;
+      border: none;
+      outline: none;
+      box-shadow:
+        inset 10px 10px 18px rgba(0,0,0,0.65),
+        inset -8px -8px 16px rgba(255,255,255,0.05);
+    }
+    .top .brand-pill::before{ content:none; }
+    .top .brand-pill img{
+      height: 100%;
+      width: auto;
+      display: block;
+      border-radius: inherit;
+      z-index: 1;
+      opacity: 1;
+    }
 
     *{box-sizing:border-box}
     html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Inter,Roboto,Arial,sans-serif}
@@ -50,7 +46,6 @@
     .btn:hover{border-color:var(--accent)}
     .btn:disabled,.toolbtn:disabled{opacity:.5;cursor:not-allowed}
 
-    /* Viewport-Fix */
     .wrap{
       height:calc(100vh - 56px);
       display:grid;
@@ -100,53 +95,38 @@
     .select option{background:#0f1420;color:var(--text)}
     .kv{display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center;margin-bottom:8px}
 
-/* Icons (Masken) – zentral definiert */
-:root{
-  /* deine SVGs aus GitHub */
-  --ico-transform:     url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/transform_icon.svg");
-  --ico-scene:         url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/camera%20icon.svg");
-  --ico-animation:     url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/animation_movie_icon.svg");
-  --ico-material:      url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/material-icon.svg");
-  --ico-media:         url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/player_video_icon.svg");
-  --ico-audio:         url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/audio_icon.svg"); /* optional, falls du ein eigenes Audio-Icon hast */
-
-  --ico-lock-closed:   url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/closed_lock_icon.svg");
-  --ico-lock-open:     url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/lock_open_icon.svg");
-
-  --ico-eye-open:      url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/eye_icon.svg");
-  --ico-eye-closed:    url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/eye_close_icon.svg");
-
-  /* UI-Chevron (kleiner eingebetteter SVG-Pfeil) */
-  --ico-chev:          url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 10l4 4 4-4' fill='none' stroke='%23A9C7FF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-}
-
-/* generische Icon-Maske */
-.ico-mask{
-  width:16px; height:16px; flex:0 0 16px;
-  background-color: currentColor; /* -> Farbe über 'color' steuerbar */
-  -webkit-mask: var(--ico) no-repeat center / contain;
-          mask: var(--ico) no-repeat center / contain;
-}
-
-/* konkrete Icons */
-.ico--transform  { --ico: var(--ico-transform); }
-.ico--scene      { --ico: var(--ico-scene); }
-.ico--animation  { --ico: var(--ico-animation); }
-.ico--material   { --ico: var(--ico-material); }
-.ico--media      { --ico: var(--ico-media); }
-.ico--audio      { --ico: var(--ico-audio); } /* optional */
-
-.ico--lock-closed{ --ico: var(--ico-lock-closed); }
-.ico--lock-open  { --ico: var(--ico-lock-open); }
-
-.ico--eye-open   { --ico: var(--ico-eye-open); }
-.ico--eye-closed { --ico: var(--ico-eye-closed); }
-
-.ico--chev       { --ico: var(--ico-chev); width:12px; height:12px; }
-
-/* Farbe der Header-Icons */
-.section > summary .sum-icons .ico-mask{ color: var(--muted); }
-
+    /* Icons (Masken) – zentral definiert */
+    :root{
+      --ico-transform:     url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/transform_icon.svg");
+      --ico-scene:         url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/camera%20icon.svg");
+      --ico-animation:     url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/animation_movie_icon.svg");
+      --ico-material:      url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/material-icon.svg");
+      --ico-media:         url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/player_video_icon.svg");
+      --ico-audio:         url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/audio_icon.svg");
+      --ico-lock-closed:   url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/closed_lock_icon.svg");
+      --ico-lock-open:     url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/lock_open_icon.svg");
+      --ico-eye-open:      url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/eye_icon.svg");
+      --ico-eye-closed:    url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/eye_close_icon.svg");
+      --ico-chev:          url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 10l4 4 4-4' fill='none' stroke='%23A9C7FF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    }
+    .ico-mask{
+      width:16px; height:16px; flex:0 0 16px;
+      background-color: currentColor;
+      -webkit-mask: var(--ico) no-repeat center / contain;
+              mask: var(--ico) no-repeat center / contain;
+    }
+    .ico--transform  { --ico: var(--ico-transform); }
+    .ico--scene      { --ico: var(--ico-scene); }
+    .ico--animation  { --ico: var(--ico-animation); }
+    .ico--material   { --ico: var(--ico-material); }
+    .ico--media      { --ico: var(--ico-media); }
+    .ico--audio      { --ico: var(--ico-audio); }
+    .ico--lock-closed{ --ico: var(--ico-lock-closed); }
+    .ico--lock-open  { --ico: var(--ico-lock-open); }
+    .ico--eye-open   { --ico: var(--ico-eye-open); }
+    .ico--eye-closed { --ico: var(--ico-eye-closed); }
+    .ico--chev       { --ico: var(--ico-chev); width:12px; height:12px; }
+    .section > summary .sum-icons .ico-mask{ color: var(--muted); }
 
     .section{margin-bottom:10px;border:0}
     .section > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:800;letter-spacing:.02em;color:var(--muted);background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.08));border:1px solid var(--border);border-radius:999px;padding:8px 12px;transition:border-color .18s ease,background .18s ease}
@@ -162,12 +142,13 @@
     .viewport,#stage{min-width:0}
   </style>
 
-  <!-- IMPORTANT: Minimal Config für Publish (eintragen!) -->
+  <!-- Minimal Config -->
   <script>
     window.__AREA = Object.assign({
-      PUBLISH_ENDPOINT: "https://area-publish.area-webar.workers.dev/publish", // TODO: anpassen
-      PUBLISH_KEY: "131ewefsdfs34534tfvsfdgsdgsdgvsd", // TODO: anpassen
-      VIEWER_BASE: "https://area-viewer.pages.dev" // optional; Worker sendet i.d.R. viewerUrl zurück
+      PUBLISH_ENDPOINT: "https://area-publish.area-webar.workers.dev/publish",
+      PUBLISH_KEY: "131ewefsdfs34534tfvsfdgsdgsdgvsd",
+      // Dein Cloudflare Pages Host:
+      VIEWER_BASE: "https://area-viewer.pages.dev"
     }, window.__AREA||{});
   </script>
 
@@ -183,9 +164,9 @@
 </head>
 <body>
   <div class="top">
-  <a class="brand-pill" href="#" aria-label="Home" title="AREA">
-    <img src="https://cdn.jsdelivr.net/gh/KrischiHH/area@58a250a0bc3b9868cf5e8d7ba12864720315662c/icons/areaLogo.jpg" alt="AREA Logo">
-  </a>
+    <a class="brand-pill" href="#" aria-label="Home" title="AREA">
+      <img src="https://cdn.jsdelivr.net/gh/KrischiHH/area@58a250a0bc3b9868cf5e8d7ba12864720315662c/icons/areaLogo.jpg" alt="AREA Logo">
+    </a>
 
     <div class="menu" id="projectMenu">
       <button id="btn-project-menu" class="menubtn" aria-haspopup="true" aria-expanded="false">Projekt ▾</button>
@@ -199,10 +180,8 @@
       </div>
     </div>
 
-    <!-- erweitert: FBX zulassen -->
     <label class="btn">Objekt import<input id="file-glb" type="file" accept=".glb,.gltf,.fbx" style="display:none"></label>
 
-    <!-- ==== MEDIA: neuer Import-Button -->
     <label class="btn">Medien import
       <input id="file-media" type="file" accept="video/*,audio/*" style="display:none">
     </label>
@@ -249,16 +228,15 @@
           <button id="btn-ungroup" class="toolbtn" title="Ctrl+Shift+G" disabled>Gruppierung aufheben</button>
         </div>
 
-       <details id="sec-transform" class="section">
-<summary>
-  <span class="sum-title">Transform</span>
-  <span class="sum-icons">
-    <span class="ico-mask ico--transform" aria-hidden="true"></span>
-    <span class="ico-mask ico--chev" aria-hidden="true"></span>
-  </span>
-</summary>
-
-  <div class="body">
+        <details id="sec-transform" class="section">
+          <summary>
+            <span class="sum-title">Transform</span>
+            <span class="sum-icons">
+              <span class="ico-mask ico--transform" aria-hidden="true"></span>
+              <span class="ico-mask ico--chev" aria-hidden="true"></span>
+            </span>
+          </summary>
+          <div class="body">
             <div class="kv"><div>Name</div><input id="prop-name" class="input" placeholder="Objekt"></div>
             <div class="kv"><div>Pos X</div><input id="posx" class="input" type="number" step="0.01"></div>
             <div class="kv"><div>Pos Y</div><input id="posy" class="input" type="number" step="0.01"></div>
@@ -312,37 +290,33 @@
             <div class="kv"><div>Grid anzeigen</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="gridVisible" type="checkbox" checked> <span>Ein</span></label></div>
             <div class="kv"><div>Belichtung</div><input id="exposure" class="input" type="range" min="0.5" max="2" step="0.05" value="1"></div>
 
+            <!-- ===== Anchor-Modus UI ===== -->
+            <div class="kv"><div>Anchor-Modus</div>
+              <select id="anchorMode" class="select">
+                <option value="surface-webxr" selected>Surface (WebXR)</option>
+                <option value="image">Image Trigger</option>
+                <option value="native">Surface (Native)</option>
+              </select>
+            </div>
 
-<!-- ===== Anchor-Modus UI ===== -->
-<div class="kv"><div>Anchor-Modus</div>
-  <select id="anchorMode" class="select">
-    <option value="surface-webxr" selected>Surface (WebXR)</option>
-    <option value="image">Image Trigger</option>
-    <option value="native">Surface (Native)</option>
-  </select>
-</div>
+            <div id="imageTargetRow" class="kv" style="display:none">
+              <div>Image Target (.mind)</div>
+              <input id="imageTargetUrl" class="input" placeholder="https://…/target.mind" value="../assets/targets/target.mind">
+            </div>
 
-<!-- nur für Image Trigger -->
-<div id="imageTargetRow" class="kv" style="display:none">
-  <div>Image Target (.mind)</div>
-  <input id="imageTargetUrl" class="input" placeholder="https://…/target.mind" value="../assets/targets/target.mind">
-</div>
-
-<!-- nur für Native -->
-<div id="nativeRow" class="kv" style="display:none">
-  <div>Native Assets</div>
-  <div style="display:grid;grid-template-columns:1fr;gap:6px">
-    <input id="nativeGlbUrl"  class="input" placeholder="Android GLB – https://…/model.glb">
-    <input id="nativeUsdzUrl" class="input" placeholder="iOS USDZ – https://…/model.usdz">
-  </div>
-</div>
-<!-- ===== Ende Anchor-Modus UI ===== -->
-
+            <div id="nativeRow" class="kv" style="display:none">
+              <div>Native Assets</div>
+              <div style="display:grid;grid-template-columns:1fr;gap:6px">
+                <input id="nativeGlbUrl"  class="input" placeholder="Android GLB – https://…/model.glb">
+                <input id="nativeUsdzUrl" class="input" placeholder="iOS USDZ – https://…/model.usdz">
+              </div>
+            </div>
+            <!-- ===== Ende Anchor-Modus UI ===== -->
           </div>
         </details>
 
         <details id="sec-look" class="section">
-                   <summary>
+          <summary>
             <span class="sum-title">Material Look</span>
             <span class="sum-icons">
               <span class="ico-mask ico--material" aria-hidden="true"></span>
@@ -381,11 +355,10 @@
           </div>
         </details>
 
-        <!-- ==== MEDIA: Kontext-Steuerung -->
         <details id="sec-media" class="section" open style="display:none">
           <summary>
             <span class="sum-title">Medien</span>
-       <span class="sum-icons">
+            <span class="sum-icons">
               <span class="ico-mask ico--media" aria-hidden="true"></span>
               <span class="ico-mask ico--chev"  aria-hidden="true"></span>
             </span>
@@ -449,7 +422,6 @@
     const overlayScene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30,1,0.01,2000); camera.position.set(15,6,15);
 
-    // Alle Nutzerobjekte hängen an contentRoot -> saubere Exporte
     const contentRoot = new THREE.Group(); contentRoot.name = 'ContentRoot'; scene.add(contentRoot);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -465,7 +437,7 @@
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    // ==== MEDIA: AudioListener (für PositionalAudio)
+    // Audio
     const audioListener = new THREE.AudioListener();
     camera.add(audioListener);
 
@@ -556,7 +528,6 @@
         const lock = document.createElement('div'); lock.className='icon lock';
         lock.innerHTML = `<span class="ico-mask ${o.locked ? 'ico--lock-closed' : 'ico--lock-open'}"></span>`; lock.title = o.locked ? 'Entsperren' : 'Sperren';
         const tab = document.createElement('button'); tab.type='button'; tab.className='tab'+(state.selection.has(o.id)?' active':''); tab.innerHTML='<span class="name"></span>';
-        // Medien-Label
         const prefix = o.media ? (o.media.kind==='video'?'🎞️ ':'🔊 ') : (o.type==='group'?'📦 ':'');
         tab.querySelector('.name').textContent = prefix + o.name;
 
@@ -638,7 +609,7 @@
       return { group, root, clips };
     }
     async function createFromFBX(url,name){
-      const obj = await fbxLoader.loadAsync(url); // Group mit evtl. obj.animations
+      const obj = await fbxLoader.loadAsync(url);
       const group = new THREE.Group(); group.name = name || 'Objekt';
       group.add(obj);
       const clips=(obj.animations||[]).slice();
@@ -674,7 +645,6 @@
           ({group,root,clips} = await createFromGLTF(url,name));
         }
         URL.revokeObjectURL(url);
-        // Zentrieren um Ursprung + angenehme Startgröße
         const box=new THREE.Box3().setFromObject(group); const center=new THREE.Vector3(); box.getCenter(center);
         group.children.forEach(c=>c.position.sub(center)); group.position.add(center);
         fitUniformScale(group,1.5);
@@ -682,7 +652,8 @@
         contentRoot.add(group);
         const rec={id,type:'object',name:group.name,file, url:null, group, root, clips, mixer:null, actions:{}, hidden:false, locked:false, media:null};
         state.objects.push(rec); addPickProxy(rec); selectOnly(id); populateAnimUI(rec); toast('Importiert: '+group.name);
-      }catch(e){console.error(e); toast('Import fehlgeschlagen'); URL.revokeObjectURL(url);}    }
+      }catch(e){console.error(e); toast('Import fehlgeschlagen'); URL.revokeObjectURL(url);}
+    }
     $('#file-glb').addEventListener('change', e=>{ const f=e.target.files?.[0]; if(!f){ e.target.value=''; return;} addFromFile(f); e.target.value=''; });
     stage.addEventListener('dragover', e=>e.preventDefault());
     stage.addEventListener('drop', e=>{ e.preventDefault(); const f=e.dataTransfer?.files?.[0]; if(f && /(\.glb|\.gltf|\.fbx)$/i.test(f.name)) addFromFile(f); });
@@ -899,7 +870,6 @@
 
     // ==== MEDIA: Import, UI, Playback
     const audioLoader = new THREE.AudioLoader();
-
     function isVideoFile(f){ return /^video\//.test(f.type) || /\.(mp4|webm|ogg)$/i.test(f.name); }
     function isAudioFile(f){ return /^audio\//.test(f.type) || /\.(mp3|wav|ogg|m4a)$/i.test(f.name); }
 
@@ -945,7 +915,6 @@
       state.objects.push(rec); addPickProxy(rec); selectOnly(id); rebuildList(); syncMediaUI(); toast('Audio importiert');
     }
 
-    // Medien-UI Sync
     function syncMediaUI(){
       const box=$('#sec-media'); const t=$('#mediaType'); const loop=$('#mediaLoop'); const reps=$('#mediaRepeats');
       if(state.selection.size!==1){ box.style.display='none'; return; }
@@ -1126,186 +1095,206 @@
     function applyExposure(){ const e=parseFloat($('#exposure').value)||1; renderer.toneMappingExposure=e; hemi.intensity=LIGHT_BASE.hemi*e; dir.intensity=LIGHT_BASE.dir*e; amb.intensity=LIGHT_BASE.amb*e; }
     $('#exposure').addEventListener('input', applyExposure); applyExposure();
 
-// ===== Anchor-UI toggeln =====
-function updateAnchorUI(){
-  const m = $('#anchorMode')?.value || 'surface-webxr';
-  if ($('#imageTargetRow')) $('#imageTargetRow').style.display = (m==='image')  ? 'grid' : 'none';
-  if ($('#nativeRow'))      $('#nativeRow').style.display      = (m==='native') ? 'grid' : 'none';
-}
-requestAnimationFrame(updateAnchorUI);
-$('#anchorMode')?.addEventListener('change', updateAnchorUI);
-
-
-// ===== Vorschau (deine bestehenden Module auf GitHub Pages) =====
-function previewModules(){
-  const mode   = $('#anchorMode')?.value || 'surface-webxr';
-  const target = ($('#imageTargetUrl')?.value || '').trim();
-  const glb    = ($('#nativeGlbUrl')?.value  || '').trim();
-  const usdz   = ($('#nativeUsdzUrl')?.value || '').trim();
-
-  // Mapping auf deine vorhandenen Module
-  const baseByMode = {
-    'surface-webxr': 'https://krischihh.github.io/area-viewer/surface-ar/webxr.html',
-    'native':        'https://krischihh.github.io/area-viewer/surface-ar/index.html',
-    'image':         'https://krischihh.github.io/area-viewer/image-ar/viewer.html'
-  };
-
-  const entry = viewerPathByMode[mode] || '/index.html';
-const viewerUrl = json.viewerUrl 
-  || (entry.startsWith('http')
-        ? `${entry}?scene=${encodeURIComponent(sceneBase + 'scene.json')}`
-        : `${viewerBase}${entry}?scene=${encodeURIComponent(sceneBase + 'scene.json')}`);
-
-  (async () => {
-    const data = await buildProjectData();
-    const blob = new Blob([JSON.stringify(data)], {type:'application/json'});
-    const src  = URL.createObjectURL(blob);
-
-    let url = `${baseByMode[mode]}?src=${encodeURIComponent(src)}&anchor=${encodeURIComponent(mode)}`;
-    if (mode === 'image' && target) {
-      url += `&target=${encodeURIComponent(target)}`;
+    // ===== Anchor-UI toggeln =====
+    function updateAnchorUI(){
+      const m = $('#anchorMode')?.value || 'surface-webxr';
+      if ($('#imageTargetRow')) $('#imageTargetRow').style.display = (m==='image')  ? 'grid' : 'none';
+      if ($('#nativeRow'))      $('#nativeRow').style.display      = (m==='native') ? 'grid' : 'none';
     }
-    if (mode === 'native') {
-      if (glb)  url += `&glb=${encodeURIComponent(glb)}`;
-      if (usdz) url += `&usdz=${encodeURIComponent(usdz)}`;
+    requestAnimationFrame(updateAnchorUI);
+    $('#anchorMode')?.addEventListener('change', updateAnchorUI);
+
+    // ===== Vorschau (Module auf Cloudflare Pages) =====
+    function previewModules(){
+      const mode   = $('#anchorMode')?.value || 'surface-webxr';
+      const target = ($('#imageTargetUrl')?.value || '').trim();
+      const glb    = ($('#nativeGlbUrl')?.value  || '').trim();
+      const usdz   = ($('#nativeUsdzUrl')?.value || '').trim();
+
+      const viewerBase = (window.__AREA || {}).VIEWER_BASE || 'https://area-viewer.pages.dev';
+
+      // Pfade – wenn surface-ar NICHT als Root deployed ist
+      const pathByMode = {
+        'surface-webxr': '/surface-ar/webxr.html',
+        'native':        '/surface-ar/index.html',
+        'image':         '/image-ar/viewer.html'
+      };
+      const entry = pathByMode[mode] || '/surface-ar/index.html';
+
+      (async () => {
+        const data = await buildProjectData();
+        const src = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data));
+
+        let url = `${viewerBase}${entry}?src=${encodeURIComponent(src)}&anchor=${encodeURIComponent(mode)}`;
+        if (mode === 'image' && target) {
+          url += `&target=${encodeURIComponent(target)}`;
+        }
+        if (mode === 'native') {
+          if (glb)  url += `&glb=${encodeURIComponent(glb)}`;
+          if (usdz) url += `&usdz=${encodeURIComponent(usdz)}`;
+        }
+
+        window.open(url, '_blank');
+        toast('Vorschau geöffnet');
+      })();
+    }
+    // ===== Ende Vorschau =====
+
+    // ===== Export → Worker-Publish → QR =====
+    function sanitizeId(s){ return (s||'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').replace(/^-+|-+$/g,'').slice(0,64)||'scene'; }
+
+    function cloneForExport(){
+      const root = new THREE.Group(); root.name='ExportRoot';
+      state.objects.filter(r=>!r.media).forEach(r=>{
+        const c = SkeletonUtils.clone(r.group);
+        c.traverse(n=>{ if(n.userData?.__pickProxy){ n.parent?.remove(n); n.geometry?.dispose?.(); n.material?.dispose?.(); } });
+        root.add(c);
+      });
+      return root;
     }
 
-    window.open(url, '_blank');
-    toast('Vorschau geöffnet');
-  })();
-}
-// ===== Ende Vorschau =====
+    async function exportSceneGLB(){
+      const exporter = new GLTFExporter();
+      const exportRoot = cloneForExport();
+      return new Promise((resolve, reject)=>{
+        exporter.parse(exportRoot, (bin)=>{
+          try{ resolve(new Blob([bin], {type:'model/gltf-binary'})); }catch(e){ reject(e); }
+        }, { binary:true, onlyVisible:true, embedImages:true });
+      });
+    }
 
-// ===== Export → Worker-Publish → QR =====
-function sanitizeId(s){ return (s||'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').replace(/^-+|-+$/g,'').slice(0,64)||'scene'; }
+    function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
+      const json = {
+        meta: { version: "1.0", mode, title: title || sceneId, createdAt: new Date().toISOString() },
+        model: { url: glbUrl, usdzUrl: usdzUrl || null, animation: "*" }
+      };
+      if (mode === "image") {
+        json.target = { mindUrl: targetUrl || null };
+      }
+      return json;
+    }
 
-function cloneForExport(){
-  // Nur 3D-Objekte ohne Media exportieren
-  const root = new THREE.Group(); root.name='ExportRoot';
-  state.objects.filter(r=>!r.media).forEach(r=>{
-    const c = SkeletonUtils.clone(r.group);
-    // Hilfsmeshes entfernen
-    c.traverse(n=>{ if(n.userData?.__pickProxy){ n.parent?.remove(n); n.geometry?.dispose?.(); n.material?.dispose?.(); } });
-    root.add(c);
-  });
-  return root;
-}
+    function showSharePanel(url){
+      let el = document.getElementById('shareOverlay');
+      if(el) el.remove();
+      el = document.createElement('div'); el.id='shareOverlay';
+      el.style.cssText='position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:3000;';
+      const card=document.createElement('div');
+      card.style.cssText='background:#0b1220;border:1px solid var(--border);border-radius:14px;padding:16px;max-width:520px;width:92%;color:var(--text);box-shadow:0 10px 30px rgba(0,0,0,.4)';
+      const h=document.createElement('div'); h.textContent='Veröffentlicht – teilen & scannen'; h.style.cssText='font-weight:800;margin-bottom:8px;color:var(--muted)';
+      const qr=document.createElement('canvas'); qr.width=0; qr.height=0; qr.style.cssText='display:block;margin:8px auto;';
+      const link=document.createElement('div'); link.textContent=url; link.style.cssText='font-size:12px;word-break:break-all;margin:8px 0;color:#aecdff;';
+      const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;justify-content:flex-end;margin-top:10px;';
+      const btnCopy=document.createElement('button'); btnCopy.className='btn'; btnCopy.textContent='Link kopieren';
+      const btnOpen=document.createElement('button'); btnOpen.className='btn'; btnOpen.textContent='Im neuen Tab öffnen';
+      const btnClose=document.createElement('button'); btnClose.className='btn'; btnClose.textContent='Schließen';
+      row.append(btnCopy,btnOpen,btnClose);
+      card.append(h,qr,link,row); el.append(card); document.body.append(el);
+      QRCode.toCanvas(qr, url, {margin:1, scale:6});
+      btnCopy.onclick=async()=>{ try{ await navigator.clipboard.writeText(url); toast('Link kopiert'); }catch{ toast('Konnte nicht kopieren'); } };
+      btnOpen.onclick=()=>{ window.open(url,'_blank'); };
+      btnClose.onclick=()=>{ el.remove(); };
+    }
 
-async function exportSceneGLB(){
-  const exporter = new GLTFExporter();
-  const exportRoot = cloneForExport();
-  return new Promise((resolve, reject)=>{
-    exporter.parse(exportRoot, (bin)=>{
-      try{ resolve(new Blob([bin], {type:'model/gltf-binary'})); }catch(e){ reject(e); }
-    }, { binary:true, onlyVisible:true, embedImages:true });
-  });
-}
+    async function publish(){
+      const EP  = (window.__AREA||{}).PUBLISH_ENDPOINT || '';
+      const KEY = (window.__AREA||{}).PUBLISH_KEY || '';
+      if (!EP || /YOUR-SUBDOMAIN/.test(EP) || !KEY || /YOUR-PUBLISH-KEY/.test(KEY)) {
+        alert('Publish ist noch nicht konfiguriert. Bitte in <script> window.__AREA.PUBLISH_ENDPOINT & PUBLISH_KEY setzen.');
+        return;
+      }
 
-function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
-  const json = {
-    meta: { version: "1.0", mode, title: title || sceneId, createdAt: new Date().toISOString() },
-    model: { url: glbUrl, usdzUrl: usdzUrl || null, animation: "*" }
-  };
-  if (mode === "image") {
-    json.target = { mindUrl: targetUrl || null };
-  }
-  return json;
-}
+      try {
+        // 1) Export
+        const defaultId = sanitizeId(projectName);
+        const sceneId   = sanitizeId(prompt('Scene ID:', defaultId) || defaultId);
+        toast('Exportiere Szene…');
 
+        let glbBlob;
+        try { glbBlob = await exportSceneGLB(); }
+        catch(e){ console.error(e); alert('GLB-Export fehlgeschlagen.'); return; }
 
-function showSharePanel(url){
-  let el = document.getElementById('shareOverlay');
-  if(el) el.remove();
-  el = document.createElement('div'); el.id='shareOverlay';
-  el.style.cssText='position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:3000;';
-  const card=document.createElement('div');
-  card.style.cssText='background:#0b1220;border:1px solid var(--border);border-radius:14px;padding:16px;max-width:520px;width:92%;color:var(--text);box-shadow:0 10px 30px rgba(0,0,0,.4)';
-  const h=document.createElement('div'); h.textContent='Veröffentlicht – teilen & scannen'; h.style.cssText='font-weight:800;margin-bottom:8px;color:var(--muted)';
-  const qr=document.createElement('canvas'); qr.width=0; qr.height=0; qr.style.cssText='display:block;margin:8px auto;';
-  const link=document.createElement('div'); link.textContent=url; link.style.cssText='font-size:12px;word-break:break-all;margin:8px 0;color:#aecdff;';
-  const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;justify-content:flex-end;margin-top:10px;';
-  const btnCopy=document.createElement('button'); btnCopy.className='btn'; btnCopy.textContent='Link kopieren';
-  const btnOpen=document.createElement('button'); btnOpen.className='btn'; btnOpen.textContent='Im neuen Tab öffnen';
-  const btnClose=document.createElement('button'); btnClose.className='btn'; btnClose.textContent='Schließen';
-  row.append(btnCopy,btnOpen,btnClose);
-  card.append(h,qr,link,row); el.append(card); document.body.append(el);
-  QRCode.toCanvas(qr, url, {margin:1, scale:6});
-  btnCopy.onclick=async()=>{ try{ await navigator.clipboard.writeText(url); toast('Link kopiert'); }catch{ toast('Konnte nicht kopieren'); } };
-  btnOpen.onclick=()=>{ window.open(url,'_blank'); };
-  btnClose.onclick=()=>{ el.remove(); };
-}
+        // 2) Modus/URLs
+        const mode      = ($('#anchorMode')?.value || 'surface-webxr');
+        const target    = ($('#imageTargetUrl')?.value || '').trim();
+        const usdzInput = ($('#nativeUsdzUrl')?.value || '').trim();
+        const glbInput  = ($('#nativeGlbUrl')?.value  || '').trim();
 
-async function publish(){
-  // 0) Sanity
-  const EP  = (window.__AREA||{}).PUBLISH_ENDPOINT || '';
-  const KEY = (window.__AREA||{}).PUBLISH_KEY || '';
-  if (!EP || /YOUR-SUBDOMAIN/.test(EP) || !KEY || /YOUR-PUBLISH-KEY/.test(KEY)) {
-    alert('Publish ist noch nicht konfiguriert. Bitte in <script> window.__AREA.PUBLISH_ENDPOINT & PUBLISH_KEY setzen.');
-    return;
-  }
+        const workerOrigin = new URL(EP).origin;
+        const sceneBase    = `${workerOrigin}/scenes/${sceneId}/`;
 
-  try {
-    // 1) Szene exportieren (GLB ohne Medien)
-    const defaultId = sanitizeId(projectName);
-    const sceneId   = sanitizeId(prompt('Scene ID:', defaultId) || defaultId);
-    toast('Exportiere Szene…');
+        const glbUrl    = (mode === 'native' && glbInput) ? glbInput : (sceneBase + 'scene.glb');
+        const usdzUrl   = (mode === 'native' && usdzInput) ? usdzInput : null;
+        const targetUrl = (mode === 'image'  && target)    ? target    : null;
 
-    let glbBlob;
-    try { glbBlob = await exportSceneGLB(); }
-    catch(e){ console.error(e); alert('GLB-Export fehlgeschlagen.'); return; }
+        // 3) scene.json
+        const sceneJson = buildSceneJSON({
+          sceneId,
+          title: projectName,
+          mode,
+          glbUrl,
+          usdzUrl,
+          targetUrl
+        });
 
-    // 2) Modus & Ziel-URLs bestimmen
-    const mode      = ($('#anchorMode')?.value || 'surface-webxr'); // surface-webxr | native | image
-    const target    = ($('#imageTargetUrl')?.value || '').trim();   // .mind (Image)
-    const usdzInput = ($('#nativeUsdzUrl')?.value || '').trim();    // iOS-USDZ (optional)
-    const glbInput  = ($('#nativeGlbUrl')?.value  || '').trim();    // Android-GLB (optional)
+        // 4) Upload
+        toast('Lade hoch…');
+        const form = new FormData();
+        form.append('sceneId', sceneId);
+        form.append('file', new File([JSON.stringify(sceneJson,null,2)], 'scene.json', {type:'application/json'}));
+        form.append('file', new File([glbBlob], 'scene.glb', {type:'model/gltf-binary'}));
 
-    const workerOrigin = new URL(EP).origin;                        // z.B. https://area-publish.area-webar.workers.dev
-    const sceneBase    = `${workerOrigin}/scenes/${sceneId}/`;      // …/scenes/<id>/
+        const res = await fetch(EP, { method:'POST', body: form, headers:{ 'X-AREA-Key': KEY } });
+        if(!res.ok){ const t=await res.text(); throw new Error(t || ('HTTP '+res.status)); }
 
-    // Falls im Native-Modus ein eigenes GLB eingetragen wurde, nutze das – sonst das exportierte:
-    const glbUrl  = (mode === 'native' && glbInput) ? glbInput : (sceneBase + 'scene.glb');
-    const usdzUrl = (mode === 'native' && usdzInput) ? usdzInput : null;
-    const targetUrl = (mode === 'image' && target) ? target : null;
+        const json = await res.json();
 
-    // 3) scene.json bauen (mit ABSOLUTEN URLs)
-    const sceneJson = buildSceneJSON({
-      sceneId,
-      title: projectName,
-      mode,
-      glbUrl,
-      usdzUrl,
-      targetUrl
-    });
+        const viewerBase = (window.__AREA||{}).VIEWER_BASE || 'https://area-viewer.pages.dev';
+        const entryByMode = {
+          'surface-webxr': '/surface-ar/webxr.html',
+          'native':        '/surface-ar/index.html',
+          'image':         '/image-ar/viewer.html'
+        };
+        const entry = entryByMode[mode] || '/surface-ar/index.html';
 
-    // 4) Upload an Worker
-    toast('Lade hoch…');
-    const form = new FormData();
-    form.append('sceneId', sceneId);
-    form.append('file', new File([JSON.stringify(sceneJson,null,2)], 'scene.json', {type:'application/json'}));
-    form.append('file', new File([glbBlob], 'scene.glb', {type:'model/gltf-binary'}));
+        const viewerUrl = json.viewerUrl
+          || `${viewerBase}${entry}?scene=${encodeURIComponent(sceneBase + 'scene.json')}`;
 
-    const res = await fetch(EP, { method:'POST', body: form, headers:{ 'X-AREA-Key': KEY } });
-    if(!res.ok){ const t=await res.text(); throw new Error(t || ('HTTP '+res.status)); }
-
-    const json = await res.json();
-    const viewerUrl = json.viewerUrl
-      || ((window.__AREA||{}).VIEWER_BASE + '/?scene=' + encodeURIComponent(sceneBase + 'scene.json'));
-
-    // 5) UI
-    showSharePanel(viewerUrl);
-    try{ await navigator.clipboard.writeText(viewerUrl); }catch{}
-    toast('Veröffentlicht');
-  } catch (err) {
-    console.error(err);
-    alert('Publish fehlgeschlagen: ' + err.message);
-  }
-}
-
+        showSharePanel(viewerUrl);
+        try{ await navigator.clipboard.writeText(viewerUrl); }catch{}
+        toast('Veröffentlicht');
+      } catch (err) {
+        console.error(err);
+        alert('Publish fehlgeschlagen: ' + err.message);
+      }
+    }
 
     // Hint FAB + Projektmenü
-    (function(){ const hint=$('.hint'); const fab=$('#hintFab'); if(!hint||!fab) return; let timer=null; function open(){ if(timer){clearTimeout(timer);timer=null;} hint.classList.remove('hidden'); fab.setAttribute('aria-expanded','true'); fab.textContent='×'; } function close(){ if(timer){clearTimeout(timer);timer=null;} hint.classList.add('hidden'); fab.setAttribute('aria-expanded','false'); fab.textContent='i'; } fab.addEventListener('mouseenter', open); fab.addEventListener('mouseleave', ()=>{ timer=setTimeout(()=>{ if(!hint.matches(':hover')) close(); },200); }); hint.addEventListener('mouseleave', ()=>{ timer=setTimeout(()=>{ if(!fab.matches(':hover')) close(); },100); }); hint.addEventListener('mouseenter', ()=>{ if(timer){clearTimeout(timer);timer=null;} }); fab.addEventListener('click', e=>{ e.preventDefault(); if(hint.classList.contains('hidden')) open(); else close(); }, {passive:false}); })();
-    (function(){ const menu=$('#projectMenu'); const btn=$('#btn-project-menu'); function close(){ menu.classList.remove('open'); btn.setAttribute('aria-expanded','false'); } btn.addEventListener('click', e=>{ e.stopPropagation(); menu.classList.toggle('open'); btn.setAttribute('aria-expanded', menu.classList.contains('open')?'true':'false'); }); document.addEventListener('click', e=>{ if(!menu.contains(e.target)) close(); }); window.addEventListener('keydown', e=>{ if(e.key==='Escape') close(); }); $('#btn-new').addEventListener('click', ()=>{ close(); if(!confirm('Aktuelle Szene leeren und neues Projekt anlegen?')) return; setProjectName(prompt('Projektname:', 'Neues AR-Projekt')||'Unbenanntes Projekt'); $('#btn-clear').click(); }); $('#btn-save').addEventListener('click', ()=>{ close(); saveProject({saveAs:false}); }); $('#btn-save-as').addEventListener('click', ()=>{ close(); saveProject({saveAs:true}); }); $('#file-project').addEventListener('change', e=>{ close(); const f=e.target.files?.[0]; if(!f){ e.target.value=''; return;} importProjectFile(f); e.target.value=''; }); $('#btn-preview').addEventListener('click', ()=>{ close(); previewModules(); }); $('#btn-publish').addEventListener('click', ()=>{ close(); publish(); }); })();
+    (function(){
+      const hint=$('.hint'); const fab=$('#hintFab'); if(!hint||!fab) return; let timer=null;
+      function open(){ if(timer){clearTimeout(timer);timer=null;} hint.classList.remove('hidden'); fab.setAttribute('aria-expanded','true'); fab.textContent='×'; }
+      function close(){ if(timer){clearTimeout(timer);timer=null;} hint.classList.add('hidden'); fab.setAttribute('aria-expanded','false'); fab.textContent='i'; }
+      fab.addEventListener('mouseenter', open);
+      fab.addEventListener('mouseleave', ()=>{ timer=setTimeout(()=>{ if(!hint.matches(':hover')) close(); },200); });
+      hint.addEventListener('mouseleave', ()=>{ timer=setTimeout(()=>{ if(!fab.matches(':hover')) close(); },100); });
+      hint.addEventListener('mouseenter', ()=>{ if(timer){clearTimeout(timer);timer=null;} });
+      fab.addEventListener('click', e=>{ e.preventDefault(); if(hint.classList.contains('hidden')) open(); else close(); }, {passive:false});
+    })();
+
+    (function(){
+      const menu=$('#projectMenu'); const btn=$('#btn-project-menu');
+      function close(){ menu.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+      btn.addEventListener('click', e=>{ e.stopPropagation(); menu.classList.toggle('open'); btn.setAttribute('aria-expanded', menu.classList.contains('open')?'true':'false'); });
+      document.addEventListener('click', e=>{ if(!menu.contains(e.target)) close(); });
+      window.addEventListener('keydown', e=>{ if(e.key==='Escape') close(); });
+
+      $('#btn-new').addEventListener('click', ()=>{ close(); if(!confirm('Aktuelle Szene leeren und neues Projekt anlegen?')) return; setProjectName(prompt('Projektname:', 'Neues AR-Projekt')||'Unbenanntes Projekt'); $('#btn-clear').click(); });
+      $('#btn-save').addEventListener('click', ()=>{ close(); saveProject({saveAs:false}); });
+      $('#btn-save-as').addEventListener('click', ()=>{ close(); saveProject({saveAs:true}); });
+      $('#file-project').addEventListener('change', e=>{ close(); const f=e.target.files?.[0]; if(!f){ e.target.value=''; return;} importProjectFile(f); e.target.value=''; });
+      $('#btn-preview').addEventListener('click', ()=>{ close(); previewModules(); });
+      $('#btn-publish').addEventListener('click', ()=>{ close(); publish(); });
+    })();
 
     // Render
     const clock=new THREE.Clock();
@@ -1339,6 +1328,8 @@ async function publish(){
       else if(k==='d') { e.preventDefault(); $('#btn-duplicate').click(); }
       else if(k==='f') { e.preventDefault(); $('#btn-floor').click(); }
       else if(k==='delete'){ $('#btn-del').click(); }
+      else if(k>='1' && k<='5' && e.shiftKey){ saveBookmark(parseInt(k,10)-1); }
+      else if(k>='1' && k<='5' && !e.shiftKey){ recallBookmark(parseInt(k,10)-1); }
       else if(k==='g' && (e.ctrlKey||e.metaKey) && !e.shiftKey){ e.preventDefault(); $('#btn-group').click(); }
       else if(k==='g' && (e.ctrlKey||e.metaKey) && e.shiftKey){ e.preventDefault(); $('#btn-ungroup').click(); }
     });
