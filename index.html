@@ -1316,12 +1316,11 @@ function makeGLBFromJSON(jsonLike){
 
     // 5) Viewer-Link
     const viewerBase = (window.__AREA||{}).VIEWER_BASE || 'https://area-viewer.pages.dev';
-    const entryByMode = {
-      'surface-webxr': '/surface-ar/webxr.html',
-      'webxr':         '/surface-ar/webxr.html',
-      'native':        '/surface-ar/index.html',
-      'image':         '/image-ar/viewer.html'
-    };
+   const entryByMode = {
+  'surface-webxr': '/webxr.html',
+  'native':        '/index.html',
+  'image':         '/image-ar/viewer.html'
+};
     const entry = entryByMode[sceneJson?.meta?.mode] || entryByMode[mode] || '/surface-ar/webxr.html';
 
     const viewerUrl = json.viewerUrl
