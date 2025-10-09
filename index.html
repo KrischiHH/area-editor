@@ -1114,11 +1114,11 @@
       const viewerBase = (window.__AREA || {}).VIEWER_BASE || 'https://area-viewer.pages.dev';
 
       // Pfade – wenn surface-ar NICHT als Root deployed ist
-      const pathByMode = {
-        'surface-webxr': '/surface-ar/webxr.html',
-        'native':        '/surface-ar/index.html',
-        'image':         '/image-ar/viewer.html'
-      };
+     const pathByMode = {
+  'surface-webxr': '/webxr.html',
+  'native':        '/index.html',
+  'image':         '/image-ar/viewer.html'
+};
       const entry = pathByMode[mode] || '/surface-ar/index.html';
 
       (async () => {
