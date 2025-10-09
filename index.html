@@ -1154,14 +1154,38 @@
     }
 
     async function exportSceneGLB(){
-      const exporter = new GLTFExporter();
-      const exportRoot = cloneForExport();
-      return new Promise((resolve, reject)=>{
-        exporter.parse(exportRoot, (bin)=>{
-          try{ resolve(new Blob([bin], {type:'model/gltf-binary'})); }catch(e){ reject(e); }
-        }, { binary:true, onlyVisible:true, embedImages:true });
-      });
-    }
+  const exporter = new GLTFExporter();
+  const exportRoot = cloneForExport();
+
+  return new Promise((resolve, reject)=>{
+    exporter.parse(
+      exportRoot,
+      (result)=>{
+        try{
+          // Erwartet: ArrayBuffer (GLB) – alles andere ist ein Fehler
+          let ab = null;
+          if (result instanceof ArrayBuffer) {
+            ab = result;
+          } else if (ArrayBuffer.isView(result)) {
+            ab = result.buffer;
+          } else {
+            return reject(new Error('Exporter lieferte JSON statt GLB. (binary:true nicht angewendet?)'));
+          }
+
+          // Magic-Bytes prüfen: 0x67 0x6C 0x54 0x46 == "glTF"
+          const u8 = new Uint8Array(ab, 0, 4);
+          const isGLB = (u8[0]===0x67 && u8[1]===0x6C && u8[2]===0x54 && u8[3]===0x46);
+          if (!isGLB) {
+            return reject(new Error('Exportierte Daten starten nicht mit "glTF" (Magic-Bytes).'));
+          }
+
+          resolve(new Blob([ab], { type:'model/gltf-binary' }));
+        }catch(e){ reject(e); }
+      },
+      { binary:true, onlyVisible:true, embedImages:true }
+    );
+  });
+}
 
     function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
       const json = {
@@ -1197,78 +1221,99 @@
     }
 
     async function publish(){
-      const EP  = (window.__AREA||{}).PUBLISH_ENDPOINT || '';
-      const KEY = (window.__AREA||{}).PUBLISH_KEY || '';
-      if (!EP || /YOUR-SUBDOMAIN/.test(EP) || !KEY || /YOUR-PUBLISH-KEY/.test(KEY)) {
-        alert('Publish ist noch nicht konfiguriert. Bitte in <script> window.__AREA.PUBLISH_ENDPOINT & PUBLISH_KEY setzen.');
-        return;
-      }
+  const EP  = (window.__AREA||{}).PUBLISH_ENDPOINT || '';
+  const KEY = (window.__AREA||{}).PUBLISH_KEY || '';
+  if (!EP || /YOUR-SUBDOMAIN/.test(EP) || !KEY || /YOUR-PUBLISH-KEY/.test(KEY)) {
+    alert('Publish ist noch nicht konfiguriert. Bitte in <script> window.__AREA.PUBLISH_ENDPOINT & PUBLISH_KEY setzen.');
+    return;
+  }
 
-      try {
-        // 1) Export
-        const defaultId = sanitizeId(projectName);
-        const sceneId   = sanitizeId(prompt('Scene ID:', defaultId) || defaultId);
-        toast('Exportiere Szene…');
+  try {
+    // 1) Export
+    const defaultId = sanitizeId(projectName);
+    const sceneId   = sanitizeId(prompt('Scene ID:', defaultId) || defaultId);
+    toast('Exportiere Szene…');
 
-        let glbBlob;
-        try { glbBlob = await exportSceneGLB(); }
-        catch(e){ console.error(e); alert('GLB-Export fehlgeschlagen.'); return; }
-
-        // 2) Modus/URLs
-        const mode      = ($('#anchorMode')?.value || 'surface-webxr');
-        const target    = ($('#imageTargetUrl')?.value || '').trim();
-        const usdzInput = ($('#nativeUsdzUrl')?.value || '').trim();
-        const glbInput  = ($('#nativeGlbUrl')?.value  || '').trim();
-
-        const workerOrigin = new URL(EP).origin;
-        const sceneBase    = `${workerOrigin}/scenes/${sceneId}/`;
-
-        const glbUrl    = (mode === 'native' && glbInput) ? glbInput : (sceneBase + 'scene.glb');
-        const usdzUrl   = (mode === 'native' && usdzInput) ? usdzInput : null;
-        const targetUrl = (mode === 'image'  && target)    ? target    : null;
-
-        // 3) scene.json
-        const sceneJson = buildSceneJSON({
-          sceneId,
-          title: projectName,
-          mode,
-          glbUrl,
-          usdzUrl,
-          targetUrl
-        });
-
-        // 4) Upload
-        toast('Lade hoch…');
-        const form = new FormData();
-        form.append('sceneId', sceneId);
-        form.append('file', new File([JSON.stringify(sceneJson,null,2)], 'scene.json', {type:'application/json'}));
-        form.append('file', new File([glbBlob], 'scene.glb', {type:'model/gltf-binary'}));
-
-        const res = await fetch(EP, { method:'POST', body: form, headers:{ 'X-AREA-Key': KEY } });
-        if(!res.ok){ const t=await res.text(); throw new Error(t || ('HTTP '+res.status)); }
-
-        const json = await res.json();
-
-        const viewerBase = (window.__AREA||{}).VIEWER_BASE || 'https://area-viewer.pages.dev';
-        const entryByMode = {
-          'surface-webxr': '/surface-ar/webxr.html',
-          'native':        '/surface-ar/index.html',
-          'image':         '/image-ar/viewer.html'
-        };
-        const entry = entryByMode[mode] || '/surface-ar/index.html';
-
-        const viewerUrl = json.viewerUrl
-          || `${viewerBase}${entry}?scene=${encodeURIComponent(sceneBase + 'scene.json')}`;
-
-        showSharePanel(viewerUrl);
-        try{ await navigator.clipboard.writeText(viewerUrl); }catch{}
-        toast('Veröffentlicht');
-      } catch (err) {
-        console.error(err);
-        alert('Publish fehlgeschlagen: ' + err.message);
-      }
+    let glbBlob;
+    try {
+      glbBlob = await exportSceneGLB();
+    } catch(e){
+      console.error(e);
+      alert('GLB-Export fehlgeschlagen: ' + (e?.message||e));
+      return;
     }
 
+    // Sicherheits-Check vor Upload (Magic-Bytes & Größe)
+    const glbAb  = await glbBlob.arrayBuffer();
+    const head   = new Uint8Array(glbAb, 0, 4);
+    const isGLB  = (head[0]===0x67 && head[1]===0x6C && head[2]===0x54 && head[3]===0x46);
+    if (!isGLB) throw new Error('Exportierte GLB-Datei ist ungültig (kein "glTF" Header).');
+    if (glbAb.byteLength < 32) throw new Error('Exportierte GLB-Datei ist zu klein.');
+
+    // 2) Modus/URLs
+    const mode      = ($('#anchorMode')?.value || 'surface-webxr');
+    const target    = ($('#imageTargetUrl')?.value || '').trim();
+    const usdzInput = ($('#nativeUsdzUrl')?.value || '').trim();
+    const glbInput  = ($('#nativeGlbUrl')?.value  || '').trim();
+
+    const workerOrigin = new URL(EP).origin;
+    const sceneBase    = `${workerOrigin}/scenes/${sceneId}/`;
+
+    const glbUrl    = (mode === 'native' && glbInput) ? glbInput : (sceneBase + 'scene.glb');
+    const usdzUrl   = (mode === 'native' && usdzInput) ? usdzInput : null;
+    const targetUrl = (mode === 'image'  && target)    ? target    : null;
+
+    // 3) scene.json
+    const sceneJson = buildSceneJSON({
+      sceneId,
+      title: projectName,
+      mode,
+      glbUrl,
+      usdzUrl,
+      targetUrl
+    });
+
+    // 4) Upload (GLB strikt als Byte-Stream anhängen)
+    toast('Lade hoch…');
+    const form = new FormData();
+    form.append('sceneId', sceneId);
+    form.append('file', new File([JSON.stringify(sceneJson,null,2)], 'scene.json', { type:'application/json' }));
+    form.append('file', new File([glbAb], 'scene.glb', { type:'model/gltf-binary' })); // <— wichtig: ArrayBuffer!
+
+    const res = await fetch(EP, {
+      method:'POST',
+      body: form,
+      headers:{ 'X-AREA-Key': KEY, 'Accept':'application/json' }
+    });
+    if (!res.ok) {
+      const t = await res.text().catch(()=> '');
+      throw new Error(t || ('HTTP '+res.status));
+    }
+    const json = await res.json().catch(()=> ({}));
+
+    // 5) Viewer-Link
+    const viewerBase = (window.__AREA||{}).VIEWER_BASE || 'https://area-viewer.pages.dev';
+    const entryByMode = {
+      'surface-webxr': '/surface-ar/webxr.html',
+      'webxr':         '/surface-ar/webxr.html',
+      'native':        '/surface-ar/index.html',
+      'image':         '/image-ar/viewer.html'
+    };
+    const entry = entryByMode[sceneJson?.meta?.mode] || entryByMode[mode] || '/surface-ar/webxr.html';
+
+    // a) Bevorzugt: Worker liefert fertige URL
+    // b) Fallback: konsistent mit ID+base (keine direkte scene.json mehr)
+    const viewerUrl = json.viewerUrl
+      || `${viewerBase}${entry}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
+
+    showSharePanel(viewerUrl);
+    try { await navigator.clipboard.writeText(viewerUrl); } catch {}
+    toast('Veröffentlicht');
+  } catch (err) {
+    console.error(err);
+    alert('Publish fehlgeschlagen: ' + (err?.message || err));
+  }
+}
     // Hint FAB + Projektmenü
     (function(){
       const hint=$('.hint'); const fab=$('#hintFab'); if(!hint||!fab) return; let timer=null;
