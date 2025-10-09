@@ -1153,6 +1153,41 @@
       return root;
     }
 
+function makeGLBFromJSON(jsonLike){
+  const jsonStr = (typeof jsonLike === 'string') ? jsonLike : JSON.stringify(jsonLike);
+  const enc = new TextEncoder();
+  let jsonBytes = enc.encode(jsonStr);
+
+  // auf 4 Byte auffüllen (mit Spaces, wie im glTF-Standard empfohlen)
+  const pad = (4 - (jsonBytes.byteLength % 4)) % 4;
+  if (pad) {
+    const tmp = new Uint8Array(jsonBytes.byteLength + pad);
+    tmp.set(jsonBytes, 0);
+    tmp.fill(0x20, jsonBytes.byteLength); // ' '
+    jsonBytes = tmp;
+  }
+
+  const GLB_HEADER_BYTES = 12;
+  const CHUNK_HEADER_BYTES = 8;
+  const totalLength = GLB_HEADER_BYTES + CHUNK_HEADER_BYTES + jsonBytes.byteLength;
+
+  const glb = new ArrayBuffer(totalLength);
+  const dv = new DataView(glb);
+  let off = 0;
+
+  // Header: magic "glTF", version 2, total length
+  dv.setUint32(off, 0x46546C67, true); off += 4; // 'glTF'
+  dv.setUint32(off, 2, true);          off += 4; // version
+  dv.setUint32(off, totalLength, true); off += 4; // length
+
+  // JSON chunk
+  dv.setUint32(off, jsonBytes.byteLength, true); off += 4; // chunkLength
+  dv.setUint32(off, 0x4E4F534A, true);          off += 4; // chunkType "JSON"
+  new Uint8Array(glb, off, jsonBytes.byteLength).set(jsonBytes); off += jsonBytes.byteLength;
+
+  return new Blob([glb], { type: 'model/gltf-binary' });
+}
+    
     async function exportSceneGLB(){
   const exporter = new GLTFExporter();
   const exportRoot = cloneForExport();
@@ -1162,30 +1197,30 @@
       exportRoot,
       (result)=>{
         try{
-          // Erwartet: ArrayBuffer (GLB) – alles andere ist ein Fehler
-          let ab = null;
-          if (result instanceof ArrayBuffer) {
-            ab = result;
-          } else if (ArrayBuffer.isView(result)) {
-            ab = result.buffer;
-          } else {
-            return reject(new Error('Exporter lieferte JSON statt GLB. (binary:true nicht angewendet?)'));
+          // Normalfall: ArrayBuffer → fertig
+          if (result instanceof ArrayBuffer || ArrayBuffer.isView(result)) {
+            const ab = (result instanceof ArrayBuffer) ? result : result.buffer;
+            const u8 = new Uint8Array(ab, 0, 4);
+            const isGLB = (u8[0]===0x67 && u8[1]===0x6C && u8[2]===0x54 && u8[3]===0x46); // "glTF"
+            if (!isGLB) {
+              // Sehr selten: Binär ohne "glTF"? -> in Blob packen und trotzdem liefern
+              return resolve(new Blob([ab], { type:'model/gltf-binary' }));
+            }
+            return resolve(new Blob([ab], { type:'model/gltf-binary' }));
           }
 
-          // Magic-Bytes prüfen: 0x67 0x6C 0x54 0x46 == "glTF"
-          const u8 = new Uint8Array(ab, 0, 4);
-          const isGLB = (u8[0]===0x67 && u8[1]===0x6C && u8[2]===0x54 && u8[3]===0x46);
-          if (!isGLB) {
-            return reject(new Error('Exportierte Daten starten nicht mit "glTF" (Magic-Bytes).'));
-          }
-
-          resolve(new Blob([ab], { type:'model/gltf-binary' }));
-        }catch(e){ reject(e); }
+          // Sonderfall: Exporter hat JSON geliefert → wir verpacken es sauber in einen GLB-Container
+          const glbBlob = makeGLBFromJSON(result);
+          return resolve(glbBlob);
+        }catch(e){
+          reject(e);
+        }
       },
       { binary:true, onlyVisible:true, embedImages:true }
     );
   });
 }
+
 
     function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
       const json = {
@@ -1235,20 +1270,15 @@
     toast('Exportiere Szene…');
 
     let glbBlob;
-    try {
-      glbBlob = await exportSceneGLB();
-    } catch(e){
-      console.error(e);
-      alert('GLB-Export fehlgeschlagen: ' + (e?.message||e));
-      return;
-    }
+    try { glbBlob = await exportSceneGLB(); }
+    catch(e){ console.error(e); alert('GLB-Export fehlgeschlagen: ' + (e?.message||e)); return; }
 
-    // Sicherheits-Check vor Upload (Magic-Bytes & Größe)
-    const glbAb  = await glbBlob.arrayBuffer();
-    const head   = new Uint8Array(glbAb, 0, 4);
-    const isGLB  = (head[0]===0x67 && head[1]===0x6C && head[2]===0x54 && head[3]===0x46);
-    if (!isGLB) throw new Error('Exportierte GLB-Datei ist ungültig (kein "glTF" Header).');
-    if (glbAb.byteLength < 32) throw new Error('Exportierte GLB-Datei ist zu klein.');
+    // Sanity-Check: Magic-Bytes "glTF"
+    const ab = await glbBlob.arrayBuffer();
+    const u8 = new Uint8Array(ab, 0, 4);
+    if (!(u8[0]===0x67 && u8[1]===0x6C && u8[2]===0x54 && u8[3]===0x46)) {
+      throw new Error('Exportierte Datei ist kein GLB (fehlende "glTF"-Magic-Bytes).');
+    }
 
     // 2) Modus/URLs
     const mode      = ($('#anchorMode')?.value || 'surface-webxr');
@@ -1273,22 +1303,15 @@
       targetUrl
     });
 
-    // 4) Upload (GLB strikt als Byte-Stream anhängen)
+    // 4) Upload
     toast('Lade hoch…');
     const form = new FormData();
     form.append('sceneId', sceneId);
     form.append('file', new File([JSON.stringify(sceneJson,null,2)], 'scene.json', { type:'application/json' }));
-    form.append('file', new File([glbAb], 'scene.glb', { type:'model/gltf-binary' })); // <— wichtig: ArrayBuffer!
+    form.append('file', new File([glbBlob], 'scene.glb', { type:'model/gltf-binary' })); // << Blob unverändert hochladen
 
-    const res = await fetch(EP, {
-      method:'POST',
-      body: form,
-      headers:{ 'X-AREA-Key': KEY, 'Accept':'application/json' }
-    });
-    if (!res.ok) {
-      const t = await res.text().catch(()=> '');
-      throw new Error(t || ('HTTP '+res.status));
-    }
+    const res = await fetch(EP, { method:'POST', body: form, headers:{ 'X-AREA-Key': KEY, 'Accept':'application/json' } });
+    if(!res.ok){ const t=await res.text().catch(()=> ''); throw new Error(t || ('HTTP '+res.status)); }
     const json = await res.json().catch(()=> ({}));
 
     // 5) Viewer-Link
@@ -1301,19 +1324,18 @@
     };
     const entry = entryByMode[sceneJson?.meta?.mode] || entryByMode[mode] || '/surface-ar/webxr.html';
 
-    // a) Bevorzugt: Worker liefert fertige URL
-    // b) Fallback: konsistent mit ID+base (keine direkte scene.json mehr)
     const viewerUrl = json.viewerUrl
       || `${viewerBase}${entry}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
 
     showSharePanel(viewerUrl);
-    try { await navigator.clipboard.writeText(viewerUrl); } catch {}
+    try{ await navigator.clipboard.writeText(viewerUrl); }catch{}
     toast('Veröffentlicht');
   } catch (err) {
     console.error(err);
     alert('Publish fehlgeschlagen: ' + (err?.message || err));
   }
 }
+
     // Hint FAB + Projektmenü
     (function(){
       const hint=$('.hint'); const fab=$('#hintFab'); if(!hint||!fab) return; let timer=null;
