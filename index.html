@@ -1,30 +1,39 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" class="theme-slate">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WebAR Editor v2.2.8</title>
   <style>
-    :root{
-      --bg:#0e1116;--panel:#111828;--panel2:#192339;--text:#e9ecf5;--muted:#9fb3d9;--border:#24314a;--accent:#60a5fa;--accent2:#93c5fd;
-      color-scheme: dark;
-    }
+    :root,
+:root.theme-slate {
+  --bg:#0e1116; --panel:#111828; --panel2:#192339; --text:#e9ecf5;
+  --muted:#9fb3d9; --border:#24314a; --accent:#60a5fa; --accent2:#93c5fd;
+  color-scheme: dark;
+}
+
+/* Aurora */
+:root.theme-aurora{
+  --bg:#0a0f18; --panel:#0e1624; --panel2:#132036; --text:#eaf2ff;
+  --muted:#a1b7da; --border:#24314a; --accent:#7dd3fc; --accent2:#a5f3fc;
+}
     /* Eingestanzte Pill (reine Vertiefung) */
-    .top .brand-pill{
-      --pill-h: 36px;
-      height: var(--pill-h);
-      display: inline-flex;
-      align-items: stretch;
-      border-radius: 999px;
-      overflow: hidden;
-      padding: 0;
-      background: #0b1220;
-      border: none;
-      outline: none;
-      box-shadow:
-        inset 10px 10px 18px rgba(0,0,0,0.65),
-        inset -8px -8px 16px rgba(255,255,255,0.05);
-    }
+   .top .brand-pill{
+  --pill-h: 36px;
+  height: var(--pill-h);
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 999px;
+  overflow: hidden;
+  padding: 0;
+  background: var(--panel2);
+  border: none;
+  outline: none;
+  box-shadow:
+    inset 10px 10px 18px rgba(0,0,0,0.65),
+    inset -8px -8px 16px rgba(255,255,255,0.05);
+}
+
     .top .brand-pill::before{ content:none; }
     .top .brand-pill img{
       height: 100%;
@@ -61,8 +70,10 @@
 
     #sceneList{overflow:auto}
     .row{display:grid;grid-template-columns:24px 24px 1fr auto;gap:6px;align-items:center;padding:6px 8px;border-radius:8px}
-    .row:hover{background:#0f1626}
-    .icon{width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid var(--border);border-radius:8px;background:#0f1626}
+    .row:hover{ background: var(--panel2); }
+   .icon{width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;border:1px solid var(--border);border-radius:8px;background:var(--panel2);
+}
     .tab{display:block;text-align:left;background:transparent;border:1px solid transparent;padding:6px 8px;border-radius:8px;cursor:pointer;color:var(--text);font-weight:700;min-width:0}
     .tab.active{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
     .del{background:#0f1626;border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:8px;cursor:pointer}
@@ -74,8 +85,11 @@
     .hint-fab{position:absolute;left:12px;bottom:12px;z-index:6;width:40px;height:40px;border-radius:999px;background:#0b1220cc;border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;cursor:pointer}
     .hint{position:absolute;left:60px;right:12px;bottom:12px;background:#0b1220cc;border:1px solid var(--border);border-radius:10px;padding:10px;font-size:12px;color:var(--muted);z-index:5;transition:opacity .22s ease, transform .28s cubic-bezier(.2,.7,.2,1);transform-origin:left bottom}
     .hint.hidden{opacity:0;transform:translateY(8px) scaleX(.85);pointer-events:none}
-    .status-badge{position:absolute;top:12px;right:12px;z-index:7;background:#0b1220cc;border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center;pointer-events:none}
-    .status-pill{padding:2px 8px;border:1px solid var(--border);border-radius:999px}
+   .status-badge{
+  background: color-mix(in srgb, var(--panel) 85%, transparent);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px;
 
     .toast{position:fixed;bottom:14px;right:14px;background:#0b1220;border:1px solid var(--border);padding:10px 12px;border-radius:10px;display:none;z-index:1200}
 
@@ -177,6 +191,8 @@
         <button id="btn-save-as" class="menuitem" role="menuitem">Speichern unter…</button>
         <button id="btn-preview" class="menuitem" role="menuitem">Vorschau (Module)…</button>
         <button id="btn-publish" class="menuitem" role="menuitem">Veröffentlichen (Link &amp; QR)…</button>
+        <button id="themeToggle" class="btn" title="Theme wechseln">Theme</button>
+
       </div>
     </div>
 
@@ -418,7 +434,26 @@
     renderer.autoClear = false;
     stage.appendChild(renderer.domElement);
 
-    const scene = new THREE.Scene(); scene.background = new THREE.Color('#0b1323');
+    // CSS-Var -> THREE.Color
+function cssColor(varName, fallback){
+  const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  return new THREE.Color(v || fallback);
+}
+
+function applyThemeToThree(){
+  // Stage-Hintergrund
+  scene.background = cssColor('--bg', '#0b1323');
+
+  // Outline-Farben aus Tokens
+  if (outlinePass){
+    outlinePass.visibleEdgeColor.set(cssColor('--accent',  '#9ecbff'));
+    outlinePass.hiddenEdgeColor.set(cssColor('--accent2', '#2a65b3'));
+  }
+}
+window.__applyThemeToThree = applyThemeToThree;
+
+
+    const scene = new THREE.Scene(); scene.background = cssColor('--bg', '#0b1323');
     const overlayScene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30,1,0.01,2000); camera.position.set(15,6,15);
 
@@ -462,7 +497,7 @@
       composer.addPass(renderPass);
       outlinePass = new OutlinePass(new THREE.Vector2(stage.clientWidth||1, stage.clientHeight||1), scene, camera);
       outlinePass.edgeStrength=3; outlinePass.edgeThickness=2; outlinePass.pulsePeriod=0;
-      outlinePass.visibleEdgeColor.set('#9ecbff'); outlinePass.hiddenEdgeColor.set('#2a65b3');
+      outlinePass.visibleEdgeColor.set(cssColor('--accent',  '#9ecbff'));outlinePass.hiddenEdgeColor.set(cssColor('--accent2', '#2a65b3'));
       outlinePass.renderToScreen = true;
       composer.addPass(outlinePass);
     }
@@ -1399,6 +1434,23 @@ function makeGLBFromJSON(jsonLike){
       else if(k==='g' && (e.ctrlKey||e.metaKey) && !e.shiftKey){ e.preventDefault(); $('#btn-group').click(); }
       else if(k==='g' && (e.ctrlKey||e.metaKey) && e.shiftKey){ e.preventDefault(); $('#btn-ungroup').click(); }
     });
+
+    /* === Theme Toggle Init (HIER EINFÜGEN) === */
+(function(){
+  const html  = document.documentElement;
+  const saved = localStorage.getItem('theme') || 'theme-slate';
+  html.classList.toggle('theme-aurora', saved === 'theme-aurora');
+
+  document.getElementById('themeToggle')?.addEventListener('click', ()=>{
+    const next = html.classList.contains('theme-aurora') ? 'theme-slate' : 'theme-aurora';
+    html.classList.toggle('theme-aurora', next === 'theme-aurora');
+    localStorage.setItem('theme', next);
+    window.__applyThemeToThree?.();
+  });
+
+  // Beim Laden einmal Farben in Three.js anwenden
+  window.__applyThemeToThree?.();
+})();
 
     render();
   </script>
