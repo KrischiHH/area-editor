@@ -84,7 +84,24 @@
     .panel h3{margin:0;padding:10px 12px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
     .content{padding:10px;overflow:auto}
 
-    #sceneList{overflow:auto}
+    /* Nur links: keine horizontale Scrollbar */
+#leftContent{ 
+  overflow-y: auto;
+  overflow-x: hidden;   /* <- entfernt den hässlichen horizontalen Balken */
+}
+
+/* Sicherheitshalber: Szenenbaum selbst ohne horizontale Scrollbar */
+#sceneList{
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+    #leftContent{ scrollbar-width: none; }
+#leftContent::-webkit-scrollbar{ display: none; }
+
+    #sceneList{ overflow-y:auto; overflow-x:hidden; }
+    #leftContent{ overflow-y:auto; overflow-x:hidden; scrollbar-width:none; }
+    #leftContent::-webkit-scrollbar{ display:none; }
+
     .row{display:grid;grid-template-columns:24px 24px 1fr auto;gap:6px;align-items:center;padding:6px 8px;border-radius:8px}
     .row:hover{ background: var(--panel2); }
     .icon{width:24px;height:24px;display:flex;align-items:center;justify-content:center; cursor:pointer;border:1px solid var(--border);border-radius:8px;background:var(--panel2); }
@@ -273,16 +290,6 @@
         </span>
       </summary>
       <div class="body">
-        <div class="kv">
-          <div>Anchor-Modus</div>
-          <select id="anchorModeLeft" class="select">
-            <option value="surface-webxr">Surface (WebXR)</option>
-            <option value="image">Image Trigger</option>
-            <option value="native">Surface (Native)</option>
-            <option value="scene-viewer">Szene Viewer (ohne AR)</option>
-          </select>
-        </div>
-
         <!-- Szene-Viewer spezifische UI -->
         <div id="svBlock" style="display:none; margin-top:6px">
 
@@ -560,40 +567,33 @@
     renderer.autoClear = false;
     stage.appendChild(renderer.domElement);
 
-    function getAnchorSel(){
-  const l = document.getElementById('anchorModeLeft');
+    // --- Anchor-Mode nur noch aus dem rechten Select lesen ---
+function getAnchorSel(){
   const r = document.getElementById('anchorMode');
-  return (l?.value || r?.value || 'surface-webxr');
+  return (r?.value || 'surface-webxr');
 }
 function setAnchorSel(v){
-  const l = document.getElementById('anchorModeLeft');
   const r = document.getElementById('anchorMode');
-  if(l) l.value = v;
-  if(r) r.value = v;
+  if (r) r.value = v;
 }
 function updateSVBlockVisible(){
   const sv = document.getElementById('svBlock');
-  if(sv) sv.style.display = (getAnchorSel()==='scene-viewer') ? 'block' : 'none';
+  if (sv) sv.style.display = (getAnchorSel() === 'scene-viewer') ? 'block' : 'none';
 }
 
-    // Anchor-Selects miteinander koppeln
-document.getElementById('anchorModeLeft')?.addEventListener('change', (e)=>{
-  setAnchorSel(e.target.value);
-  updateAnchorUI();
-});
-document.getElementById('anchorMode')?.addEventListener('change', (e)=>{
-  setAnchorSel(e.target.value);
+// Nur der rechte Select triggert UI-Updates
+document.getElementById('anchorMode')?.addEventListener('change', ()=>{
   updateAnchorUI();
 });
 
-// beim Start einmal angleichen (bestehenden Wert übernehmen)
+// Initial synchronisieren (nur noch rechts maßgeblich)
 requestAnimationFrame(()=>{
-  const initVal = document.getElementById('anchorMode')?.value || 'surface-webxr';
-  setAnchorSel(initVal);
   updateAnchorUI();
 });
 
-// --- Poster Dropzone ---
+
+    
+ // --- Poster Dropzone ---
 const svDrop   = document.getElementById('svDrop');
 const svInput  = document.getElementById('file-poster');
 const svImg    = document.getElementById('svPosterPrev');
