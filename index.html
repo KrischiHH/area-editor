@@ -342,7 +342,9 @@
             <div class="kv"><div>Raumgröße</div><input id="roomSize" class="input" type="number" step="1" value="24"></div>
             <div class="kv"><div>Grid Helligkeit</div><input id="gridIntensity" class="input" type="range" min="0.5" max="1" step="0.05" value="0.95"></div>
             <div class="kv"><div>Grid anzeigen</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="gridVisible" type="checkbox" checked> <span>Ein</span></label></div>
-            <div class="kv"><div>Belichtung</div><input id="exposure" class="input" type="range" min="0.5" max="2" step="0.05" value="1"></div>
+            <div class="kv"><div>Belichtung</div><input id="exposure" class="input" type="range" min="0.5" max="3" step="0.05" value="1.4"></div>
+            <div class="kv"><div>Kameralicht</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="headlight" type="checkbox" checked> <span>an</span></label></div>
+
 
             <!-- ===== Anchor-Modus UI ===== -->
             <div class="kv"><div>Anchor-Modus</div>
@@ -381,7 +383,7 @@
           </summary>
           <div class="body">
             <div class="kv"><div>Mattheit (+Roughness)</div><input id="matRoughAdd" class="input" type="range" min="0" max="0.6" step="0.01" value="0.25"></div>
-            <div class="kv"><div>Reflexionsstärke (IBL)</div><input id="matEnvMul" class="input" type="range" min="0" max="1.2" step="0.05" value="0.85"></div>
+            <div class="kv"><div>Reflexionsstärke (IBL)</div><input id="matEnvMul" class="input" type="range" min="0" max="2" step="0.05" value="1.2"></div>
           </div>
         </details>
 
@@ -1173,7 +1175,7 @@
     const bookmarks=Array(5).fill(null);
     function saveBookmark(i){ bookmarks[i]={pos:camera.position.clone(),target:controls.target.clone(),fov:camera.fov}; toast(`Bookmark ${i+1} gespeichert`); }
     function recallBookmark(i){ const bm=bookmarks[i]; if(!bm){ toast(`Kein Bookmark auf ${i+1}`); return; } goCamera([bm.pos.x,bm.pos.y,bm.pos.z],[bm.target.x,bm.target.y,bm.target.z],bm.fov,350); toast(`Bookmark ${i+1} geladen`); }
-    const LIGHT_BASE = { hemi: 0.6, dir: 1.0, amb: 0.05 };
+    const LIGHT_BASE = { hemi: 1.2, dir: 2.5, amb: 0.25 };
     function applyExposure(){ const e=parseFloat($('#exposure').value)||1; renderer.toneMappingExposure=e; hemi.intensity=LIGHT_BASE.hemi*e; dir.intensity=LIGHT_BASE.dir*e; amb.intensity=LIGHT_BASE.amb*e; }
     $('#exposure').addEventListener('input', applyExposure); applyExposure();
 
