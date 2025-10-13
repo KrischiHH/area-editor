@@ -453,7 +453,14 @@ function cssColor(varName, fallback){
   return new THREE.Color(v || fallback);
 }
 
-function applyToThree(){
+// CSS-Var -> THREE.Color
+function cssColor(varName, fallback){
+  const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  return new THREE.Color(v || fallback);
+}
+
+// Korrekt benennen & exportieren
+function applyThemeToThree(){
   // Stage-Hintergrund
   scene.background = cssColor('--bg', '#0b1323');
 
@@ -463,7 +470,7 @@ function applyToThree(){
     outlinePass.hiddenEdgeColor.set(cssColor('--accent2', '#2a65b3'));
   }
 }
-window.__applyToThree = applyThemeToThree;
+window.__applyThemeToThree = applyThemeToThree;
 
 
     const scene = new THREE.Scene(); scene.background = cssColor('--bg', '#0b1323');
