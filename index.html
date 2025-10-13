@@ -821,7 +821,7 @@
         const t=src.group;
         g.position.copy(t.position); g.quaternion.copy(t.quaternion); g.scale.copy(t.scale);
         g.position.add(new THREE.Vector3(0.25,0,0.25));
-        const rec={ id:uid(), type:'object', name:g.name, file:src.file||null, url:null, group:g, root:(src.root? g.children.find(c=>c!==undefined):null), clips:(src.clips||[]).slice(), mixer:null, actions:{}, hidden:false, locked:false, media:g.userData.__media||null };
+        const rec={ id:uid(), type:'object', name:g.name, file:src.file||null, url:null, group:g, root: clonedRoot || null, clips:(src.clips||[]).slice(), mixer:null, actions:{}, hidden:false, locked:false, media:g.userData.__media||null };
         state.objects.push(rec); addPickProxy(rec); newIds.push(rec.id);
       });
       if(newIds.length){ state.selection=new Set(newIds); state.selectedId=newIds[newIds.length-1]; tcontrols.attach(findRec(state.selectedId)?.group||null); rebuildList(); updateOutlineSelection(); toast('Dupliziert'); syncMediaUI(); }
@@ -853,11 +853,19 @@
       ids.forEach(id=>{
         const rec=findRec(id); if(!rec) return;
         if(rec.media?.kind==='video'){
-          try{ rec.media.el.pause(); rec.media.el.src=''; rec.media.tex?.dispose?.(); }catch{}
-        }
-        if(rec.media?.kind==='audio'){
-          try{ rec.media.sound?.stop?.(); rec.media.sound?.disconnect?.(); }catch{}
-        }
+      try{
+        rec.media.el.pause();
+        if(rec.media.src?.startsWith('blob:')) URL.revokeObjectURL(rec.media.src);
+        rec.media.el.src='';
+        rec.media.tex?.dispose?.();
+      }catch{}
+    }
+    if(rec.media?.kind==='audio'){
+      try{
+        rec.media.sound?.stop?.();
+        if(rec.media.src?.startsWith('blob:')) URL.revokeObjectURL(rec.media.src);
+      }catch{}
+    }
         if(rec.group){ disposeObject3DTree(rec.group); contentRoot.remove(rec.group); }
         const i=state.objects.indexOf(rec); if(i>=0) state.objects.splice(i,1);
       });
@@ -1026,7 +1034,7 @@
         } else { s.play(); }
       }
     }
-    function mediaPause(rec){ if(!rec?.media) return; if(rec.media.kind==='video'){ rec.media.el.pause(); } else { if(rec.media.sound?.isPlaying){ rec.media.sound.source.stop(); } } }
+    function mediaPause(rec){ if(!rec?.media) return; if(rec.media.kind==='video'){ rec.media.el.pause(); } else { if(rec.media.sound?.isPlaying){ rec.media.sound.stop(); } } }
     function mediaStop(rec){ if(!rec?.media) return; if(rec.media.kind==='video'){ const v=rec.media.el; v.pause(); try{ v.currentTime=0; }catch{} rec.media.count=0; } else { try{ rec.media.sound?.stop?.(); }catch{} rec.media.count=0; } }
 
     $('#mediaPlay').addEventListener('click', ()=>{ if(state.selection.size!==1) return; const rec=findRec(state.selectedId); mediaPlay(rec); });
@@ -1074,7 +1082,7 @@
       }
       for(const rec of state.objects) await pushRec(rec);
       return {
-        version:'2.2.5',
+        version:'2.2.8',
         meta:{ app:'WebAR Editor', projectName, savedAt:new Date().toISOString() },
         settings:{ roomSize: parseFloat($('#roomSize').value)||24, gridVisible: $('#gridVisible').checked },
         objects: out
