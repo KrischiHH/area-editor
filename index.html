@@ -454,12 +454,6 @@ function cssColor(varName, fallback){
   return new THREE.Color(v || fallback);
 }
 
-// CSS-Var -> THREE.Color
-function cssColor(varName, fallback){
-  const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
-  return new THREE.Color(v || fallback);
-}
-
 // Korrekt benennen & exportieren
 function applyThemeToThree(){
   // Stage-Hintergrund
