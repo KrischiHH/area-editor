@@ -1465,11 +1465,13 @@ function makeGLBFromJSON(jsonLike){
   })();
 
   const setTheme = (theme) => {
-    html.classList.remove('theme-slate','theme-aurora');
-    html.classList.add(theme);
-    try { storage?.setItem('theme', theme); } catch {}
-    window.__applyThemeToThree?.();
-  };
+  html.classList.remove('theme-slate','theme-aurora');
+  html.classList.add(theme);
+  try { storage?.setItem('theme', theme); } catch {}
+
+  // NEU: erst nach dem Reflow die Farben aus den CSS-Variablen ziehen
+  requestAnimationFrame(() => window.__applyThemeToThree?.());
+};
 
   // Initial: gespeichertes Theme oder Slate
   const initial = (storage?.getItem('theme') === 'theme-aurora') ? 'theme-aurora' : 'theme-slate';
