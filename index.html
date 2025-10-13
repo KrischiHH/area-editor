@@ -695,7 +695,7 @@
       rec.group.traverse(c=>{ if(c.userData?.__pickProxy){ c.parent?.remove(c); c.geometry?.dispose?.(); c.material?.dispose?.(); }});
       rec.group.updateMatrixWorld(true);
       const boxW=new THREE.Box3().setFromObject(rec.group); if(!isFinite(boxW.min.x)) return;
-      const cornersW=[new THREE.Vector3(boxW.min.x,boxW.min.y,boxW.min.z),new THREE.Vector3(boxW.min.x,boxW.min.y,boxW.max.z),new THREE.Vector3(boxW.min.x,boxW.max.y,boxW.min.z),new THREE.Vector3(boxW.min.x,boxW.max.y,boxW.max.z),new THREE.Vector3(boxW.max.x,boxW.min.y,boxW.min.z),new THREE.Vector3(boxW.max.x,boxW.min.y,boxW.max.z),new THREE.Vector3(boxW.max.x,boxW.max.y,boxW.min,z=0),new THREE.Vector3(boxW.max.x,boxW.max.y,boxW.max.z)];
+      const cornersW=[new THREE.Vector3(boxW.min.x,boxW.min.y,boxW.min.z),new THREE.Vector3(boxW.min.x,boxW.min.y,boxW.max.z),new THREE.Vector3(boxW.min.x,boxW.max.y,boxW.min.z),new THREE.Vector3(boxW.min.x,boxW.max.y,boxW.max.z),new THREE.Vector3(boxW.max.x,boxW.min.y,boxW.min.z),new THREE.Vector3(boxW.max.x,boxW.min.y,boxW.max.z),new THREE.Vector3(boxW.max.x, boxW.max.y, boxW.min.z),new THREE.Vector3(boxW.max.x,boxW.max.y,boxW.max.z)];
       const cornersL=cornersW.map(p=>rec.group.worldToLocal(p.clone()));
       const minL=new THREE.Vector3(+Infinity,+Infinity,+Infinity), maxL=new THREE.Vector3(-Infinity,-Infinity,-Infinity);
       cornersL.forEach(p=>{minL.min(p); maxL.max(p);});
@@ -1190,7 +1190,8 @@
       const pathByMode = {
         'surface-webxr': '/webxr.html',
         'native':        '/index.html',
-        'image':         '/image-ar/viewer.html'
+        'image':         '/image-ar/viewer.html',
+        'scene-viewer':  '/scene-viewer/index.html'
       };
       const entry = pathByMode[mode] || '/surface-ar/index.html';
 
@@ -1297,29 +1298,26 @@ function getSelectedClipNameForExport(){
   return "*";
 }
 
+
     
-  async function exportSceneGLB(){
+async function exportSceneGLB(){
   const exporter = new GLTFExporter();
   const exportRoot = cloneForExport();
 
-  // alle Clips einsammeln
+  // Alle Clips einsammeln
   const allClips = [];
-  state.objects.forEach(r => {
-    if (r?.clips?.length){
-      r.clips.forEach(c => allClips.push(c));
-    }
-  });
+  state.objects.forEach(r => { if (r?.clips?.length) r.clips.forEach(c => allClips.push(c)); });
 
   return new Promise((resolve, reject)=>{
     exporter.parse(
       exportRoot,
       (result)=>{
         try{
-          if (result instanceof ArrayBuffer || ArrayBuffer.isView(result)) {
+          if (result instanceof ArrayBuffer || ArrayBuffer.isView(result)){
             const ab = (result instanceof ArrayBuffer) ? result : result.buffer;
             return resolve(new Blob([ab], { type:'model/gltf-binary' }));
           }
-          // Fallback: JSON → GLB wrappen
+          // JSON → GLB-Wrapper
           const glbBlob = makeGLBFromJSON(result);
           resolve(glbBlob);
         }catch(e){ reject(e); }
@@ -1380,7 +1378,6 @@ function getSelectedClipNameForExport(){
   };
 }
 
-
     function showSharePanel(url){
       let el = document.getElementById('shareOverlay');
       if(el) el.remove();
@@ -1404,119 +1401,104 @@ function getSelectedClipNameForExport(){
     }
 
     async function publish(){
-      const EP  = (window.__AREA||{}).PUBLISH_ENDPOINT || '';
-      const KEY = (window.__AREA||{}).PUBLISH_KEY || '';
-      if (!EP || /YOUR-SUBDOMAIN/.test(EP) || !KEY || /YOUR-PUBLISH-KEY/.test(KEY)) {
-        alert('Publish ist noch nicht konfiguriert. Bitte in <script> window.__AREA.PUBLISH_ENDPOINT & PUBLISH_KEY setzen.');
-        return;
-      }
-
-      try {
-        const defaultId = sanitizeId(projectName);
-        const sceneId   = sanitizeId(prompt('Scene ID:', defaultId) || defaultId);
-        toast('Exportiere Szene…');
-
-        let glbBlob;
-        try { glbBlob = await exportSceneGLB(); }
-        catch(e){ console.error(e); alert('GLB-Export fehlgeschlagen: ' + (e?.message||e)); return; }
-
-        const ab = await glbBlob.arrayBuffer();
-        const u8 = new Uint8Array(ab, 0, 4);
-        if (!(u8[0]===0x67 && u8[1]===0x6C && u8[2]===0x54 && u8[3]===0x46)) {
-          throw new Error('Exportierte Datei ist kein GLB (fehlende "glTF"-Magic-Bytes).');
-        }
-
-       const mode = ($('#anchorMode')?.value || 'surface-webxr');
-const workerOrigin = new URL(EP).origin;
-const sceneBase    = `${workerOrigin}/scenes/${sceneId}/`;
-
-let viewerUrl;
-const form = new FormData();
-form.append('sceneId', sceneId);
-
-// immer: GLB
-form.append('file', new File([glbBlob], 'scene.glb', { type:'model/gltf-binary' }));
-
-if (mode === 'scene-viewer'){
-  // Poster + (optional) Audio einsammeln
-  const posterBlob = await capturePosterBlob(0.9);
-  form.append('file', new File([posterBlob], 'poster.jpg', { type:'image/jpeg' }));
-
-  const audio = findFirstAudio();
-  if (audio){
-    const audioBlob = audio.fromFile
-      ? audio.fromFile
-      : (audio.fromDataUrl ? await dataUrlToBlob(audio.fromDataUrl) : null);
-    if (audioBlob){
-      // MIME grob schätzen
-      const mime = (audioBlob.type||'audio/mpeg');
-      form.append('file', new File([audioBlob], 'audio.mp3', { type: mime }));
-    }
+  const EP  = (window.__AREA||{}).PUBLISH_ENDPOINT || '';
+  const KEY = (window.__AREA||{}).PUBLISH_KEY || '';
+  if (!EP || /YOUR-SUBDOMAIN/.test(EP) || !KEY || /YOUR-PUBLISH-KEY/.test(KEY)) {
+    alert('Publish ist noch nicht konfiguriert. Bitte in <script> window.__AREA.PUBLISH_ENDPOINT & PUBLISH_KEY setzen.');
+    return;
   }
 
-  // scene.json für Scene Viewer
-  const sceneJson = buildSceneViewerJSON_CF({ sceneId, workerOrigin });
-  form.append('file', new File([JSON.stringify(sceneJson,null,2)], 'scene.json', { type:'application/json' }));
+  try {
+    const defaultId = sanitizeId(projectName);
+    const sceneId   = sanitizeId(prompt('Scene ID:', defaultId) || defaultId);
 
-} else {
-  // bestehende JSON (WebXR / Native / Image) beibehalten
-  const glbUrl    = (mode === 'native' && ($('#nativeGlbUrl')?.value||'').trim())
-                      ? ($('#nativeGlbUrl').value.trim())
-                      : (sceneBase + 'scene.glb');
-  const usdzUrl   = (mode === 'native' && ($('#nativeUsdzUrl')?.value||'').trim())
-                      ? ($('#nativeUsdzUrl').value.trim())
-                      : null;
-  const targetUrl = (mode === 'image'  && ($('#imageTargetUrl')?.value||'').trim())
-                      ? ($('#imageTargetUrl').value.trim())
-                      : null;
+    toast('Exportiere Szene…');
+    // GLB exportieren + Magic-Bytes prüfen
+    let glbBlob = await exportSceneGLB();
+    const ab = await glbBlob.arrayBuffer();
+    const u8 = new Uint8Array(ab, 0, 4);
+    if (!(u8[0]===0x67 && u8[1]===0x6C && u8[2]===0x54 && u8[3]===0x46)) {
+      throw new Error('Exportierte Datei ist kein GLB (fehlende "glTF"-Magic-Bytes).');
+    }
 
-  const sceneJson = buildSceneJSON({ sceneId, title: projectName, mode, glbUrl, usdzUrl, targetUrl });
-  form.append('file', new File([JSON.stringify(sceneJson,null,2)], 'scene.json', { type:'application/json' }));
-}
+    const mode          = (document.getElementById('anchorMode')?.value || 'surface-webxr');
+    const workerOrigin  = new URL(EP).origin;
+    const sceneBase     = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
 
-        const viewerBase = (window.__AREA||{}).VIEWER_BASE || 'https://area-viewer.pages.dev';
-
-const entryByMode = {
-  'surface-webxr': '/webxr.html',
-  'native':        '/index.html',
-  'image':         '/image-ar/viewer.html',
-  'scene-viewer':  '/scene-viewer/index.html'  // NEU
-};
-const entry = entryByMode[mode];
-
-const urlStd = `${viewerBase}${entry}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
-const url = (json.viewerUrl || urlStd);
-
-showSharePanel(url);
-try{ await navigator.clipboard.writeText(url); }catch{}
-toast('Veröffentlicht');
-
-
-        toast('Lade hoch…');
-        const form = new FormData();
-        form.append('sceneId', sceneId);
-        form.append('file', new File([JSON.stringify(sceneJson,null,2)], 'scene.json', { type:'application/json' }));
-        form.append('file', new File([glbBlob], 'scene.glb', { type:'model/gltf-binary' }));
-
-        const res = await fetch(EP, { method:'POST', body: form, headers:{ 'X-AREA-Key': KEY, 'Accept':'application/json' } });
-        if(!res.ok){ const t=await res.text().catch(()=> ''); throw new Error(t || ('HTTP '+res.status)); }
-        const json = await res.json().catch(()=> ({}));
-
-        const viewerBase = (window.__AREA||{}).VIEWER_BASE || 'https://area-viewer.pages.dev';
-        const entryByMode = { 'surface-webxr': '/webxr.html', 'native': '/index.html', 'image': '/image-ar/viewer.html' };
-        const entry = entryByMode[sceneJson?.meta?.mode] || entryByMode[mode] || '/surface-ar/webxr.html';
-
-        const viewerUrl = json.viewerUrl
-          || `${viewerBase}${entry}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
-
-        showSharePanel(viewerUrl);
-        try{ await navigator.clipboard.writeText(viewerUrl); }catch{}
-        toast('Veröffentlicht');
-      } catch (err) {
-        console.error(err);
-        alert('Publish fehlgeschlagen: ' + (err?.message || err));
+    // Optionales Audio einmalig vorbereiten (für alle Modi ok)
+    let audioBlob = null;
+    {
+      const audio = findFirstAudio();
+      if (audio){
+        audioBlob = audio.fromFile
+          ? audio.fromFile
+          : (audio.fromDataUrl ? await dataUrlToBlob(audio.fromDataUrl) : null);
       }
     }
+
+    // Upload-Payload bauen
+    const form = new FormData();
+    form.append('sceneId', sceneId);
+    form.append('file', new File([glbBlob], 'scene.glb', { type:'model/gltf-binary' }));
+
+    if (mode === 'scene-viewer') {
+      // Poster für Scene-Viewer
+      const posterBlob = await capturePosterBlob(0.9);
+      form.append('file', new File([posterBlob], 'poster.jpg', { type:'image/jpeg' }));
+
+      // Szene-Viewer Konfiguration
+      const sceneJsonSV = buildSceneViewerJSON_CF({ sceneId, workerOrigin });
+      form.append('file', new File([JSON.stringify(sceneJsonSV, null, 2)], 'scene.json', { type:'application/json' }));
+    } else {
+      // WebXR / Native / Image
+      const target    = (document.getElementById('imageTargetUrl')?.value || '').trim();
+      const usdzInput = (document.getElementById('nativeUsdzUrl')?.value || '').trim();
+      const glbInput  = (document.getElementById('nativeGlbUrl')?.value  || '').trim();
+
+      const glbUrl    = (mode === 'native' && glbInput) ? glbInput : `${sceneBase}/scene.glb`;
+      const usdzUrl   = (mode === 'native' && usdzInput) ? usdzInput : null;
+      const targetUrl = (mode === 'image'  && target)    ? target    : null;
+
+      const sceneJson = buildSceneJSON({ sceneId, title: projectName, mode, glbUrl, usdzUrl, targetUrl });
+      form.append('file', new File([JSON.stringify(sceneJson, null, 2)], 'scene.json', { type:'application/json' }));
+    }
+
+    // Optional Audio (einmalig)
+    if (audioBlob){
+      const mime = audioBlob.type || 'audio/mpeg';
+      form.append('file', new File([audioBlob], 'audio.mp3', { type: mime }));
+    }
+
+    // Upload
+    toast('Lade hoch…');
+    const res = await fetch(EP, { method:'POST', body: form, headers:{ 'X-AREA-Key': KEY, 'Accept':'application/json' } });
+    if(!res.ok){ const t=await res.text().catch(()=> ''); throw new Error(t || ('HTTP '+res.status)); }
+
+    // E) Nach dem Upload: Viewer-URL inkl. Scene-Viewer
+    const json = await res.json().catch(()=> ({}));
+
+    const viewerBase = (window.__AREA||{}).VIEWER_BASE || 'https://area-viewer.pages.dev';
+    const entryByMode = {
+      'surface-webxr': '/webxr.html',
+      'native':        '/index.html',
+      'image':         '/image-ar/viewer.html',
+      'scene-viewer':  '/scene-viewer/index.html' // neu
+    };
+    const entry = entryByMode[mode] || '/webxr.html';
+
+    const viewerUrl = json.viewerUrl
+      || `${viewerBase}${entry}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
+
+    showSharePanel(viewerUrl);
+    try{ await navigator.clipboard.writeText(viewerUrl); }catch{}
+    toast('Veröffentlicht');
+
+  } catch (err) {
+    console.error(err);
+    alert('Publish fehlgeschlagen: ' + (err?.message || err));
+  }
+}
+
 
     // Hint FAB + Projektmenü
     (function(){
