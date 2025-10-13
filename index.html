@@ -204,7 +204,7 @@
         <button id="btn-save-as" class="menuitem" role="menuitem">Speichern unter…</button>
         <button id="btn-preview" class="menuitem" role="menuitem">Vorschau (Module)…</button>
         <button id="btn-publish" class="menuitem" role="menuitem">Veröffentlichen (Link &amp; QR)…</button>
-       <button id="themeToggle" class="btn" title="Theme wechseln">Theme</button>
+       <button id="Toggle" class="btn" title=" wechseln"></button>
 
       </div>
     </div>
@@ -453,7 +453,7 @@ function cssColor(varName, fallback){
   return new THREE.Color(v || fallback);
 }
 
-function applyThemeToThree(){
+function applyToThree(){
   // Stage-Hintergrund
   scene.background = cssColor('--bg', '#0b1323');
 
@@ -463,7 +463,7 @@ function applyThemeToThree(){
     outlinePass.hiddenEdgeColor.set(cssColor('--accent2', '#2a65b3'));
   }
 }
-window.__applyThemeToThree = applyThemeToThree;
+window.__applyToThree = applyThemeToThree;
 
 
     const scene = new THREE.Scene(); scene.background = cssColor('--bg', '#0b1323');
@@ -1448,30 +1448,40 @@ function makeGLBFromJSON(jsonLike){
       else if(k==='g' && (e.ctrlKey||e.metaKey) && e.shiftKey){ e.preventDefault(); $('#btn-ungroup').click(); }
     });
 
-/* === Theme Toggle Init – robust === */
+/* === Theme Toggle Init – robust (mit Storage-Fallback) === */
 (function(){
-  const html  = document.documentElement;
+  const html = document.documentElement;
 
-  // Beim Laden: gespeichertes Theme setzen (nur EINE Klasse aktiv)
-  const saved = localStorage.getItem('theme') === 'theme-aurora' ? 'theme-aurora' : 'theme-slate';
-  html.classList.remove('theme-slate','theme-aurora');
-  html.classList.add(saved);
+  // Safe-Storage Wrapper (blockiert? → null)
+  const storage = (() => {
+    try {
+      const s = window.localStorage;
+      const k = '__theme_test__';
+      s.setItem(k, '1'); s.removeItem(k);
+      return s;
+    } catch { return null; }
+  })();
+
+  const setTheme = (theme) => {
+    html.classList.remove('theme-slate','theme-aurora');
+    html.classList.add(theme);
+    try { storage?.setItem('theme', theme); } catch {}
+    window.__applyThemeToThree?.();
+  };
+
+  // Initial: gespeichertes Theme oder Slate
+  const initial = (storage?.getItem('theme') === 'theme-aurora') ? 'theme-aurora' : 'theme-slate';
+  setTheme(initial);
 
   const btn = document.getElementById('themeToggle');
   if (btn){
-    btn.addEventListener('click', (e)=>{
+    btn.addEventListener('click', (e) => {
       e.preventDefault();
-      e.stopPropagation();                 // verhindert Menü-Handler-Interferenz
-
+      e.stopPropagation();
       const next = html.classList.contains('theme-aurora') ? 'theme-slate' : 'theme-aurora';
-      html.classList.remove('theme-slate','theme-aurora');
-      html.classList.add(next);
-      localStorage.setItem('theme', next);
+      setTheme(next);
 
-      // Three.js Farben aktualisieren
-      window.__applyThemeToThree?.();
-
-      // Menü nach Klick schließen (optional, fühlt sich besser an)
+      // Menü schließen (UX)
       const menu = document.getElementById('projectMenu');
       const menuBtn = document.getElementById('btn-project-menu');
       menu?.classList.remove('open');
@@ -1479,9 +1489,15 @@ function makeGLBFromJSON(jsonLike){
     });
   }
 
-  // Initial einmal anwenden
-  window.__applyThemeToThree?.();
+  // Optionaler Tastatur-Fallback (Taste "T")
+  window.addEventListener('keydown', (e) => {
+    if (e.key?.toLowerCase() === 't' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const next = html.classList.contains('theme-aurora') ? 'theme-slate' : 'theme-aurora';
+      setTheme(next);
+    }
+  });
 })();
+
 
     render();
   </script>
