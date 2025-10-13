@@ -92,6 +92,19 @@
     .tab.active{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
     .del{background:#0f1626;border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:8px;cursor:pointer}
 
+    .dropzone{
+  border:1px dashed var(--border);
+  background:var(--panel2);
+  padding:10px; border-radius:12px;
+  display:grid; grid-template-columns:56px 1fr auto; gap:10px; align-items:center;
+  cursor:pointer; user-select:none;
+}
+.dropzone.hover{ outline:2px solid var(--accent); outline-offset:2px }
+.dropzone .preview{ width:56px; height:56px; border-radius:8px; background:#0f1626;
+  display:grid; place-items:center; overflow:hidden }
+.dropzone .preview img{ width:100%; height:100%; object-fit:cover; display:block }
+
+
     .viewport{position:relative;overflow:hidden;min-height:0;height:100%}
     #stage{position:absolute;inset:0;width:100%;height:100%}
     canvas{display:block}
@@ -246,10 +259,76 @@
 
   <div class="wrap">
     <!-- LEFT -->
-    <div class="panel">
-      <h3>Szenenbaum</h3>
-      <div id="sceneList" class="content"><div class="muted">Noch keine Objekte</div></div>
-    </div>
+<div class="panel">
+  <h3>Eigenschaftsbaum</h3>
+  <div class="content" id="leftContent">
+
+    <!-- Anchor & Ausgabe -->
+    <details id="sec-anchor" class="section" open>
+      <summary>
+        <span class="sum-title">Anchor &amp; Ausgabe</span>
+        <span class="sum-icons">
+          <span class="ico-mask ico--scene" aria-hidden="true"></span>
+          <span class="ico-mask ico--chev"  aria-hidden="true"></span>
+        </span>
+      </summary>
+      <div class="body">
+        <div class="kv">
+          <div>Anchor-Modus</div>
+          <select id="anchorModeLeft" class="select">
+            <option value="surface-webxr">Surface (WebXR)</option>
+            <option value="image">Image Trigger</option>
+            <option value="native">Surface (Native)</option>
+            <option value="scene-viewer">Szene Viewer (ohne AR)</option>
+          </select>
+        </div>
+
+        <!-- Szene-Viewer spezifische UI -->
+        <div id="svBlock" style="display:none; margin-top:6px">
+
+          <!-- Poster Dropzone -->
+          <div class="kv">
+            <div>Poster</div>
+            <div style="display:grid; gap:6px">
+              <div id="svDrop" class="dropzone" role="button" tabindex="0"
+                   title="JPG reinziehen oder klicken">
+                <div class="preview"><img id="svPosterPrev" alt="" style="display:none"></div>
+                <div>
+                  <div style="font-weight:700">Ziehen &amp; ablegen oder klicken</div>
+                  <div class="muted" style="font-size:12px">JPG empfohlen · 1280×720 (oder ähnlich)</div>
+                </div>
+                <div class="btn">Datei wählen</div>
+                <input id="file-poster" type="file" accept="image/jpeg" hidden>
+              </div>
+              <div class="muted" id="svPosterHint" style="font-size:12px">Ohne Upload wird beim Publish ein Canvas-Snapshot genutzt.</div>
+            </div>
+          </div>
+
+          <!-- Begrüßungstexte -->
+          <div class="kv">
+            <div>Eyebrow</div>
+            <input id="svEyebrow" class="input" placeholder="z. B. ARea – Szene"
+                   maxlength="24">
+          </div>
+          <div class="kv">
+            <div>Titel</div>
+            <input id="svTitle" class="input" placeholder="Titel der Szene"
+                   maxlength="60">
+          </div>
+          <div class="kv">
+            <div>Textzeile</div>
+            <input id="svDesc" class="input" placeholder="Kurzbeschreibung …"
+                   maxlength="90">
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <h4 class="muted" style="margin:8px 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.1em">Szenenbaum</h4>
+    <div id="sceneList"><div class="muted">Noch keine Objekte</div></div>
+  </div>
+</div>
+
 
     <!-- CENTER -->
     <div class="viewport">
@@ -461,6 +540,10 @@
     const toastEl = $('#toast');
     function toast(m){ toastEl.textContent=m; toastEl.style.display='block'; setTimeout(()=>toastEl.style.display='none',1800); }
 
+    let customPosterBlob = null;          // optional vom Nutzer
+    let customPosterDataUrl = '';         // fürs Persistieren/Preview
+
+
     // --- State ---
     let projectName = 'Unbenanntes Projekt';
     function setProjectName(n){ projectName = (n||'').trim()||'Unbenanntes Projekt'; $('#projNamePill').textContent = projectName; document.title = 'WebAR Editor v2.2.8 — '+projectName; }
@@ -468,13 +551,82 @@
     $('#projNamePill').addEventListener('dblclick', promptNewName);
 
     const stage = $('#stage');
-    const renderer = new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+    const renderer = new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true,powerPreference:'high-performance'   // <--
+});
     renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
     renderer.autoClear = false;
     stage.appendChild(renderer.domElement);
+
+    function getAnchorSel(){
+  const l = document.getElementById('anchorModeLeft');
+  const r = document.getElementById('anchorMode');
+  return (l?.value || r?.value || 'surface-webxr');
+}
+function setAnchorSel(v){
+  const l = document.getElementById('anchorModeLeft');
+  const r = document.getElementById('anchorMode');
+  if(l) l.value = v;
+  if(r) r.value = v;
+}
+function updateSVBlockVisible(){
+  const sv = document.getElementById('svBlock');
+  if(sv) sv.style.display = (getAnchorSel()==='scene-viewer') ? 'block' : 'none';
+}
+
+    // Anchor-Selects miteinander koppeln
+document.getElementById('anchorModeLeft')?.addEventListener('change', (e)=>{
+  setAnchorSel(e.target.value);
+  updateAnchorUI();
+});
+document.getElementById('anchorMode')?.addEventListener('change', (e)=>{
+  setAnchorSel(e.target.value);
+  updateAnchorUI();
+});
+
+// beim Start einmal angleichen (bestehenden Wert übernehmen)
+requestAnimationFrame(()=>{
+  const initVal = document.getElementById('anchorMode')?.value || 'surface-webxr';
+  setAnchorSel(initVal);
+  updateAnchorUI();
+});
+
+// --- Poster Dropzone ---
+const svDrop   = document.getElementById('svDrop');
+const svInput  = document.getElementById('file-poster');
+const svImg    = document.getElementById('svPosterPrev');
+
+function setPoster(blob){
+  customPosterBlob = blob;
+  if (!blob){ svImg.style.display='none'; svImg.src=''; return; }
+  const url = URL.createObjectURL(blob);
+  svImg.src = url; svImg.style.display='block';
+  // zusätzlich eine DataURL (Persistierbar) erzeugen:
+  const r = new FileReader();
+  r.onload = () => { customPosterDataUrl = r.result; };
+  r.readAsDataURL(blob);
+}
+
+svDrop?.addEventListener('click', ()=> svInput?.click());
+svDrop?.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); svInput?.click(); }});
+svDrop?.addEventListener('dragover', (e)=>{ e.preventDefault(); svDrop.classList.add('hover'); });
+svDrop?.addEventListener('dragleave', ()=> svDrop.classList.remove('hover'));
+svDrop?.addEventListener('drop', (e)=>{
+  e.preventDefault(); svDrop.classList.remove('hover');
+  const f = e.dataTransfer?.files?.[0];
+  if(!f) return;
+  if(!/^image\/jpeg$/i.test(f.type)){ toast('Bitte ein JPG wählen'); return; }
+  setPoster(f);
+});
+svInput?.addEventListener('change', (e)=>{
+  const f = e.target.files?.[0];
+  if(!f){ setPoster(null); return; }
+  if(!/^image\/jpeg$/i.test(f.type)){ toast('Bitte ein JPG wählen'); e.target.value=''; return; }
+  setPoster(f);
+});
+
 
     // CSS-Var -> THREE.Color
     function cssColor(varName, fallback){
@@ -588,8 +740,8 @@
     const state = { objects: [], selectedId:null, selection:new Set() };
     function uid(){ return 'o_'+Math.random().toString(36).slice(2,9); }
 
-    const gltfLoader = new GLTFLoader();
-    const draco = new DRACOLoader(); draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/'); gltfLoader.setDRACOLoader(draco);
+    const gltfLoader = new GLTFLoader();gltfLoader.setCrossOrigin('anonymous'); // <--
+    const draco = new DRACOLoader();draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');gltfLoader.setDRACOLoader(draco);
     const fbxLoader = new FBXLoader();
 
     function forEachRec(fn){ function visit(rec){ fn(rec); if(rec.type==='group' && rec.children) rec.children.forEach(visit); } state.objects.forEach(visit); }
@@ -710,6 +862,11 @@
     }
     tcontrols.addEventListener('objectChange', ()=>{ if(state.selection.size!==1) return; const rec=findRec(state.selectedId); if(!rec) return; addPickProxy(rec); updateOutlineSelection(); });
 
+async function blobToBase64(blob){
+  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); });
+}
+
+    
     async function addFromFile(file){
       const id=uid(); const url=URL.createObjectURL(file);
       try{
@@ -1086,7 +1243,11 @@
       return {
         version:'2.2.8',
         meta:{ app:'WebAR Editor', projectName, savedAt:new Date().toISOString() },
-        settings:{ roomSize: parseFloat($('#roomSize').value)||24, gridVisible: $('#gridVisible').checked },
+        settings:{roomSize: parseFloat($('#roomSize').value)||24,gridVisible: $('#gridVisible').checked,anchorMode: getAnchorSel(),sceneViewer: {eyebrow: $('#svEyebrow')?.value||'',title:   $('#svTitle')?.value||'',desc:    $('#svDesc')?.value||'',
+    posterData: customPosterBlob ? await blobToBase64(customPosterBlob) : (customPosterDataUrl || '')
+  }
+},
+
         objects: out
       };
     }
@@ -1123,12 +1284,22 @@
       state.objects=[]; clearSelection();
 
       if (data.meta?.projectName) setProjectName(data.meta.projectName);
-      if (data.settings){
-        $('#roomSize').value = data.settings.roomSize || 24;
-        buildRoom(parseFloat($('#roomSize').value) || 24);
-        $('#gridVisible').checked = !!data.settings.gridVisible;
-        [gridNear,gridFar,axisX,axisZ].forEach(o=>o && (o.visible = $('#gridVisible').checked));
-      }
+      if (data.settings?.anchorMode){
+  setAnchorSel(data.settings.anchorMode);
+}
+if (data.settings?.sceneViewer){
+  const sv = data.settings.sceneViewer;
+  (document.getElementById('svEyebrow')||{}).value = sv.eyebrow||'';
+  (document.getElementById('svTitle')||{}).value   = sv.title||'';
+  (document.getElementById('svDesc')||{}).value    = sv.desc||'';
+  if (sv.posterData){
+    // Vorschau & Blob rekonstruieren
+    const b = await dataUrlToBlob(sv.posterData);
+    setPoster(new File([b], 'poster.jpg', { type:'image/jpeg' }));
+  }
+}
+updateAnchorUI();
+
 
       for (const obj of (data.objects || [])){
         const name = obj.name || 'Objekt';
@@ -1181,47 +1352,51 @@
 
     // ===== Anchor-UI toggeln =====
     function updateAnchorUI(){
-      const m = $('#anchorMode')?.value || 'surface-webxr';
-      if ($('#imageTargetRow')) $('#imageTargetRow').style.display = (m==='image')  ? 'grid' : 'none';
-      if ($('#nativeRow'))      $('#nativeRow').style.display      = (m==='native') ? 'grid' : 'none';
+  const mode = getAnchorSel();
+  // rechte Panel-Optionen weiter bedienen:
+  const imgRow = document.getElementById('imageTargetRow');
+  const natRow = document.getElementById('nativeRow');
+  if (imgRow) imgRow.style.display = (mode==='image')  ? 'grid' : 'none';
+  if (natRow) natRow.style.display = (mode==='native') ? 'grid' : 'none';
+
+  updateSVBlockVisible();
+}
+
+
+ function previewModules(){
+  const mode   = getAnchorSel(); // <-- nur noch hier holen
+  const target = ($('#imageTargetUrl')?.value || '').trim();
+  const glb    = ($('#nativeGlbUrl')?.value  || '').trim();
+  const usdz   = ($('#nativeUsdzUrl')?.value || '').trim();
+
+  const viewerBase = (window.__AREA || {}).VIEWER_BASE || 'https://area-viewer.pages.dev';
+
+  const pathByMode = {
+    'surface-webxr': '/webxr.html',
+    'native':        '/index.html',
+    'image':         '/image-ar/viewer.html',
+    'scene-viewer':  '/scene-viewer/index.html'
+  };
+  const entry = pathByMode[mode] || '/webxr.html';
+
+  (async () => {
+    const data = await buildProjectData();
+    const src = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data));
+
+    let url = `${viewerBase}${entry}?src=${encodeURIComponent(src)}&anchor=${encodeURIComponent(mode)}`;
+    if (mode === 'image' && target) {
+      url += `&target=${encodeURIComponent(target)}`;
     }
-    requestAnimationFrame(updateAnchorUI);
-    $('#anchorMode')?.addEventListener('change', updateAnchorUI);
-
-    // ===== Vorschau (Module auf Cloudflare Pages) =====
-    function previewModules(){
-      const mode   = $('#anchorMode')?.value || 'surface-webxr';
-      const target = ($('#imageTargetUrl')?.value || '').trim();
-      const glb    = ($('#nativeGlbUrl')?.value  || '').trim();
-      const usdz   = ($('#nativeUsdzUrl')?.value || '').trim();
-
-      const viewerBase = (window.__AREA || {}).VIEWER_BASE || 'https://area-viewer.pages.dev';
-
-      const pathByMode = {
-        'surface-webxr': '/webxr.html',
-        'native':        '/index.html',
-        'image':         '/image-ar/viewer.html',
-        'scene-viewer':  '/scene-viewer/index.html'
-      };
-      const entry = pathByMode[mode] || '/webxr.html';
-
-      (async () => {
-        const data = await buildProjectData();
-        const src = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data));
-
-        let url = `${viewerBase}${entry}?src=${encodeURIComponent(src)}&anchor=${encodeURIComponent(mode)}`;
-        if (mode === 'image' && target) {
-          url += `&target=${encodeURIComponent(target)}`;
-        }
-        if (mode === 'native') {
-          if (glb)  url += `&glb=${encodeURIComponent(glb)}`;
-          if (usdz) url += `&usdz=${encodeURIComponent(usdz)}`;
-        }
-
-        window.open(url, '_blank');
-        toast('Vorschau geöffnet');
-      })();
+    if (mode === 'native') {
+      if (glb)  url += `&glb=${encodeURIComponent(glb)}`;
+      if (usdz) url += `&usdz=${encodeURIComponent(usdz)}`;
     }
+
+    window.open(url, '_blank');
+    toast('Vorschau geöffnet');
+  })();
+}
+
     // ===== Ende Vorschau =====
 
     // ===== Export → Worker-Publish → QR =====
@@ -1349,9 +1524,11 @@ async function exportSceneGLB(){
       return json;
     }
 
-    function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
+    function val(id, def=''){ const el = document.getElementById(id); const v=(el?.value||'').trim(); return v || def; }
+
+function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
   const base = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
-  const clipName = getSelectedClipNameForExport(); // "*" oder konkreter Clip
+  const clipName = getSelectedClipNameForExport();
   const audio = findFirstAudio();
 
   return {
@@ -1359,19 +1536,19 @@ async function exportSceneGLB(){
       showGround: true,
       autocenter: true,
       welcome: {
-        eyebrow: "ARea – Szene",
-        title: projectName || sceneId,
-        desc: "Klicke auf OK, um zu starten.",
-        cta: "OK",
-        poster: `${base}/poster.jpg`
+        eyebrow: val('svEyebrow', 'ARea – Szene'),
+        title:   val('svTitle',   projectName || sceneId),
+        desc:    val('svDesc',    'Klicke auf OK, um zu starten.'),
+        cta:     'OK',
+        poster:  `${base}/poster.jpg`
       }
     },
     camera: { fov: 50, start:[2.2,1.6,3.0], lookAt:[0,1.1,0] },
     model:  { url: `${base}/scene.glb`, scale: 1, rotateY: 0 },
     animation: {
       enabled: true,
-      clipName,          // "*" = erster Clip
-      start: "onStart",  // onStart | onClick | button
+      clipName,
+      start: "onStart",
       loop: (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
       iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
       clampWhenFinished: true,
@@ -1380,7 +1557,7 @@ async function exportSceneGLB(){
     },
     audio: audio ? {
       url: `${base}/audio.mp3`,
-      autoplay: "withAnimation", // oder "auto"/"button" – später gern UI-Feld
+      autoplay: "withAnimation",
       loop: !!audio.loop,
       volume: 0.85
     } : { url: "" },
@@ -1431,7 +1608,7 @@ async function exportSceneGLB(){
       throw new Error('Exportierte Datei ist kein GLB (fehlende "glTF"-Magic-Bytes).');
     }
 
-    const mode          = (document.getElementById('anchorMode')?.value || 'surface-webxr');
+    const mode = getAnchorSel();
     const workerOrigin  = new URL(EP).origin;
     const sceneBase     = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
 
@@ -1453,8 +1630,14 @@ async function exportSceneGLB(){
 
     if (mode === 'scene-viewer') {
       // Poster für Scene-Viewer
-      const posterBlob = await capturePosterBlob(0.9);
-      form.append('file', new File([posterBlob], 'poster.jpg', { type:'image/jpeg' }));
+     let posterBlob;
+if (customPosterBlob) {
+  posterBlob = customPosterBlob;                 // User-Poster
+} else {
+  posterBlob = await capturePosterBlob(0.9);     // Fallback: Canvas
+}
+form.append('file', new File([posterBlob], 'poster.jpg', { type:'image/jpeg' }));
+
 
       // Szene-Viewer Konfiguration
       const sceneJsonSV = buildSceneViewerJSON_CF({ sceneId, workerOrigin });
