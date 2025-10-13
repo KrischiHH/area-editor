@@ -5,63 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WebAR Editor v2.2.8</title>
   <style>
-    :root { color-scheme: dark; } /* nur Globales hier rein */
+    /* keine globale color-scheme mehr – je Theme */
+    *{box-sizing:border-box}
 
     /* ===================== Themes ===================== */
     :root.theme-slate{
       --bg:#0e1116; --panel:#111828; --panel2:#192339; --text:#e9ecf5;
       --muted:#9fb3d9; --border:#24314a; --accent:#60a5fa; --accent2:#93c5fd;
+      --field:var(--panel2);
       color-scheme: dark;
     }
-
-    /* Aurora: deutlich anders (türkise Akzente, grünlich-dunkler Hintergrund) */
     :root.theme-aurora{
-      --bg:#041a1f;     /* deutlich grün/blau */
-      --panel:#06242b;
-      --panel2:#08323c;
-      --text:#e6fffb;   /* sehr hell, leicht mint */
-      --muted:#93d9d1;
-      --border:#0f3a43;
-      --accent:#22d3ee; /* knalliger Cyan */
-      --accent2:#67e8f9;
+      --bg:#041a1f; --panel:#06242b; --panel2:#08323c; --text:#e6fffb;
+      --muted:#93d9d1; --border:#0f3a43; --accent:#22d3ee; --accent2:#67e8f9;
+      --field:var(--panel2);
       color-scheme: dark;
     }
+    :root.theme-light{
+      --bg:#f6f8fc; --panel:#ffffff; --panel2:#eef3fe; --text:#0b1220;
+      --muted:#51658a; --border:#d5def1; --accent:#2563eb; --accent2:#60a5fa;
+      --field:#ffffff;
+      color-scheme: light;
+    }
 
-    /* sanfte Übergänge beim Theme-Wechsel (ohne Layout-Jank) */
+    /* sanfte Übergänge beim Theme-Wechsel */
     html, body,
     .panel, .btn, .menubtn, .menu-pop, .toolbtn, .status-badge, .status-pill,
-    .icon, .tab, .del, .select, .input, .section > summary {
-      transition: background-color .25s ease, color .25s ease, border-color .25s ease, box-shadow .25s ease;
+    .icon, .tab, .del, .select, .input, .section > summary, .hint, .toast, .theme-fab{
+      transition: background-color .25s ease, color .25s ease, border-color .25s ease, box-shadow .25s ease, opacity .2s ease, transform .25s ease;
     }
 
-    /* Eingestanzte Pill (reine Vertiefung) */
-    .top .brand-pill{
-      --pill-h: 36px;
-      height: var(--pill-h);
-      display: inline-flex;
-      align-items: stretch;
-      border-radius: 999px;
-      overflow: hidden;
-      padding: 0;
-      background: var(--panel2);
-      border: none;
-      outline: none;
-      box-shadow:
-        inset 10px 10px 18px rgba(0,0,0,0.65),
-        inset -8px -8px 16px rgba(255,255,255,0.05);
-    }
-    .top .brand-pill::before{ content:none; }
-    .top .brand-pill img{
-      height: 100%;
-      width: auto;
-      display: block;
-      border-radius: inherit;
-      z-index: 1;
-      opacity: 1;
-    }
-
-    *{box-sizing:border-box}
     html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Inter,Roboto,Arial,sans-serif}
+
     .top{height:56px;display:flex;gap:8px;align-items:center;padding:0 12px;background:var(--panel);border-bottom:1px solid var(--border);position:relative;z-index:10}
     .brand{font-weight:800;letter-spacing:.02em}
     .ver{opacity:.75;margin-left:6px}
@@ -80,17 +55,29 @@
     @media (max-width:1000px){.wrap{grid-template-columns:minmax(200px,260px) minmax(320px,1fr)} .wrap>.panel:nth-child(3){grid-column:1/-1}}
     @media (max-width:680px){.wrap{grid-template-columns:1fr}}
 
-    .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;min-height:0; position:relative;}
     .panel h3{margin:0;padding:10px 12px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
     .content{padding:10px;overflow:auto}
 
+    /* Szenenbaum + runder Theme-Button unten */
     #sceneList{overflow:auto}
     .row{display:grid;grid-template-columns:24px 24px 1fr auto;gap:6px;align-items:center;padding:6px 8px;border-radius:8px}
     .row:hover{ background: var(--panel2); }
     .icon{width:24px;height:24px;display:flex;align-items:center;justify-content:center; cursor:pointer;border:1px solid var(--border);border-radius:8px;background:var(--panel2); }
     .tab{display:block;text-align:left;background:transparent;border:1px solid transparent;padding:6px 8px;border-radius:8px;cursor:pointer;color:var(--text);font-weight:700;min-width:0}
     .tab.active{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
-    .del{background:#0f1626;border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:8px;cursor:pointer}
+    .del{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:8px;cursor:pointer}
+
+    .theme-fab{
+      position:absolute; left:12px; bottom:12px; z-index:5;
+      width:44px; height:44px; border-radius:999px;
+      background: color-mix(in srgb, var(--panel) 88%, transparent);
+      border:1px solid var(--border);
+      display:flex; align-items:center; justify-content:center;
+      font-size:20px; line-height:1; cursor:pointer;
+      box-shadow:0 6px 18px rgba(0,0,0,.18);
+    }
+    .theme-fab:hover{ box-shadow:0 8px 22px rgba(0,0,0,.22); transform: translateY(-1px); }
 
     .viewport{position:relative;overflow:hidden;min-height:0;height:100%}
     #stage{position:absolute;inset:0;width:100%;height:100%}
@@ -121,11 +108,7 @@
       display:flex; gap:8px; align-items:center;
       pointer-events:none;
     }
-    .status-pill{
-      padding:2px 8px;
-      border:1px solid var(--border);
-      border-radius:999px;
-    }
+    .status-pill{ padding:2px 8px; border:1px solid var(--border); border-radius:999px; }
 
     .toast{
       position:fixed;bottom:14px;right:14px;
@@ -143,11 +126,11 @@
     .menuitem input[type="file"]{display:none}
 
     .toolbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
-    .toolbtn{background:#0f1626;border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:999px;cursor:pointer;font-weight:700}
+    .toolbtn{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:999px;cursor:pointer;font-weight:700}
     .toolbtn.active{outline:2px solid var(--accent)}
 
-    .select,.input{background:#0f1420;border:1px solid var(--border);color:var(--text);padding:8px;border-radius:10px}
-    .select option{background:#0f1420;color:var(--text)}
+    .select,.input{background:var(--field);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:10px}
+    .select option{background:var(--field);color:var(--text)}
     .kv{display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center;margin-bottom:8px}
 
     /* Icons (Masken) – zentral definiert */
@@ -184,7 +167,8 @@
     .section > summary .sum-icons .ico-mask{ color: var(--muted); }
 
     .section{margin-bottom:10px;border:0}
-    .section > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:800;letter-spacing:.02em;color:var(--muted);background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.08));border:1px solid var(--border);border-radius:999px;padding:8px 12px;transition:border-color .18s ease,background .18s ease}
+    .section > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:800;letter-spacing:.02em;color:var(--muted);background:linear-gradient(180deg,rgba(0,0,0,.02),rgba(0,0,0,.06));border:1px solid var(--border);border-radius:999px;padding:8px 12px;transition:border-color .18s ease,background .18s ease}
+    .theme-light .section > summary{ background:linear-gradient(180deg,rgba(255,255,255,.72),rgba(255,255,255,.48)); }
     .section > summary::-webkit-details-marker,.section > summary::marker{display:none}
     .sum-icons{display:flex;align-items:center;gap:10px}
     .section > summary .ico--chev{display:inline-block;transform:rotate(-90deg);transform-origin:50% 50%;will-change:transform;transition:transform .18s ease}
@@ -195,6 +179,32 @@
     .section .body .kv{margin-bottom:8px}
 
     .viewport,#stage{min-width:0}
+
+    /* Eingestanzte Pill (reine Vertiefung) */
+    .top .brand-pill{
+      --pill-h: 36px;
+      height: var(--pill-h);
+      display: inline-flex;
+      align-items: stretch;
+      border-radius: 999px;
+      overflow: hidden;
+      padding: 0;
+      background: var(--panel2);
+      border: none;
+      outline: none;
+      box-shadow:
+        inset 10px 10px 18px rgba(0,0,0,0.11),
+        inset -8px -8px 16px rgba(255,255,255,0.35);
+    }
+    .top .brand-pill::before{ content:none; }
+    .top .brand-pill img{
+      height: 100%;
+      width: auto;
+      display: block;
+      border-radius: inherit;
+      z-index: 1;
+      opacity: 1;
+    }
   </style>
 
   <!-- Minimal Config -->
@@ -231,8 +241,7 @@
         <button id="btn-save-as" class="menuitem" role="menuitem">Speichern unter…</button>
         <button id="btn-preview" class="menuitem" role="menuitem">Vorschau (Module)…</button>
         <button id="btn-publish" class="menuitem" role="menuitem">Veröffentlichen (Link &amp; QR)…</button>
-
-        <!-- Theme-Button IM Menü – funktioniert jetzt zuverlässig -->
+        <!-- optional: Theme im Menü behalten -->
         <button id="themeToggle" class="btn" title="Theme wechseln">Theme</button>
       </div>
     </div>
@@ -249,6 +258,8 @@
     <div class="panel">
       <h3>Szenenbaum</h3>
       <div id="sceneList" class="content"><div class="muted">Noch keine Objekte</div></div>
+      <!-- runder Theme-Button unten im Szenenbaum -->
+      <button id="themeFab" class="theme-fab" title="Theme umschalten" aria-label="Theme umschalten">🌙</button>
     </div>
 
     <!-- CENTER -->
@@ -480,8 +491,7 @@
 
     // Farben aus Theme in Three.js übernehmen
     function applyThemeToThree(){
-      scene.background = cssColor('--bg', '#0b1323'); // Stage-Hintergrund
-
+      scene.background = cssColor('--bg', '#0b1323');
       if (outlinePass){
         outlinePass.visibleEdgeColor.set(cssColor('--accent',  '#9ecbff'));
         outlinePass.hiddenEdgeColor.set(cssColor('--accent2', '#2a65b3'));
@@ -693,7 +703,16 @@
       rec.group.traverse(c=>{ if(c.userData?.__pickProxy){ c.parent?.remove(c); c.geometry?.dispose?.(); c.material?.dispose?.(); }});
       rec.group.updateMatrixWorld(true);
       const boxW=new THREE.Box3().setFromObject(rec.group); if(!isFinite(boxW.min.x)) return;
-      const cornersW=[new THREE.Vector3(boxW.min.x,boxW.min.y,boxW.min.z),new THREE.Vector3(boxW.min.x,boxW.min.y,boxW.max.z),new THREE.Vector3(boxW.min.x,boxW.max.y,boxW.min.z),new THREE.Vector3(boxW.min.x,boxW.max.y,boxW.max.z),new THREE.Vector3(boxW.max.x,boxW.min.y,boxW.min.z),new THREE.Vector3(boxW.max.x,boxW.min.y,boxW.max.z),new THREE.Vector3(boxW.max.x,boxW.max.y,boxW.min,z=0),new THREE.Vector3(boxW.max.x,boxW.max.y,boxW.max.z)];
+      const cornersW=[
+        new THREE.Vector3(boxW.min.x,boxW.min.y,boxW.min.z),
+        new THREE.Vector3(boxW.min.x,boxW.min.y,boxW.max.z),
+        new THREE.Vector3(boxW.min.x,boxW.max.y,boxW.min.z),
+        new THREE.Vector3(boxW.min.x,boxW.max.y,boxW.max.z),
+        new THREE.Vector3(boxW.max.x,boxW.min.y,boxW.min.z),
+        new THREE.Vector3(boxW.max.x,boxW.min.y,boxW.max.z),
+        new THREE.Vector3(boxW.max.x,boxW.max.y,boxW.min.z),
+        new THREE.Vector3(boxW.max.x,boxW.max.y,boxW.max.z)
+      ];
       const cornersL=cornersW.map(p=>rec.group.worldToLocal(p.clone()));
       const minL=new THREE.Vector3(+Infinity,+Infinity,+Infinity), maxL=new THREE.Vector3(-Infinity,-Infinity,-Infinity);
       cornersL.forEach(p=>{minL.min(p); maxL.max(p);});
@@ -1176,7 +1195,7 @@
     requestAnimationFrame(updateAnchorUI);
     $('#anchorMode')?.addEventListener('change', updateAnchorUI);
 
-    // ===== Vorschau (Module auf Cloudflare Pages) =====
+    // ===== Vorschau (Module) =====
     function previewModules(){
       const mode   = $('#anchorMode')?.value || 'surface-webxr';
       const target = ($('#imageTargetUrl')?.value || '').trim();
@@ -1209,9 +1228,8 @@
         toast('Vorschau geöffnet');
       })();
     }
-    // ===== Ende Vorschau =====
 
-    // ===== Export → Worker-Publish → QR =====
+    // ===== Export/Publish =====
     function sanitizeId(s){ return (s||'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').replace(/^-+|-+$/g,'').slice(0,64)||'scene'; }
 
     function cloneForExport(){
@@ -1232,7 +1250,7 @@
       if (pad) {
         const tmp = new Uint8Array(jsonBytes.byteLength + pad);
         tmp.set(jsonBytes, 0);
-        tmp.fill(0x20, jsonBytes.byteLength); // ' '
+        tmp.fill(0x20, jsonBytes.byteLength);
         jsonBytes = tmp;
       }
       const GLB_HEADER_BYTES = 12;
@@ -1242,17 +1260,12 @@
       const glb = new ArrayBuffer(totalLength);
       const dv = new DataView(glb);
       let off = 0;
-
-      // Header
       dv.setUint32(off, 0x46546C67, true); off += 4; // 'glTF'
       dv.setUint32(off, 2, true);          off += 4; // version
       dv.setUint32(off, totalLength, true); off += 4; // length
-
-      // JSON chunk
       dv.setUint32(off, jsonBytes.byteLength, true); off += 4; // chunkLength
       dv.setUint32(off, 0x4E4F534A, true);          off += 4; // "JSON"
       new Uint8Array(glb, off, jsonBytes.byteLength).set(jsonBytes); off += jsonBytes.byteLength;
-
       return new Blob([glb], { type: 'model/gltf-binary' });
     }
 
@@ -1298,10 +1311,10 @@
       el = document.createElement('div'); el.id='shareOverlay';
       el.style.cssText='position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:3000;';
       const card=document.createElement('div');
-      card.style.cssText='background: var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px; max-width:520px; width:92%; color:var(--text); box-shadow:0 10px 30px rgba(0,0,0,.4)';
+      card.style.cssText='background: var(--panel); border:1px solid var(--border);border-radius:14px;padding:16px;max-width:520px;width:92%;color:var(--text);box-shadow:0 10px 30px rgba(0,0,0,.4)';
       const h=document.createElement('div'); h.textContent='Veröffentlicht – teilen & scannen'; h.style.cssText='font-weight:800;margin-bottom:8px;color:var(--muted)';
       const qr=document.createElement('canvas'); qr.width=0; qr.height=0; qr.style.cssText='display:block;margin:8px auto;';
-      const link=document.createElement('div'); link.textContent=url; link.style.cssText='font-size:12px;word-break:break-all;margin:8px 0;color:#aecdff;';
+      const link=document.createElement('div'); link.textContent=url; link.style.cssText='font-size:12px;word-break:break-all;margin:8px 0;color:#2563eb;';
       const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;justify-content:flex-end;margin-top:10px;';
       const btnCopy=document.createElement('button'); btnCopy.className='btn'; btnCopy.textContent='Link kopieren';
       const btnOpen=document.createElement('button'); btnOpen.className='btn'; btnOpen.textContent='Im neuen Tab öffnen';
@@ -1414,6 +1427,81 @@
       renderer.clear(); composer.render(); renderer.clearDepth(); renderer.render(overlayScene,camera);
     }
 
+    // ==== Theme Toggle (inkl. Light + FAB) ====
+    (function(){
+      const html = document.documentElement;
+
+      // Safe-Storage Wrapper
+      const storage = (() => {
+        try { const s = window.localStorage; const k = '__theme_test__'; s.setItem(k, '1'); s.removeItem(k); return s; }
+        catch { return null; }
+      })();
+
+      let lastDarkTheme = storage?.getItem('lastDarkTheme') || 'theme-slate';
+
+      const setTheme = (theme) => {
+        html.classList.remove('theme-slate','theme-aurora','theme-light');
+        html.classList.add(theme);
+        try {
+          storage?.setItem('theme', theme);
+          if (theme !== 'theme-light') { lastDarkTheme = theme; storage?.setItem('lastDarkTheme', lastDarkTheme); }
+        } catch {}
+        requestAnimationFrame(() => window.__applyThemeToThree?.());
+        updateFabIcon();
+      };
+
+      const getTheme = () => (html.classList.contains('theme-light') ? 'theme-light'
+                               : html.classList.contains('theme-aurora') ? 'theme-aurora'
+                               : 'theme-slate');
+
+      // Initial
+      const initial = storage?.getItem('theme') || 'theme-slate';
+      setTheme(initial);
+
+      // Menü-Button: optional (hier zyklisch durch alle drei)
+      const menuBtn = document.getElementById('themeToggle');
+      if (menuBtn){
+        menuBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const seq = ['theme-slate','theme-light','theme-aurora'];
+          const cur = getTheme();
+          const next = seq[(seq.indexOf(cur)+1)%seq.length];
+          setTheme(next);
+
+          const menu = document.getElementById('projectMenu');
+          const btn  = document.getElementById('btn-project-menu');
+          menu?.classList.remove('open');
+          btn?.setAttribute('aria-expanded','false');
+        });
+      }
+
+      // Runder FAB im Szenenbaum: toggelt Light <-> (zuletzt genutztes) Dark
+      const fab = document.getElementById('themeFab');
+      function updateFabIcon(){
+        const cur = getTheme();
+        fab.textContent = (cur === 'theme-light') ? '☀️' : '🌙';
+        fab.setAttribute('aria-pressed', cur !== 'theme-light');
+        fab.title = (cur === 'theme-light') ? 'Zu Dark wechseln' : 'Zu Light wechseln';
+      }
+      fab?.addEventListener('click', (e)=>{
+        e.preventDefault();
+        const cur = getTheme();
+        if (cur === 'theme-light') setTheme(lastDarkTheme || 'theme-slate');
+        else setTheme('theme-light');
+      });
+      updateFabIcon();
+
+      // Tastatur-Fallback: T → zyklisch durch alle drei
+      window.addEventListener('keydown', (e) => {
+        if (e.key?.toLowerCase() === 't' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          const seq = ['theme-slate','theme-light','theme-aurora'];
+          const cur = getTheme();
+          setTheme(seq[(seq.indexOf(cur)+1)%seq.length]);
+        }
+      });
+    })();
+
     // Start
     setProjectName(projectName);
     buildRoom(parseFloat($('#roomSize').value)||24);
@@ -1426,74 +1514,6 @@
 
     requestAnimationFrame(()=> onResize());
     updateToolButtons(); applySnap(); setSpace('local'); updateGroupButtons(); updateOutlineSelection();
-
-    window.addEventListener('keydown', (e)=>{
-      const t=e.target; if(t && (t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.isContentEditable)) return;
-      if(tcontrols?.dragging) return;
-      const k=e.key.toLowerCase();
-      if(k==='w') { tcontrols.setMode('translate'); updateToolButtons(); }
-      else if(k==='e') { tcontrols.setMode('rotate'); updateToolButtons(); }
-      else if(k==='r') { tcontrols.setMode('scale'); updateToolButtons(); }
-      else if(k==='d') { e.preventDefault(); $('#btn-duplicate').click(); }
-      else if(k==='f') { e.preventDefault(); $('#btn-floor').click(); }
-      else if(k==='delete'){ $('#btn-del').click(); }
-      else if(k>='1' && k<='5' && e.shiftKey){ saveBookmark(parseInt(k,10)-1); }
-      else if(k>='1' && k<='5' && !e.shiftKey){ recallBookmark(parseInt(k,10)-1); }
-      else if(k==='g' && (e.ctrlKey||e.metaKey) && !e.shiftKey){ e.preventDefault(); $('#btn-group').click(); }
-      else if(k==='g' && (e.ctrlKey||e.metaKey) && e.shiftKey){ e.preventDefault(); $('#btn-ungroup').click(); }
-    });
-
-    /* === Theme Toggle Init – robust (mit Storage-Fallback) === */
-    (function(){
-      const html = document.documentElement;
-
-      // Safe-Storage Wrapper (blockiert? → null)
-      const storage = (() => {
-        try {
-          const s = window.localStorage;
-          const k = '__theme_test__';
-          s.setItem(k, '1'); s.removeItem(k);
-          return s;
-        } catch { return null; }
-      })();
-
-      const setTheme = (theme) => {
-        html.classList.remove('theme-slate','theme-aurora');
-        html.classList.add(theme);
-        try { storage?.setItem('theme', theme); } catch {}
-
-        // Wichtig: erst nach Reflow die CSS-Variablen auslesen → dann Three.js updaten
-        requestAnimationFrame(() => window.__applyThemeToThree?.());
-      };
-
-      // Initial: gespeichertes Theme oder Slate
-      const initial = (storage?.getItem('theme') === 'theme-aurora') ? 'theme-aurora' : 'theme-slate';
-      setTheme(initial);
-
-      const btn = document.getElementById('themeToggle');
-      if (btn){
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const next = html.classList.contains('theme-aurora') ? 'theme-slate' : 'theme-aurora';
-          setTheme(next);
-
-          // Menü schließen (UX)
-          const menu = document.getElementById('projectMenu');
-          const menuBtn = document.getElementById('btn-project-menu');
-          menu?.classList.remove('open');
-          menuBtn?.setAttribute('aria-expanded','false');
-        });
-      }
-
-      // Tastatur-Fallback (Taste "T")
-      window.addEventListener('keydown', (e) => {
-        if (e.key?.toLowerCase() === 't' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-          const next = html.classList.contains('theme-aurora') ? 'theme-slate' : 'theme-aurora';
-          setTheme(next);
-        }
-      });
-    })();
 
     render();
   </script>
