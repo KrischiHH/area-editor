@@ -85,11 +85,24 @@
     .hint-fab{position:absolute;left:12px;bottom:12px;z-index:6;width:40px;height:40px;border-radius:999px;background:#0b1220cc;border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;cursor:pointer}
     .hint{position:absolute;left:60px;right:12px;bottom:12px;background:#0b1220cc;border:1px solid var(--border);border-radius:10px;padding:10px;font-size:12px;color:var(--muted);z-index:5;transition:opacity .22s ease, transform .28s cubic-bezier(.2,.7,.2,1);transform-origin:left bottom}
     .hint.hidden{opacity:0;transform:translateY(8px) scaleX(.85);pointer-events:none}
-   .status-badge{
+  .status-badge{
+  position:absolute;
+  top:12px; right:12px; z-index:7;
   background: color-mix(in srgb, var(--panel) 85%, transparent);
   border:1px solid var(--border);
   border-radius:10px;
-  padding:10px;
+  padding:6px 10px;
+  font-size:12px;
+  color:var(--muted);
+  display:flex; gap:8px; align-items:center;
+  pointer-events:none;
+}
+.status-pill{
+  padding:2px 8px;
+  border:1px solid var(--border);
+  border-radius:999px;
+}
+
 
     .toast{position:fixed;bottom:14px;right:14px;background:#0b1220;border:1px solid var(--border);padding:10px 12px;border-radius:10px;display:none;z-index:1200}
 
@@ -191,7 +204,7 @@
         <button id="btn-save-as" class="menuitem" role="menuitem">Speichern unter…</button>
         <button id="btn-preview" class="menuitem" role="menuitem">Vorschau (Module)…</button>
         <button id="btn-publish" class="menuitem" role="menuitem">Veröffentlichen (Link &amp; QR)…</button>
-        <button id="themeToggle" class="btn" title="Theme wechseln">Theme</button>
+       <button id="themeToggle" class="btn" title="Theme wechseln">Theme</button>
 
       </div>
     </div>
