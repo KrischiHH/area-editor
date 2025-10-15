@@ -371,63 +371,181 @@
     <div class="status-pill" id="projNamePill" title="Projektname (Doppelklick zum Umbenennen)">Unbenanntes Projekt</div>
   </div>
 
-  <div class="wrap">
-  <!-- LINKS: Szenenbaum -->
   <div class="panel">
-    <h3>Eigenschaftsbaum</h3>
-    <div class="content" id="leftContent">
-      <div id="sceneList"></div>
+  <h3>Eigenschaften</h3>
+  <div class="content">
+    <div class="toolbar">
+      <button id="tool-move" class="toolbtn">Verschieben (W)</button>
+      <button id="tool-rotate" class="toolbtn">Drehen (E)</button>
+      <button id="tool-scale" class="toolbtn">Skalieren (R)</button>
     </div>
-  </div>
 
-  <!-- MITTE: Viewport -->
-  <div class="viewport">
-    <div id="stage"></div>
-    <div id="vpStatus" class="status-badge">
-      <span id="vp-pill-space" class="status-pill">Space: Local</span>
-      <span id="vp-pill-snap" class="status-pill">Snap: Aus</span>
+    <div class="toolbar">
+      <button id="btn-duplicate" class="toolbtn" title="D">Duplizieren</button>
+      <button id="btn-floor" class="toolbtn" title="F">Drop to Floor</button>
+      <span class="toolbtn" style="pointer-events:none">Space:</span>
+      <button id="space-local" class="toolbtn active">Lokal</button>
+      <button id="space-world" class="toolbtn">Welt</button>
     </div>
-    <button id="hintFab" class="hint-fab" aria-expanded="false" title="Hinweise">i</button>
-    <div class="hint hidden">LMB drehen · Rad zoomen · RMB/Shift+LMB schwenken · Klick = Auswahl (Shift=Mehrfach) · W/E/R Move/Rotate/Scale · D Duplizieren · F Drop-to-Floor · Entf Löschen · 1–5 Bookmarks · Shift+1–5 Speichern · Ctrl+G Gruppieren · Ctrl+Shift+G Aufheben</div>
-  </div>
 
-  <!-- RECHTS: Eigenschaften (inkl. Anchor & Ausgabe) -->
-  <div class="panel">
-    <h3>Eigenschaften</h3>
-    <div class="content">
-      <div class="toolbar">
-        <button id="tool-move" class="toolbtn">Verschieben (W)</button>
-        <button id="tool-rotate" class="toolbtn">Drehen (E)</button>
-        <button id="tool-scale" class="toolbtn">Skalieren (R)</button>
+    <div class="toolbar">
+      <button id="btn-group" class="toolbtn" title="Ctrl+G" disabled>Gruppieren</button>
+      <button id="btn-ungroup" class="toolbtn" title="Ctrl+Shift+G" disabled>Gruppierung aufheben</button>
+    </div>
+
+    <details id="sec-transform" class="section">
+      <summary>
+        <span class="sum-title">Transform</span>
+        <span class="sum-icons">
+          <span class="ico-mask ico--transform" aria-hidden="true"></span>
+          <span class="ico-mask ico--chev" aria-hidden="true"></span>
+        </span>
+      </summary>
+      <div class="body">
+        <div class="kv"><div>Name</div><input id="prop-name" class="input" placeholder="Objekt"></div>
+        <div class="kv"><div>Pos X</div><input id="posx" class="input" type="number" step="0.01"></div>
+        <div class="kv"><div>Pos Y</div><input id="posy" class="input" type="number" step="0.01"></div>
+        <div class="kv"><div>Pos Z</div><input id="posz" class="input" type="number" step="0.01"></div>
+        <div class="kv"><div>Rot X°</div><input id="rotx" class="input" type="number" step="1"></div>
+        <div class="kv"><div>Rot Y°</div><input id="roty" class="input" type="number" step="1"></div>
+        <div class="kv"><div>Rot Z°</div><input id="rotz" class="input" type="number" step="1"></div>
+        <div class="kv"><div>Scale</div><input id="scale" class="input" type="number" step="0.01"></div>
+
+        <div class="kv"><div>Snap aktiv</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="snapChk" type="checkbox"> <span class="muted">(öffnet Optionen)</span></label></div>
+        <div id="snapPanel" style="display:none">
+          <div class="kv"><div>Translate Snap (m)</div>
+            <select id="transSnapSel" class="select">
+              <option value="">Off</option><option value="0.1" selected>0.1</option><option value="0.25">0.25</option><option value="0.5">0.5</option><option value="1">1.0</option>
+            </select>
+          </div>
+          <div class="kv"><div>Rotate Snap (°)</div>
+            <select id="rotSnapSel" class="select">
+              <option value="">Off</option><option value="15" selected>15°</option><option value="30">30°</option><option value="45">45°</option><option value="90">90°</option>
+            </select>
+          </div>
+          <div class="kv"><div>Scale Snap</div>
+            <select id="scaleSnapSel" class="select">
+              <option value="">Off</option><option value="0.1" selected>0.1</option><option value="0.25">0.25</option><option value="0.5">0.5</option>
+            </select>
+          </div>
+        </div>
+        <button id="btn-apply" class="btn" style="margin-top:6px">Übernehmen</button>
       </div>
+    </details>
 
-      <div class="toolbar">
-        <button id="btn-duplicate" class="toolbtn" title="D">Duplizieren</button>
-        <button id="btn-floor" class="toolbtn" title="F">Drop to Floor</button>
-        <span class="toolbtn" style="pointer-events:none">Space:</span>
-        <button id="space-local" class="toolbtn active">Lokal</button>
-        <button id="space-world" class="toolbtn">Welt</button>
+    <details id="sec-scene" class="section">
+      <summary>
+        <span class="sum-title">Szene &amp; Ansichten</span>
+        <span class="sum-icons">
+          <span class="ico-mask ico--scene" aria-hidden="true"></span>
+          <span class="ico-mask ico--chev"  aria-hidden="true"></span>
+        </span>
+      </summary>
+      <div class="body">
+        <div class="toolbar">
+          <button class="btn" id="btn-view-iso">Iso</button>
+          <button class="btn" id="btn-view-front">Front</button>
+          <button class="btn" id="btn-view-side">Seite</button>
+          <button class="btn" id="btn-view-top">Top</button>
+          <button class="btn" id="btn-frame-all">Fokus Szene</button>
+          <button class="btn" id="btn-clear">Szene leeren</button>
+        </div>
+        <div class="kv"><div>Raumgröße</div><input id="roomSize" class="input" type="number" step="1" value="24"></div>
+        <div class="kv"><div>Grid Helligkeit</div><input id="gridIntensity" class="input" type="range" min="0.5" max="1" step="0.05" value="0.95"></div>
+        <div class="kv"><div>Grid anzeigen</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="gridVisible" type="checkbox" checked> <span>Ein</span></label></div>
+        <div class="kv"><div>Belichtung</div><input id="exposure" class="input" type="range" min="0.5" max="3" step="0.05" value="1.4"></div>
+        <div class="kv"><div>Kameralicht</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="headlight" type="checkbox" checked> <span>an</span></label></div>
+
+        <!-- Anchor-Modus UI -->
+        <div class="kv"><div>Anchor-Modus</div>
+          <select id="anchorMode" class="select">
+            <option value="surface-webxr" selected>Surface (WebXR)</option>
+            <option value="image">Image Trigger</option>
+            <option value="native">Surface (Native)</option>
+            <option value="scene-viewer">Szene Viewer (ohne AR)</option>
+          </select>
+        </div>
+        <div id="imageTargetRow" class="kv" style="display:none">
+          <div>Image Target (.mind)</div>
+          <input id="imageTargetUrl" class="input" placeholder="https://…/target.mind" value="../assets/targets/target.mind">
+        </div>
+        <div id="nativeRow" class="kv" style="display:none">
+          <div>Native Assets</div>
+          <div style="display:grid;grid-template-columns:1fr;gap:6px">
+            <input id="nativeGlbUrl"  class="input" placeholder="Android GLB – https://…/model.glb">
+            <input id="nativeUsdzUrl" class="input" placeholder="iOS USDZ – https://…/model.usdz">
+          </div>
+        </div>
+        <!-- Scene-Viewer-Sonderblock (#svBlock) fügst du in Punkt 3 hier unten ein -->
       </div>
+    </details>
 
-      <div class="toolbar">
-        <button id="btn-group" class="toolbtn" title="Ctrl+G" disabled>Gruppieren</button>
-        <button id="btn-ungroup" class="toolbtn" title="Ctrl+Shift+G" disabled>Gruppierung aufheben</button>
+    <details id="sec-look" class="section">
+      <summary>
+        <span class="sum-title">Material Look</span>
+        <span class="sum-icons">
+          <span class="ico-mask ico--material" aria-hidden="true"></span>
+          <span class="ico-mask ico--chev"  aria-hidden="true"></span>
+        </span>
+      </summary>
+      <div class="body">
+        <div class="kv"><div>Mattheit (+Roughness)</div><input id="matRoughAdd" class="input" type="range" min="0" max="0.6" step="0.01" value="0.25"></div>
+        <div class="kv"><div>Reflexionsstärke (IBL)</div><input id="matEnvMul" class="input" type="range" min="0" max="2" step="0.05" value="1.2"></div>
       </div>
+    </details>
 
-      <details id="sec-transform" class="section">…</details>
-      <details id="sec-scene" class="section">…</details>
+    <details id="sec-anim" class="section">
+      <summary>
+        <span class="sum-title">Animation</span>
+        <span class="sum-icons">
+          <span class="ico-mask ico--animation" aria-hidden="true"></span>
+          <span class="ico-mask ico--chev"  aria-hidden="true"></span>
+        </span>
+      </summary>
+      <div class="body">
+        <div class="kv"><div>Clip</div><select id="animClip" class="select"></select></div>
+        <div class="kv"><div>Loop</div>
+          <select id="animLoop" class="select">
+            <option value="off">aus</option>
+            <option value="once">einmal</option>
+            <option value="repeat" selected>wiederholen</option>
+          </select>
+        </div>
+        <div class="kv"><div>Repeats</div><input id="animRepeats" class="input" type="number" step="1" min="1" value="9999"></div>
+        <div class="toolbar">
+          <button id="animPlay" class="toolbtn">Play</button>
+          <button id="animStop" class="toolbtn">Stop</button>
+          <button id="animPause" class="toolbtn">Pause</button>
+        </div>
+      </div>
+    </details>
 
-      <!-- HIERHER: Anchor & Ausgabe (aus deinem ersten Panel ausschneiden) -->
-      <details id="sec-anchor" class="section" open>…</details>
+    <details id="sec-media" class="section" open style="display:none">
+      <summary>
+        <span class="sum-title">Medien</span>
+        <span class="sum-icons">
+          <span class="ico-mask ico--media" aria-hidden="true"></span>
+          <span class="ico-mask ico--chev"  aria-hidden="true"></span>
+        </span>
+      </summary>
+      <div class="body">
+        <div class="kv"><div>Typ</div><input id="mediaType" class="input" disabled></div>
+        <div class="kv"><div>Loop</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="mediaLoop" type="checkbox"> <span>an</span></label></div>
+        <div class="kv"><div>Wiederholungen</div><input id="mediaRepeats" class="input" type="number" min="1" step="1" value="1"></div>
+        <div class="toolbar">
+          <button id="mediaPlay"  class="toolbtn">Play</button>
+          <button id="mediaPause" class="toolbtn">Pause</button>
+          <button id="mediaStop"  class="toolbtn">Stop</button>
+        </div>
+      </div>
+    </details>
 
-      <details id="sec-look" class="section">…</details>
-      <details id="sec-anim" class="section">…</details>
-      <details id="sec-media" class="section" style="display:none">…</details>
-
-      <div class="toolbar"><button id="btn-del" class="btn">Löschen (Entf)</button></div>
+    <div class="toolbar">
+      <button id="btn-del" class="btn">Löschen (Entf)</button>
     </div>
   </div>
 </div>
+
 
 
         <!-- Poster Dropzone -->
@@ -464,187 +582,7 @@
       <div class="hint hidden">LMB drehen · Rad zoomen · RMB/Shift+LMB schwenken · Klick = Auswahl (Shift=Mehrfach) · W/E/R Move/Rotate/Scale · D Duplizieren · F Drop-to-Floor · Entf Löschen · 1–5 Bookmarks · Shift+1–5 Speichern · Ctrl+G Gruppieren · Ctrl+Shift+G Aufheben</div>
     </div>
 
-    <!-- RIGHT -->
-    <div class="panel">
-      <h3>Eigenschaften</h3>
-      <div class="content">
-        <div class="toolbar">
-          <button id="tool-move" class="toolbtn">Verschieben (W)</button>
-          <button id="tool-rotate" class="toolbtn">Drehen (E)</button>
-          <button id="tool-scale" class="toolbtn">Skalieren (R)</button>
-        </div>
-
-        <div class="toolbar">
-          <button id="btn-duplicate" class="toolbtn" title="D">Duplizieren</button>
-          <button id="btn-floor" class="toolbtn" title="F">Drop to Floor</button>
-          <span class="toolbtn" style="pointer-events:none">Space:</span>
-          <button id="space-local" class="toolbtn active">Lokal</button>
-          <button id="space-world" class="toolbtn">Welt</button>
-        </div>
-
-        <div class="toolbar">
-          <button id="btn-group" class="toolbtn" title="Ctrl+G" disabled>Gruppieren</button>
-          <button id="btn-ungroup" class="toolbtn" title="Ctrl+Shift+G" disabled>Gruppierung aufheben</button>
-        </div>
-
-        <details id="sec-transform" class="section">
-          <summary>
-            <span class="sum-title">Transform</span>
-            <span class="sum-icons">
-              <span class="ico-mask ico--transform" aria-hidden="true"></span>
-              <span class="ico-mask ico--chev" aria-hidden="true"></span>
-            </span>
-          </summary>
-          <div class="body">
-            <div class="kv"><div>Name</div><input id="prop-name" class="input" placeholder="Objekt"></div>
-            <div class="kv"><div>Pos X</div><input id="posx" class="input" type="number" step="0.01"></div>
-            <div class="kv"><div>Pos Y</div><input id="posy" class="input" type="number" step="0.01"></div>
-            <div class="kv"><div>Pos Z</div><input id="posz" class="input" type="number" step="0.01"></div>
-            <div class="kv"><div>Rot X°</div><input id="rotx" class="input" type="number" step="1"></div>
-            <div class="kv"><div>Rot Y°</div><input id="roty" class="input" type="number" step="1"></div>
-            <div class="kv"><div>Rot Z°</div><input id="rotz" class="input" type="number" step="1"></div>
-            <div class="kv"><div>Scale</div><input id="scale" class="input" type="number" step="0.01"></div>
-
-            <div class="kv"><div>Snap aktiv</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="snapChk" type="checkbox"> <span class="muted">(öffnet Optionen)</span></label></div>
-            <div id="snapPanel" style="display:none">
-              <div class="kv"><div>Translate Snap (m)</div>
-                <select id="transSnapSel" class="select">
-                  <option value="">Off</option><option value="0.1" selected>0.1</option><option value="0.25">0.25</option><option value="0.5">0.5</option><option value="1">1.0</option>
-                </select>
-              </div>
-              <div class="kv"><div>Rotate Snap (°)</div>
-                <select id="rotSnapSel" class="select">
-                  <option value="">Off</option><option value="15" selected>15°</option><option value="30">30°</option><option value="45">45°</option><option value="90">90°</option>
-                </select>
-              </div>
-              <div class="kv"><div>Scale Snap</div>
-                <select id="scaleSnapSel" class="select">
-                  <option value="">Off</option><option value="0.1" selected>0.1</option><option value="0.25">0.25</option><option value="0.5">0.5</option>
-                </select>
-              </div>
-            </div>
-            <button id="btn-apply" class="btn" style="margin-top:6px">Übernehmen</button>
-          </div>
-        </details>
-
-        <details id="sec-scene" class="section">
-          <summary>
-            <span class="sum-title">Szene &amp; Ansichten</span>
-            <span class="sum-icons">
-              <span class="ico-mask ico--scene" aria-hidden="true"></span>
-              <span class="ico-mask ico--chev"  aria-hidden="true"></span>
-            </span>
-          </summary>
-          <div class="body">
-            <div class="toolbar">
-              <button class="btn" id="btn-view-iso">Iso</button>
-              <button class="btn" id="btn-view-front">Front</button>
-              <button class="btn" id="btn-view-side">Seite</button>
-              <button class="btn" id="btn-view-top">Top</button>
-              <button class="btn" id="btn-frame-all">Fokus Szene</button>
-              <button class="btn" id="btn-clear">Szene leeren</button>
-            </div>
-            <div class="kv"><div>Raumgröße</div><input id="roomSize" class="input" type="number" step="1" value="24"></div>
-            <div class="kv"><div>Grid Helligkeit</div><input id="gridIntensity" class="input" type="range" min="0.5" max="1" step="0.05" value="0.95"></div>
-            <div class="kv"><div>Grid anzeigen</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="gridVisible" type="checkbox" checked> <span>Ein</span></label></div>
-            <div class="kv"><div>Belichtung</div><input id="exposure" class="input" type="range" min="0.5" max="3" step="0.05" value="1.4"></div>
-            <div class="kv"><div>Kameralicht</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="headlight" type="checkbox" checked> <span>an</span></label></div>
-
-
-            <!-- ===== Anchor-Modus UI ===== -->
-            <div class="kv"><div>Anchor-Modus</div>
-              <select id="anchorMode" class="select">
-                <option value="surface-webxr" selected>Surface (WebXR)</option>
-                <option value="image">Image Trigger</option>
-                <option value="native">Surface (Native)</option>
-                <option value="scene-viewer">Szene Viewer (ohne AR)</option>
-
-              </select>
-            </div>
-
-            <div id="imageTargetRow" class="kv" style="display:none">
-              <div>Image Target (.mind)</div>
-              <input id="imageTargetUrl" class="input" placeholder="https://…/target.mind" value="../assets/targets/target.mind">
-            </div>
-
-            <div id="nativeRow" class="kv" style="display:none">
-              <div>Native Assets</div>
-              <div style="display:grid;grid-template-columns:1fr;gap:6px">
-                <input id="nativeGlbUrl"  class="input" placeholder="Android GLB – https://…/model.glb">
-                <input id="nativeUsdzUrl" class="input" placeholder="iOS USDZ – https://…/model.usdz">
-              </div>
-            </div>
-            <!-- ===== Ende Anchor-Modus UI ===== -->
-          </div>
-        </details>
-
-        <details id="sec-look" class="section">
-          <summary>
-            <span class="sum-title">Material Look</span>
-            <span class="sum-icons">
-              <span class="ico-mask ico--material" aria-hidden="true"></span>
-              <span class="ico-mask ico--chev"  aria-hidden="true"></span>
-            </span>
-          </summary>
-          <div class="body">
-            <div class="kv"><div>Mattheit (+Roughness)</div><input id="matRoughAdd" class="input" type="range" min="0" max="0.6" step="0.01" value="0.25"></div>
-            <div class="kv"><div>Reflexionsstärke (IBL)</div><input id="matEnvMul" class="input" type="range" min="0" max="2" step="0.05" value="1.2"></div>
-          </div>
-        </details>
-
-        <details id="sec-anim" class="section">
-          <summary>
-            <span class="sum-title">Animation</span>
-            <span class="sum-icons">
-              <span class="ico-mask ico--animation" aria-hidden="true"></span>
-              <span class="ico-mask ico--chev"  aria-hidden="true"></span>
-            </span>
-          </summary>
-          <div class="body">
-            <div class="kv"><div>Clip</div><select id="animClip" class="select"></select></div>
-            <div class="kv"><div>Loop</div>
-              <select id="animLoop" class="select">
-                <option value="off">aus</option>
-                <option value="once">einmal</option>
-                <option value="repeat" selected>wiederholen</option>
-              </select>
-            </div>
-            <div class="kv"><div>Repeats</div><input id="animRepeats" class="input" type="number" step="1" min="1" value="9999"></div>
-            <div class="toolbar">
-              <button id="animPlay" class="toolbtn">Play</button>
-              <button id="animStop" class="toolbtn">Stop</button>
-              <button id="animPause" class="toolbtn">Pause</button>
-            </div>
-          </div>
-        </details>
-
-        <details id="sec-media" class="section" open style="display:none">
-          <summary>
-            <span class="sum-title">Medien</span>
-            <span class="sum-icons">
-              <span class="ico-mask ico--media" aria-hidden="true"></span>
-              <span class="ico-mask ico--chev"  aria-hidden="true"></span>
-            </span>
-          </summary>
-          <div class="body">
-            <div class="kv"><div>Typ</div><input id="mediaType" class="input" disabled></div>
-            <div class="kv"><div>Loop</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="mediaLoop" type="checkbox"> <span>an</span></label></div>
-            <div class="kv"><div>Wiederholungen</div><input id="mediaRepeats" class="input" type="number" min="1" step="1" value="1"></div>
-            <div class="toolbar">
-              <button id="mediaPlay"  class="toolbtn">Play</button>
-              <button id="mediaPause" class="toolbtn">Pause</button>
-              <button id="mediaStop"  class="toolbtn">Stop</button>
-            </div>
-          </div>
-        </details>
-
-        <div class="toolbar">
-          <button id="btn-del" class="btn">Löschen (Entf)</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
+   
   <div class="toast" id="toast"></div>
 
   <script type="module">
