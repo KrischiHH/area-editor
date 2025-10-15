@@ -87,40 +87,38 @@
     /* ===================== Theme: Nebula (dark, glass, gradients) ===================== */
 :root.theme-nebula{
   --bg:#080e19;
-  /* mehrlagiger, weicher Hintergrund: */
+
+  /* kräftiger violett/blauer Verlauf */
   --bg-grad:
-    radial-gradient(1200px 800px at 8% 12%, #1b2c4d 0%, transparent 55%),
-    radial-gradient(1100px 700px at 92% 10%, #2a3f7a 0%, transparent 58%),
-    radial-gradient(900px 700px at 15% 85%, #623a74 0%, transparent 60%),
+    radial-gradient(1100px 800px at 12% 0%,  #2c3f84 0%,  transparent 58%),
+    radial-gradient(1200px 900px at 88% 8%, #6d3a99 0%,  transparent 60%),
+    radial-gradient(900px 700px  at 18% 86%, #2d6bb4 0%, transparent 62%),
     linear-gradient(180deg, #0a0f1e 0%, #10182a 100%);
 
-  /* Glass-Layer */
-  --glass: rgba(255,255,255,0.06);
-  --glass-2: rgba(255,255,255,0.08);
-  --glass-border: rgba(255,255,255,0.14);
-  --glass-blur: 10px; /* bei Bedarf 6–8 für noch bessere Performance */
+  /* Glas-Parameter – etwas „nasser“ */
+  --glass:       rgba(255,255,255,0.07);
+  --glass-2:     rgba(255,255,255,0.10);
+  --glass-border:rgba(255,255,255,0.18);
+  --glass-blur:  14px;
 
   --panel:#0e1424;
   --panel2:#121a2e;
   --text:#e8eefb;
   --muted:#a9b7da;
   --border:#1e2a45;
-  --accent:#7dd3fc;  /* cyan */
-  --accent2:#93c5fd; /* soft blue */
+  --accent:#7dd3fc;   /* cyan */
+  --accent2:#a78bfa;  /* lila für subtile Glows */
   color-scheme: dark;
 }
 
 /* Hintergrund-Layer nur für Nebula */
-:root.theme-nebula body{
-  background: #0a0f1e; /* Fallback */
-}
+:root.theme-nebula body{ background:#0a0f1e; }
 :root.theme-nebula body::before{
-  content:"";
-  position:fixed; inset:0; z-index:-1; pointer-events:none;
+  content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
   background: var(--bg-grad);
 }
 
-/* Glassmorphism für Container/Controls – nur wenn Nebula aktiv ist */
+/* Glassmorphism */
 :root.theme-nebula .top,
 :root.theme-nebula .panel,
 :root.theme-nebula .menu-pop,
@@ -136,57 +134,54 @@
 :root.theme-nebula .dropzone{
   background: var(--glass);
   border-color: var(--glass-border);
-  /* sanfter Glas-Effekt (mit Fallback): */
   -webkit-backdrop-filter: blur(var(--glass-blur));
           backdrop-filter: blur(var(--glass-blur));
   box-shadow:
-    0 10px 28px rgba(0,0,0,.35),
-    inset 0 1px 0 rgba(255,255,255,.06);
+    0 12px 30px rgba(0,0,0,.38),
+    inset 0 1px 0 rgba(255,255,255,.08);
 }
 
-/* Panels etwas mehr Tiefe und Glow an der Kante */
+/* Tiefe & feiner Glow */
 :root.theme-nebula .panel{
-  border-radius: 18px;
+  border-radius:18px;
   box-shadow:
-    0 14px 40px rgba(0,0,0,.45),
-    0 0 0 1px rgba(255,255,255,.05),
-    0 0 34px -8px color-mix(in srgb, var(--accent) 45%, transparent);
+    0 16px 44px rgba(0,0,0,.46),
+    0 0 0 1px rgba(255,255,255,.06),
+    0 0 40px -8px color-mix(in srgb, var(--accent2) 45%, transparent);
 }
 
-/* Topbar – dickerer Glas/Gradient-Hauch, abgerundet */
+/* Topbar */
 :root.theme-nebula .top{
   border-radius: 0 0 18px 18px;
   background:
-    linear-gradient(135deg, rgba(125,211,252,.18), rgba(147,197,253,.12)),
+    linear-gradient(135deg, rgba(125,211,252,.20), rgba(167,139,250,.14)),
     var(--glass);
   border-bottom-color: var(--glass-border);
 }
 
-/* Brand-Pill wird ebenfalls „geglast“ */
+/* Brand-Pill */
 :root.theme-nebula .top .brand-pill{
   background: var(--glass-2);
   box-shadow:
-    inset 10px 10px 18px rgba(0,0,0,0.55),
-    inset -8px -8px 16px rgba(255,255,255,0.06),
-    0 0 0 1px rgba(255,255,255,0.05);
+    inset 10px 10px 18px rgba(0,0,0,.55),
+    inset -8px -8px 16px rgba(255,255,255,0.08),
+    0 0 0 1px rgba(255,255,255,.06);
 }
 
-/* Karten-/Zeilenhover etwas kräftiger sichtbar */
-:root.theme-nebula .row:hover{
-  background: color-mix(in srgb, var(--glass-2) 100%, transparent);
-  box-shadow: 0 6px 18px rgba(0,0,0,.32);
-}
-
-/* Buttons lebendiger */
+/* Hover-Feedback für Clickables */
 :root.theme-nebula .btn:hover,
 :root.theme-nebula .menubtn:hover,
 :root.theme-nebula .toolbtn:hover{
   border-color: var(--accent);
   box-shadow:
-    0 4px 16px rgba(0,0,0,.35),
-    0 0 0 1px rgba(255,255,255,.05),
-    0 0 18px -6px color-mix(in srgb, var(--accent) 50%, transparent);
+    0 6px 18px rgba(0,0,0,.35),
+    0 0 0 1px rgba(255,255,255,.06),
+    0 0 20px -6px color-mix(in srgb, var(--accent) 55%, transparent);
 }
+
+/* kleine Z-Index/Pointer-Sauberkeit */
+.top, .panel, .viewport { position:relative; }
+.menu-pop{ z-index:3000; } /* Menü liegt sicher über allem, blockiert nichts daneben */
 
 /* Tabs/Badges/Outline-Farben bleiben über CSS-Variablen steuerbar (accents) */
 
