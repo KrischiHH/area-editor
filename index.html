@@ -377,12 +377,14 @@
   </div>
 
   <div class="wrap">
-    <!-- LEFT -->
+    <!-- Right -->
+<!-- RIGHT -->
 <div class="panel">
-  <h3>Eigenschaftsbaum</h3>
-  <div class="content" id="leftContent">
+  <h3>Eigenschaften</h3>
+  <div class="content">
+    <!-- ... Toolbars + Transform + Szene & Ansichten ... -->
 
-    <!-- Anchor & Ausgabe -->
+    <!-- NEU: Anchor & Ausgabe rechts -->
     <details id="sec-anchor" class="section" open>
       <summary>
         <span class="sum-title">Anchor &amp; Ausgabe</span>
@@ -391,53 +393,33 @@
           <span class="ico-mask ico--chev"  aria-hidden="true"></span>
         </span>
       </summary>
-      <div class="body">
-        <!-- Szene-Viewer spezifische UI -->
-        <div id="svBlock" style="display:none; margin-top:6px">
+      <div class="body" id="svBlock" style="display:none; margin-top:6px">
 
-          <!-- Poster Dropzone -->
-          <div class="kv">
-            <div>Poster</div>
-            <div style="display:grid; gap:6px">
-              <div id="svDrop" class="dropzone" role="button" tabindex="0"
-                   title="JPG reinziehen oder klicken">
-                <div class="preview"><img id="svPosterPrev" alt="" style="display:none"></div>
-                <div>
-                  <div style="font-weight:700">Ziehen &amp; ablegen oder klicken</div>
-                  <div class="muted" style="font-size:12px">JPG empfohlen · 1280×720 (oder ähnlich)</div>
-                </div>
-                <div class="btn">Datei wählen</div>
-                <input id="file-poster" type="file" accept="image/jpeg" hidden>
+        <!-- Poster Dropzone -->
+        <div class="kv">
+          <div>Poster</div>
+          <div style="display:grid; gap:6px">
+            <label id="svDrop" class="dropzone" role="button" tabindex="0" title="JPG reinziehen oder klicken">
+              <div class="preview"><img id="svPosterPrev" alt="" style="display:none"></div>
+              <div>
+                <div style="font-weight:700">Ziehen &amp; ablegen oder klicken</div>
+                <div class="muted" style="font-size:12px">JPG empfohlen · 1280×720</div>
               </div>
-              <div class="muted" id="svPosterHint" style="font-size:12px">Ohne Upload wird beim Publish ein Canvas-Snapshot genutzt.</div>
-            </div>
-          </div>
-
-          <!-- Begrüßungstexte -->
-          <div class="kv">
-            <div>Eyebrow</div>
-            <input id="svEyebrow" class="input" placeholder="z. B. ARea – Szene"
-                   maxlength="24">
-          </div>
-          <div class="kv">
-            <div>Titel</div>
-            <input id="svTitle" class="input" placeholder="Titel der Szene"
-                   maxlength="60">
-          </div>
-          <div class="kv">
-            <div>Textzeile</div>
-            <input id="svDesc" class="input" placeholder="Kurzbeschreibung …"
-                   maxlength="90">
+              <div class="btn">Datei wählen</div>
+              <input id="file-poster" type="file" accept="image/jpeg" hidden>
+            </label>
+            <div class="muted" id="svPosterHint" style="font-size:12px">Ohne Upload wird beim Publish ein Canvas-Snapshot genutzt.</div>
           </div>
         </div>
+
+        <!-- Begrüßungstexte -->
+        <div class="kv"><div>Eyebrow</div><input id="svEyebrow" class="input" maxlength="24" placeholder="z. B. ARea – Szene"></div>
+        <div class="kv"><div>Titel</div><input id="svTitle" class="input" maxlength="60" placeholder="Titel der Szene"></div>
+        <div class="kv"><div>Textzeile</div><input id="svDesc" class="input" maxlength="90" placeholder="Kurzbeschreibung …"></div>
       </div>
     </details>
 
-    <h4 class="muted" style="margin:8px 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.1em">Szenenbaum</h4>
-    <div id="sceneList"><div class="muted">Noch keine Objekte</div></div>
-  </div>
-</div>
-
+    
 
     <!-- CENTER -->
     <div class="viewport">
@@ -645,6 +627,9 @@
     import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
     import QRCode from 'qrcode';
 
+    window.addEventListener('error', e => { try{ toast('JS-Fehler: '+(e?.error?.message||e.message)); }catch{} });
+
+
     const $ = s=>document.querySelector(s);
     const toastEl = $('#toast');
     function toast(m){ toastEl.textContent=m; toastEl.style.display='block'; setTimeout(()=>toastEl.style.display='none',1800); }
@@ -808,11 +793,17 @@ svInput?.addEventListener('change', (e)=>{
       gridNear=gridFar=axisX=axisZ=null;
 
       const L=Math.max(2,size), div=Math.max(10,Math.round(L));
-      const gi=parseFloat($('#gridIntensity').value)||0.95;
-      const cNearLine=new THREE.Color(0x44577a).lerp(new THREE.Color(0x7f96c7),gi);
-      const cNearCenter=new THREE.Color(0x506a92).lerp(new THREE.Color(0xaec1ea),gi);
-      const cFar=new THREE.Color(0x1f2a44).lerp(new THREE.Color(0x2b3e64),gi);
-      const opNear=0.22+0.48*gi, opFar=0.06+0.20*gi;
+      const gi = parseFloat($('#gridIntensity').value)||0.95;
+
+const nebula = document.documentElement.classList.contains('theme-nebula');
+
+const cNearLine   = nebula ? new THREE.Color('#6f7fb0') : new THREE.Color(0x44577a);
+const cNearCenter = nebula ? new THREE.Color('#a8b9ff') : new THREE.Color(0x506a92);
+const cFar        = nebula ? new THREE.Color('#2c3a5d') : new THREE.Color(0x1f2a44);
+
+const opNear = nebula ? (0.38 + 0.52*gi) : (0.22 + 0.48*gi);
+const opFar  = nebula ? (0.10 + 0.24*gi) : (0.06 + 0.20*gi);
+
 
       gridNear=new THREE.GridHelper(L,div,cNearCenter,cNearLine);
       Object.assign(gridNear.material,{transparent:true,opacity:opNear,depthTest:true,depthWrite:false,toneMapped:false});
@@ -1904,6 +1895,7 @@ form.append('file', new File([posterBlob], 'poster.jpg', { type:'image/jpeg' }))
     const current = THEMES.find(t => html.classList.contains(t)) || THEMES[0];
     const next = THEMES[(THEMES.indexOf(current)+1) % THEMES.length];
     setTheme(next);
+    scheduleRoomRebuild(); // Grid+Achsen neu einfärben für Nebula/Slate/Aurora
     // Menü schließen (UX)
     const menu = document.getElementById('projectMenu');
     const menuBtn = document.getElementById('btn-project-menu');
