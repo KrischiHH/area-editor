@@ -1908,16 +1908,7 @@ form.append('file', new File([posterBlob], 'poster.jpg', { type:'image/jpeg' }))
 })();
 
 
-     // Tastatur-Fallback (Taste "T")
-      window.addEventListener('keydown', (e) => {
-        if (e.key?.toLowerCase() === 't' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-          const next = html.classList.contains('theme-aurora') ? 'theme-slate' : 'theme-aurora';
-          setTheme(next);
-        }
-      });
-    })();
-
-    render();
+       render();
   </script>
 </body>
 </html>
