@@ -1908,36 +1908,7 @@ form.append('file', new File([posterBlob], 'poster.jpg', { type:'image/jpeg' }))
 })();
 
 
-      const setTheme = (theme) => {
-        html.classList.remove('theme-slate','theme-aurora');
-        html.classList.add(theme);
-        try { storage?.setItem('theme', theme); } catch {}
-
-        // Wichtig: erst nach Reflow die CSS-Variablen auslesen → dann Three.js updaten
-        requestAnimationFrame(() => window.__applyThemeToThree?.());
-      };
-
-      // Initial: gespeichertes Theme oder Slate
-      const initial = (storage?.getItem('theme') === 'theme-aurora') ? 'theme-aurora' : 'theme-slate';
-      setTheme(initial);
-
-      const btn = document.getElementById('themeToggle');
-      if (btn){
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const next = html.classList.contains('theme-aurora') ? 'theme-slate' : 'theme-aurora';
-          setTheme(next);
-
-          // Menü schließen (UX)
-          const menu = document.getElementById('projectMenu');
-          const menuBtn = document.getElementById('btn-project-menu');
-          menu?.classList.remove('open');
-          menuBtn?.setAttribute('aria-expanded','false');
-        });
-      }
-
-      // Tastatur-Fallback (Taste "T")
+     // Tastatur-Fallback (Taste "T")
       window.addEventListener('keydown', (e) => {
         if (e.key?.toLowerCase() === 't' && !e.ctrlKey && !e.metaKey && !e.altKey) {
           const next = html.classList.contains('theme-aurora') ? 'theme-slate' : 'theme-aurora';
