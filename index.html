@@ -186,19 +186,14 @@
 /* Tabs/Badges/Outline-Farben bleiben über CSS-Variablen steuerbar (accents) */
 
 
-    /* Nur links: keine horizontale Scrollbar */
-#leftContent{ 
-  overflow-y: auto;
-  overflow-x: hidden;   /* <- entfernt den hässlichen horizontalen Balken */
-}
+   
 
 /* Sicherheitshalber: Szenenbaum selbst ohne horizontale Scrollbar */
 #sceneList{
   overflow-y: auto;
   overflow-x: hidden;
 }
-    #leftContent{ scrollbar-width: none; }
-#leftContent::-webkit-scrollbar{ display: none; }
+    
 
     #sceneList{ overflow-y:auto; overflow-x:hidden; }
     #leftContent{ overflow-y:auto; overflow-x:hidden; scrollbar-width:none; }
@@ -377,23 +372,63 @@
   </div>
 
   <div class="wrap">
-    <!-- Right -->
-<!-- RIGHT -->
-<div class="panel">
-  <h3>Eigenschaften</h3>
-  <div class="content">
-    <!-- ... Toolbars + Transform + Szene & Ansichten ... -->
+  <!-- LINKS: Szenenbaum -->
+  <div class="panel">
+    <h3>Eigenschaftsbaum</h3>
+    <div class="content" id="leftContent">
+      <div id="sceneList"></div>
+    </div>
+  </div>
 
-    <!-- NEU: Anchor & Ausgabe rechts -->
-    <details id="sec-anchor" class="section" open>
-      <summary>
-        <span class="sum-title">Anchor &amp; Ausgabe</span>
-        <span class="sum-icons">
-          <span class="ico-mask ico--scene" aria-hidden="true"></span>
-          <span class="ico-mask ico--chev"  aria-hidden="true"></span>
-        </span>
-      </summary>
-      <div class="body" id="svBlock" style="display:none; margin-top:6px">
+  <!-- MITTE: Viewport -->
+  <div class="viewport">
+    <div id="stage"></div>
+    <div id="vpStatus" class="status-badge">
+      <span id="vp-pill-space" class="status-pill">Space: Local</span>
+      <span id="vp-pill-snap" class="status-pill">Snap: Aus</span>
+    </div>
+    <button id="hintFab" class="hint-fab" aria-expanded="false" title="Hinweise">i</button>
+    <div class="hint hidden">LMB drehen · Rad zoomen · RMB/Shift+LMB schwenken · Klick = Auswahl (Shift=Mehrfach) · W/E/R Move/Rotate/Scale · D Duplizieren · F Drop-to-Floor · Entf Löschen · 1–5 Bookmarks · Shift+1–5 Speichern · Ctrl+G Gruppieren · Ctrl+Shift+G Aufheben</div>
+  </div>
+
+  <!-- RECHTS: Eigenschaften (inkl. Anchor & Ausgabe) -->
+  <div class="panel">
+    <h3>Eigenschaften</h3>
+    <div class="content">
+      <div class="toolbar">
+        <button id="tool-move" class="toolbtn">Verschieben (W)</button>
+        <button id="tool-rotate" class="toolbtn">Drehen (E)</button>
+        <button id="tool-scale" class="toolbtn">Skalieren (R)</button>
+      </div>
+
+      <div class="toolbar">
+        <button id="btn-duplicate" class="toolbtn" title="D">Duplizieren</button>
+        <button id="btn-floor" class="toolbtn" title="F">Drop to Floor</button>
+        <span class="toolbtn" style="pointer-events:none">Space:</span>
+        <button id="space-local" class="toolbtn active">Lokal</button>
+        <button id="space-world" class="toolbtn">Welt</button>
+      </div>
+
+      <div class="toolbar">
+        <button id="btn-group" class="toolbtn" title="Ctrl+G" disabled>Gruppieren</button>
+        <button id="btn-ungroup" class="toolbtn" title="Ctrl+Shift+G" disabled>Gruppierung aufheben</button>
+      </div>
+
+      <details id="sec-transform" class="section">…</details>
+      <details id="sec-scene" class="section">…</details>
+
+      <!-- HIERHER: Anchor & Ausgabe (aus deinem ersten Panel ausschneiden) -->
+      <details id="sec-anchor" class="section" open>…</details>
+
+      <details id="sec-look" class="section">…</details>
+      <details id="sec-anim" class="section">…</details>
+      <details id="sec-media" class="section" style="display:none">…</details>
+
+      <div class="toolbar"><button id="btn-del" class="btn">Löschen (Entf)</button></div>
+    </div>
+  </div>
+</div>
+
 
         <!-- Poster Dropzone -->
         <div class="kv">
@@ -645,17 +680,20 @@
     $('#projNamePill').addEventListener('dblclick', promptNewName);
 
     const stage = $('#stage');
-    const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true, powerPreference:'high-performance', alpha:true });
-renderer.setClearAlpha(0);
-scene.background = null;
-   // <--
+const renderer = new THREE.WebGLRenderer({
+  antialias: true,
+  preserveDrawingBuffer: true,
+  powerPreference: 'high-performance',
+  alpha: true
 });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
-    renderer.autoClear = false;
-    stage.appendChild(renderer.domElement);
+renderer.setClearAlpha(0); // transparenter Canvas (Gradient sichtbar)
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.autoClear = false;
+stage.appendChild(renderer.domElement);
+
 
     // --- Anchor-Mode nur noch aus dem rechten Select lesen ---
 function getAnchorSel(){
@@ -726,16 +764,19 @@ svInput?.addEventListener('change', (e)=>{
 
     // Farben aus Theme in Three.js übernehmen
     function applyThemeToThree(){
-      scene.background = cssColor('--bg', '#0b1323'); // Stage-Hintergrund
+  const isNebula = document.documentElement.classList.contains('theme-nebula');
+  scene.background = isNebula ? null : cssColor('--bg', '#0b1323');
+  renderer.setClearAlpha(isNebula ? 0 : 1);
 
-      if (outlinePass){
-        outlinePass.visibleEdgeColor.set(cssColor('--accent',  '#9ecbff'));
-        outlinePass.hiddenEdgeColor.set(cssColor('--accent2', '#2a65b3'));
-      }
-    }
+  if (outlinePass){
+    outlinePass.visibleEdgeColor.set(cssColor('--accent',  '#9ecbff'));
+    outlinePass.hiddenEdgeColor.set(cssColor('--accent2', '#2a65b3'));
+  }
+}
+
     window.__applyThemeToThree = applyThemeToThree;
 
-    const scene = new THREE.Scene(); scene.background = cssColor('--bg', '#0b1323');
+    const scene = new THREE.Scene();
     const overlayScene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30,1,0.01,2000); camera.position.set(15,6,15);
 
@@ -1085,15 +1126,7 @@ async function blobToBase64(blob){
 }
 
 
-        contentRoot.add(g);
-        const t=src.group;
-        g.position.copy(t.position); g.quaternion.copy(t.quaternion); g.scale.copy(t.scale);
-        g.position.add(new THREE.Vector3(0.25,0,0.25));
-        const rec={ id:uid(), type:'object', name:g.name, file:src.file||null, url:null, group:g, root: clonedRoot || null, clips:(src.clips||[]).slice(), mixer:null, actions:{}, hidden:false, locked:false, media:g.userData.__media||null };
-        state.objects.push(rec); addPickProxy(rec); newIds.push(rec.id);
-      });
-      if(newIds.length){ state.selection=new Set(newIds); state.selectedId=newIds[newIds.length-1]; tcontrols.attach(findRec(state.selectedId)?.group||null); rebuildList(); updateOutlineSelection(); toast('Dupliziert'); syncMediaUI(); }
-    }
+    
     $('#btn-duplicate').addEventListener('click', duplicateSelected);
 
     function dropToFloor(){
