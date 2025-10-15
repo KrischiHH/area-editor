@@ -186,15 +186,6 @@
 /* Tabs/Badges/Outline-Farben bleiben über CSS-Variablen steuerbar (accents) */
 
 
-   
-
-/* Sicherheitshalber: Szenenbaum selbst ohne horizontale Scrollbar */
-#sceneList{
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-    
-
     #sceneList{ overflow-y:auto; overflow-x:hidden; }
     #leftContent{ overflow-y:auto; overflow-x:hidden; scrollbar-width:none; }
     #leftContent::-webkit-scrollbar{ display:none; }
@@ -248,7 +239,7 @@
       display:flex; gap:8px; align-items:center;
       pointer-events:none;
     }
-    .status-pill{
+    .{
       padding:2px 8px;
       border:1px solid var(--border);
       border-radius:999px;
@@ -370,6 +361,25 @@
     <div class="sp"></div>
     <div class="status-pill" id="projNamePill" title="Projektname (Doppelklick zum Umbenennen)">Unbenanntes Projekt</div>
   </div>
+
+  <div class="wrap"><!-- GRID START -->
+
+  <!-- LEFT: Szenenliste -->
+  <div class="panel" id="left">
+    <h3>Szene</h3>
+    <div class="content" id="leftContent">
+      <div id="sceneList"></div>
+    </div>
+  </div>
+
+     <!-- CENTER -->
+    <div class="viewport">
+      <div id="stage"></div>
+      <div id="vpStatus" class="status-badge"><span id="vp-pill-space" class="status-pill">Space: Local</span><span id="vp-pill-snap" class="status-pill">Snap: Aus</span></div>
+      <button id="hintFab" class="hint-fab" aria-expanded="false" title="Hinweise">i</button>
+      <div class="hint hidden">LMB drehen · Rad zoomen · RMB/Shift+LMB schwenken · Klick = Auswahl (Shift=Mehrfach) · W/E/R Move/Rotate/Scale · D Duplizieren · F Drop-to-Floor · Entf Löschen · 1–5 Bookmarks · Shift+1–5 Speichern · Ctrl+G Gruppieren · Ctrl+Shift+G Aufheben</div>
+    </div>
+
 
   <div class="panel">
   <h3>Eigenschaften</h3>
@@ -574,15 +584,9 @@
 
     
 
-    <!-- CENTER -->
-    <div class="viewport">
-      <div id="stage"></div>
-      <div id="vpStatus" class="status-badge"><span id="vp-pill-space" class="status-pill">Space: Local</span><span id="vp-pill-snap" class="status-pill">Snap: Aus</span></div>
-      <button id="hintFab" class="hint-fab" aria-expanded="false" title="Hinweise">i</button>
-      <div class="hint hidden">LMB drehen · Rad zoomen · RMB/Shift+LMB schwenken · Klick = Auswahl (Shift=Mehrfach) · W/E/R Move/Rotate/Scale · D Duplizieren · F Drop-to-Floor · Entf Löschen · 1–5 Bookmarks · Shift+1–5 Speichern · Ctrl+G Gruppieren · Ctrl+Shift+G Aufheben</div>
-    </div>
-
    
+  </div><!-- /.wrap --> 
+  
   <div class="toast" id="toast"></div>
 
   <script type="module">
@@ -821,8 +825,10 @@ const opFar  = nebula ? (0.10 + 0.24*gi) : (0.06 + 0.20*gi);
 
     function forEachRec(fn){ function visit(rec){ fn(rec); if(rec.type==='group' && rec.children) rec.children.forEach(visit); } state.objects.forEach(visit); }
 
-    function rebuildList(){
-      const root = $('#sceneList'); root.innerHTML = '';
+  function rebuildList(){
+  const root = $('#sceneList');
+  if (!root) return;            // Guard, falls Layout noch nicht gemountet ist
+  root.innerHTML = '';
       if (!state.objects.length){ root.innerHTML = '<div class="muted">Noch keine Objekte</div>'; return; }
 
       state.objects.forEach(o=>{
