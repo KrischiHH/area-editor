@@ -626,7 +626,7 @@
 
     // --- State ---
     let projectName = 'Unbenanntes Projekt';
-    function setProjectName(n){ projectName = (n||'').trim()||'Unbenanntes Projekt'; $('#projNamePill').textContent = projectName; document.title = 'WebAR Editor v2.2.8 — '+projectName; }
+    function setProjectName(n){ projectName = (n||'').trim()||'Unbenanntes Projekt'; $('#projNamePill').textContent = projectName; document.title = 'WebAR Editor v2.2.9 — '+projectName; }
     function promptNewName(){ const v = prompt('Projektname:', projectName==='Unbenanntes Projekt'?'Mein AR-Projekt':projectName); if(v!=null) setProjectName(v); }
     $('#projNamePill').addEventListener('dblclick', promptNewName);
 
