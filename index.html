@@ -1640,8 +1640,6 @@ function getSelectedClipNameForExport(){
 async function exportSceneGLB(){
   const exporter = new GLTFExporter();
   const exportRoot = cloneForExport();
-
-  // Alle Clips einsammeln
   const allClips = [];
   state.objects.forEach(r => { if (r?.clips?.length) r.clips.forEach(c => allClips.push(c)); });
 
@@ -1654,7 +1652,6 @@ async function exportSceneGLB(){
             const ab = (result instanceof ArrayBuffer) ? result : result.buffer;
             return resolve(new Blob([ab], { type:'model/gltf-binary' }));
           }
-          // JSON → GLB-Wrapper
           const glbBlob = makeGLBFromJSON(result);
           resolve(glbBlob);
         }catch(e){ reject(e); }
@@ -1663,6 +1660,7 @@ async function exportSceneGLB(){
     );
   });
 }
+
 
 
     function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
