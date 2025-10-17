@@ -549,6 +549,14 @@
           </select>
         </div>
         <div class="kv"><div>Repeats</div><input id="animRepeats" class="input" type="number" step="1" min="1" value="9999"></div>
+
+        <div class="kv">
+  <div>Startverhalten</div>
+  <select id="animStartMode" class="select">
+    <option value="onStart" selected>Autostart</option>
+    <option value="onClick">Per Klick (Play-Button)</option>
+  </select>
+</div>        
         <div class="toolbar">
           <button id="animPlay" class="toolbtn">Play</button>
           <button id="animStop" class="toolbtn">Stop</button>
@@ -1385,7 +1393,7 @@ async function blobToBase64(blob){
       return {
         version:'2.2.8',
         meta:{ app:'WebAR Editor', projectName, savedAt:new Date().toISOString() },
-        settings:{roomSize: parseFloat($('#roomSize').value)||24,gridVisible: $('#gridVisible').checked,anchorMode: getAnchorSel(),sceneViewer: {eyebrow: $('#svEyebrow')?.value||'',title:   $('#svTitle')?.value||'',desc:    $('#svDesc')?.value||'',
+        settings:{roomSize: parseFloat($('#roomSize').value)||24,gridVisible: $('#gridVisible').checked,anchorMode: getAnchorSel(),animStartMode: document.getElementById('animStartMode')?.value || 'onStart',sceneViewer: {eyebrow: $('#svEyebrow')?.value||'',title:   $('#svTitle')?.value||'',desc:    $('#svDesc')?.value||'',
     posterData: customPosterBlob ? await blobToBase64(customPosterBlob) : (customPosterDataUrl || '')
   }
 },
@@ -1428,6 +1436,8 @@ async function blobToBase64(blob){
       if (data.meta?.projectName) setProjectName(data.meta.projectName);
       if (data.settings?.anchorMode){
   setAnchorSel(data.settings.anchorMode);
+        (document.getElementById('animStartMode')||{}).value = data.settings?.animStartMode || 'onStart';
+
 }
 if (data.settings?.sceneViewer){
   const sv = data.settings.sceneViewer;
@@ -1673,6 +1683,8 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
   const clipName = getSelectedClipNameForExport();
   const audio = findFirstAudio();
 
+  const startMode = (document.getElementById('animStartMode')?.value || 'onStart');
+
   return {
     ui: {
       showGround: true,
@@ -1690,7 +1702,7 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
     animation: {
       enabled: true,
       clipName,
-      start: "onStart",
+      start: startMode,
       loop: (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
       iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
       clampWhenFinished: true,
@@ -1699,7 +1711,7 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
     },
     audio: audio ? {
       url: `${base}/audio.mp3`,
-      autoplay: "withAnimation",
+      autoplay: (startMode === 'onStart') ? "withAnimation" : "manual",
       loop: !!audio.loop,
       volume: 0.85
     } : { url: "" },
