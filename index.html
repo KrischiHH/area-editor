@@ -1391,7 +1391,7 @@ async function blobToBase64(blob){
       }
       for(const rec of state.objects) await pushRec(rec);
       return {
-        version:'2.2.8',
+        version:'2.2.9',
         meta:{ app:'WebAR Editor', projectName, savedAt:new Date().toISOString() },
         settings:{roomSize: parseFloat($('#roomSize').value)||24,gridVisible: $('#gridVisible').checked,anchorMode: getAnchorSel(),animStartMode: document.getElementById('animStartMode')?.value || 'onStart',sceneViewer: {eyebrow: $('#svEyebrow')?.value||'',title:   $('#svTitle')?.value||'',desc:    $('#svDesc')?.value||'',
     posterData: customPosterBlob ? await blobToBase64(customPosterBlob) : (customPosterDataUrl || '')
@@ -1685,7 +1685,7 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
       autocenter: true,
       welcome: {
         eyebrow: document.getElementById('svEyebrow')?.value || "ARea – Szene",
-        title:   document.getElementById('svTitle')?.value   || (window.projectName || sceneId),
+        title:   document.getElementById('svTitle')?.value   || projectName || sceneId,
         desc:    document.getElementById('svDesc')?.value    || "Klicke auf OK, um zu starten.",
         cta:     "OK",
         poster:  `${base}/poster.jpg`
@@ -1736,7 +1736,7 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
       btnClose.onclick=()=>{ el.remove(); };
     }
 
-    <script type="module">
+    
 async function publish(){
   const EP  = (window.__AREA||{}).PUBLISH_ENDPOINT || '';
   const KEY = (window.__AREA||{}).PUBLISH_KEY || '';
