@@ -1771,14 +1771,15 @@ async function publish(){
 
     if (mode === 'scene-viewer'){
       // 2) Poster anhängen (User-Poster, sonst Canvas-Schnappschuss)
-      let posterBlob = null;
-      try {
-        // falls du customPosterBlob hast, nutze das; sonst Canvas:
-        posterBlob = await capturePosterBlob(0.9);
-      } catch {}
-      if (posterBlob){
-        form.append('file', new File([posterBlob], 'poster.jpg', { type:'image/jpeg' }));
-      }
+    let posterBlob = null;
+if (customPosterBlob) {
+  posterBlob = customPosterBlob;                           // ⟵ dein hochgeladenes JPG
+} else {
+  try { posterBlob = await capturePosterBlob(0.9); } catch {}
+}
+if (posterBlob){
+  form.append('file', new File([posterBlob], 'poster.jpg', { type:'image/jpeg' }));
+}
 
       // 3) Optional: erstes Audio als audio.mp3
       const a = findFirstAudio();
