@@ -610,12 +610,10 @@
   </div>
 </div>
 
-      
-
    
   </div><!-- /.wrap --> 
   
-  <div class="toast" id="toast"></div>
+  <div class="toast" id="toast" aria-live="polite"></div>
 
   <script type="module">
     import * as THREE from 'three';
@@ -1696,10 +1694,9 @@ async function exportSceneGLB(){
       exportRoot,
       (result)=>{
         try{
-          if (result instanceof ArrayBuffer || ArrayBuffer.isView(result)){
-            const ab = (result instanceof ArrayBuffer) ? result : result.buffer;
-            return resolve(new Blob([ab], { type:'model/gltf-binary' }));
-          }
+          if (!(result instanceof ArrayBuffer || ArrayBuffer.isView(result))) {
+  throw new Error('Exporter returned JSON unexpectedly (no binary).');
+}
           const glbBlob = makeGLBFromJSON(result);
           resolve(glbBlob);
         }catch(e){ reject(e); }
@@ -1747,13 +1744,7 @@ async function exportSceneGLB(){
   };
   json.audio = audio ? { url: `./audio.mp3`, autoplay: "withAnimation", loop: !!audio.loop, volume: 0.85 } : { url: "" };
 
-  if (mode === "surface-webxr") {
-    json.ar = { autoPlace: true, tapToPlace: false };
-  }
-
-  return json;
-}
-
+  
 
 
     function val(id, def=''){ const el = document.getElementById(id); const v=(el?.value||'').trim(); return v || def; }
