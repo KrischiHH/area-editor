@@ -1376,61 +1376,77 @@ async function blobToBase64(blob){
     function blobUrlToBase64(url){ return fetch(url).then(r=>r.blob()).then(b=> new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.readAsDataURL(b); })); }
 
     async function buildProjectData(){
-      const out=[];
-      async function pushRec(rec){
-        if(rec.type==='group' && rec.children){ for(const c of rec.children) await pushRec(c); return; }
-        const g=rec.group; g.updateMatrixWorld(true);
-        const pos=new THREE.Vector3(), quat=new THREE.Quaternion(), scl=new THREE.Vector3();
-        g.matrixWorld.decompose(pos,quat,scl);
-        const eul=new THREE.Euler().setFromQuaternion(quat,'XYZ');
+  const out = [];
 
-        let asset=null;
-        if(rec.file){ asset=await fileToBase64(rec.file); }
-        else if(rec.url){ asset=await blobUrlToBase64(rec.url); }
+  async function pushRec(rec){
+    if (rec.type === 'group' && rec.children){
+      for (const c of rec.children) await pushRec(c);
+      return;
+    }
+    const g = rec.group; g.updateMatrixWorld(true);
+    const pos = new THREE.Vector3(), quat = new THREE.Quaternion(), scl = new THREE.Vector3();
+    g.matrixWorld.decompose(pos, quat, scl);
+    const eul = new THREE.Euler().setFromQuaternion(quat, 'XYZ');
 
-        let media=null;
-        if(rec.media){
-          if(rec.media.kind==='video'){
-            const srcData = rec.file ? await fileToBase64(rec.file) : (rec.media.src ? await blobUrlToBase64(rec.media.src) : null);
-            media = { kind:'video', loop:!!rec.media.loop, repeats:rec.media.repeats||1, w:rec.media.w||1.6, h:rec.media.h||0.9, asset:srcData };
-          } else if(rec.media.kind==='audio'){
-            const srcData = rec.file ? await fileToBase64(rec.file) : (rec.media.src ? await blobUrlToBase64(rec.media.src) : null);
-            media = { kind:'audio', loop:!!rec.media.loop, repeats:rec.media.repeats||1, asset:srcData };
-          }
-        }
+    let asset = null;
+    if (rec.file) asset = await fileToBase64(rec.file);
+    else if (rec.url) asset = await blobUrlToBase64(rec.url);
 
-        out.push({
-          name:rec.name,
-          transform:{
-            position:[pos.x,pos.y,pos.z],
-            rotationDeg:[THREE.MathUtils.radToDeg(eul.x),THREE.MathUtils.radToDeg(eul.y),THREE.MathUtils.radToDeg(eul.z)],
-            scale:scl.x
-          },
-          asset,
-          media
-        });
+    let media = null;
+    if (rec.media){
+      if (rec.media.kind === 'video'){
+        const srcData = rec.file ? await fileToBase64(rec.file)
+                                 : (rec.media.src ? await blobUrlToBase64(rec.media.src) : null);
+        media = { kind:'video', loop:!!rec.media.loop, repeats:rec.media.repeats||1,
+                  w:rec.media.w||1.6, h:rec.media.h||0.9, asset:srcData };
+      } else if (rec.media.kind === 'audio'){
+        const srcData = rec.file ? await fileToBase64(rec.file)
+                                 : (rec.media.src ? await blobUrlToBase64(rec.media.src) : null);
+        media = { kind:'audio', loop:!!rec.media.loop, repeats:rec.media.repeats||1, asset:srcData };
       }
-      for(const rec of state.objects) await pushRec(rec);
-      return {
-        version:'2.2.9',
-        meta:{ app:'WebAR Editor', projectName, savedAt:new Date().toISOString() },
-        settings:{roomSize: parseFloat($('#roomSize').value)||24,gridVisible: $('#gridVisible').checked,anchorMode: getAnchorSel(),animStartMode: document.getElementById('animStartMode')?.value || 'onStart',sceneViewer: {
-  eyebrow: $('#svEyebrow')?.value||'',
-  title:   $('#svTitle')?.value||'',
-  desc:    $('#svDesc')?.value||'',
-  cta:     $('#svCTA')?.value || 'OK – Erlebnis starten',
-  showHud: !!$('#svShowHud')?.checked,
-  overlayBackground: ($('#svOverlayBg')?.value || 'poster'),
-  posterData: customPosterBlob ? await blobToBase64(customPosterBlob)
-                               : (customPosterDataUrl || '')
+    }
+
+    out.push({
+      name: rec.name,
+      transform: {
+        position: [pos.x, pos.y, pos.z],
+        rotationDeg: [
+          THREE.MathUtils.radToDeg(eul.x),
+          THREE.MathUtils.radToDeg(eul.y),
+          THREE.MathUtils.radToDeg(eul.z)
+        ],
+        scale: scl.x
+      },
+      asset,
+      media
+    });
+  }
+
+  for (const rec of state.objects) await pushRec(rec);
+
+  return {
+    version: '2.2.9',
+    meta: { app:'WebAR Editor', projectName, savedAt: new Date().toISOString() },
+    settings: {
+      roomSize: parseFloat($('#roomSize').value) || 24,
+      gridVisible: $('#gridVisible').checked,
+      anchorMode: getAnchorSel(),
+      animStartMode: document.getElementById('animStartMode')?.value || 'onStart',
+      sceneViewer: {
+        eyebrow: $('#svEyebrow')?.value || '',
+        title:   $('#svTitle')?.value   || '',
+        desc:    $('#svDesc')?.value    || '',
+        cta:     $('#svCTA')?.value     || 'OK – Erlebnis starten',
+        showHud: !!$('#svShowHud')?.checked,
+        overlayBackground: ($('#svOverlayBg')?.value || 'poster'),
+        posterData: customPosterBlob ? await blobToBase64(customPosterBlob)
+                                     : (customPosterDataUrl || '')
+      }
+    },
+    objects: out
+  };
 }
 
-  }
-},
-
-        objects: out
-      };
-    }
 
     function stripExt(n){ return (n||'').replace(/\.(webar|json)$/i,''); }
 
@@ -1695,22 +1711,30 @@ async function exportSceneGLB(){
 
 
 
-    function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
+   function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
   const json = {
-    meta: { version: "1.1", mode, title: title || sceneId, createdAt: new Date().toISOString() },
+    meta:  { version: "1.2", mode, title: title || sceneId, createdAt: new Date().toISOString() },
     model: { url: glbUrl, usdzUrl: usdzUrl || null, animation: "*" }
   };
 
-      if (mode === "image") {
+  if (mode === "image") {
     json.target = { mindUrl: targetUrl || null };
   }
-      return json;
-    }
 
-    function val(id, def=''){ const el = document.getElementById(id); const v=(el?.value||'').trim(); return v || def; }
+  // UI / Welcome
+  const showHud = !!document.getElementById('svShowHud')?.checked;
+  const overlayBackground = document.getElementById('svOverlayBg')?.value || 'poster';
+  const cta = document.getElementById('svCTA')?.value || 'OK – Erlebnis starten';
+  const eyebrow = document.getElementById('svEyebrow')?.value || 'ARea – Szene';
+  const wTitle  = document.getElementById('svTitle')?.value   || title || sceneId;
+  const desc    = document.getElementById('svDesc')?.value    || 'Klicke auf OK, um zu starten.';
+  json.ui = {
+    showHud,
+    overlayBackground,
+    welcome: { eyebrow, title: wTitle, desc, cta, poster: `./poster.jpg` }
+  };
 
-function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
-  const base = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
+  // Animation / Audio
   const clipName = getSelectedClipNameForExport();
   const audio = findFirstAudio();
   json.animation = {
@@ -1722,63 +1746,63 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
     clampWhenFinished: true, crossfade: 0.25, timeScale: 1
   };
   json.audio = audio ? { url: `./audio.mp3`, autoplay: "withAnimation", loop: !!audio.loop, volume: 0.85 } : { url: "" };
+
+  if (mode === "surface-webxr") {
     json.ar = { autoPlace: true, tapToPlace: false };
   }
+
   return json;
 }
 
-  if (mode === "surface-webxr") {
 
-  return {
-  ui: {
-    showGround: true,
-    autocenter: true,
-    showHud,                       // HUD vorerst ausblenden
-    overlayBackground,             // "poster" oder "camera"
-    welcome: {
-      eyebrow: document.getElementById('svEyebrow')?.value || "ARea – Szene",
-      title:   document.getElementById('svTitle')?.value   || projectName || sceneId,
-      desc:    document.getElementById('svDesc')?.value    || "Klicke auf OK, um zu starten.",
-      const showHud = !!document.getElementById('svShowHud')?.checked;
+
+    function val(id, def=''){ const el = document.getElementById(id); const v=(el?.value||'').trim(); return v || def; }
+
+function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
+  const base = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
+
+  const showHud = !!document.getElementById('svShowHud')?.checked;
   const overlayBackground = document.getElementById('svOverlayBg')?.value || 'poster';
   const cta = document.getElementById('svCTA')?.value || 'OK – Erlebnis starten';
   const eyebrow = document.getElementById('svEyebrow')?.value || 'ARea – Szene';
-  const wTitle  = document.getElementById('svTitle')?.value   || title || sceneId;
+  const wTitle  = document.getElementById('svTitle')?.value   || projectName || sceneId;
   const desc    = document.getElementById('svDesc')?.value    || 'Klicke auf OK, um zu starten.';
 
-  json.ui = {
-    showHud,
-    overlayBackground,
-    welcome: {
-      eyebrow, title: wTitle, desc, cta,
-      poster: `./poster.jpg` // wird beim Publish mit hochgeladen
-    }
+  const clipName = getSelectedClipNameForExport();
+  const audio = findFirstAudio();
+
+  return {
+    ui: {
+      showGround: true,
+      autocenter: true,
+      showHud,
+      overlayBackground,
+      welcome: { eyebrow, title: wTitle, desc, cta, poster: `${base}/poster.jpg` }
+    },
+    camera: { fov: 50, start:[2.2,1.6,3.0], lookAt:[0,1.1,0] },
+    model:  { url: `${base}/scene.glb`, scale: 1, rotateY: 0 },
+    animation: {
+      enabled: true,
+      clipName,
+      start: (document.getElementById('animStartMode')?.value || 'onStart'),
+      loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
+      iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
+      clampWhenFinished: true,
+      crossfade: 0.25,
+      timeScale: 1
+    },
+    audio: audio ? {
+      url: `${base}/audio.mp3`,
+      autoplay: "withAnimation",
+      loop: !!audio.loop,
+      volume: 0.85
+    } : { url: "" },
+    triggers: { buttonLabel: "Animation abspielen", clickAnywhere: false }
   };
-    }
+}
 
-    
-  },
-  camera: { fov: 50, start:[2.2,1.6,3.0], lookAt:[0,1.1,0] },
-  model:  { url: `${base}/scene.glb`, scale: 1, rotateY: 0 },
-  animation: {
-    enabled: true,
-    clipName,
-    start: (document.getElementById('animStartMode')?.value || 'onStart'),
-    loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
-    iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
-    clampWhenFinished: true,
-    crossfade: 0.25,
-    timeScale: 1
-  },
-  audio: audio ? {
-    url: `${base}/audio.mp3`,
-    autoplay: "withAnimation", // startet zusammen mit Animation (falls onStart)
-    loop: !!audio.loop,
-    volume: 0.85
-  } : { url: "" },
-  triggers: { buttonLabel: "Animation abspielen", clickAnywhere: false }
-};
 
+    json.ar = { autoPlace: true, tapToPlace: false };
 
     function showSharePanel(url){
       let el = document.getElementById('shareOverlay');
@@ -1871,6 +1895,24 @@ if (posterBlob){
       const targetUrl = (mode === 'image'  && (document.getElementById('imageTargetUrl')?.value||'').trim())
                           ? document.getElementById('imageTargetUrl').value.trim()
                           : null;
+      // ► Poster & optionales Audio auch für WebXR hochladen
+if (mode === 'surface-webxr') {
+  // Poster
+  let posterBlob = null;
+  if (customPosterBlob) { posterBlob = customPosterBlob; }
+  else { try { posterBlob = await capturePosterBlob(0.9); } catch {} }
+  if (posterBlob){
+    form.append('file', new File([posterBlob], 'poster.jpg', { type:'image/jpeg' }));
+  }
+  // Audio (erstes Audio-Objekt)
+  const a = findFirstAudio();
+  if (a){
+    const audioBlob = a.fromFile ? a.fromFile : (a.fromDataUrl ? await dataUrlToBlob(a.fromDataUrl) : null);
+    if (audioBlob){
+      form.append('file', new File([audioBlob], 'audio.mp3', { type:(audioBlob.type||'audio/mpeg') }));
+    }
+  }
+}
 
       const sceneJson = buildSceneJSON({ sceneId, title: projectName, mode, glbUrl, usdzUrl, targetUrl });
       form.append('file', new File([JSON.stringify(sceneJson,null,2)], 'scene.json', { type:'application/json' }));
