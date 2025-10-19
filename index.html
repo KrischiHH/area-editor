@@ -177,6 +177,26 @@
     0 0 20px -6px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
+    /* Nebula: Topbar-Buttons NICHT gläsern */
+:root.theme-nebula .top .btn,
+:root.theme-nebula .top .menubtn,
+:root.theme-nebula .top .toolbtn {
+  background: var(--panel2);
+  border-color: var(--border);
+  -webkit-backdrop-filter: none;
+          backdrop-filter: none;
+  box-shadow: none;
+}
+
+/* Hover wie gewohnt (ohne Glow) */
+:root.theme-nebula .top .btn:hover,
+:root.theme-nebula .top .menubtn:hover,
+:root.theme-nebula .top .toolbtn:hover {
+  border-color: var(--accent);
+  box-shadow: none;
+}
+
+
 
 /* kleine Z-Index/Pointer-Sauberkeit */
 .top, .panel, .viewport { position:relative; }
