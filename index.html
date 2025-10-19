@@ -1693,11 +1693,12 @@ async function exportSceneGLB(){
       exportRoot,
       (result)=>{
         try{
-          if (!(result instanceof ArrayBuffer || ArrayBuffer.isView(result))) {
-  throw new Error('Exporter returned JSON unexpectedly (no binary).');
-}
-          const glbBlob = makeGLBFromJSON(result);
-          resolve(glbBlob);
+          // binary:true -> ArrayBuffer (fertiges GLB)
+          if (result instanceof ArrayBuffer || ArrayBuffer.isView(result)) {
+            resolve(new Blob([result], { type: 'model/gltf-binary' }));
+          } else {
+            reject(new Error('Exporter returned JSON (expected binary GLB).'));
+          }
         }catch(e){ reject(e); }
       },
       { binary:true, onlyVisible:true, embedImages:true, animations: allClips }
@@ -1707,66 +1708,25 @@ async function exportSceneGLB(){
 
 
 
-   function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
-  const json = {
-    meta:  { version: "1.2", mode, title: title || sceneId, createdAt: new Date().toISOString() },
-    model: { url: glbUrl, usdzUrl: usdzUrl || null, animation: "*" }
-  };
 
-  if (mode === "image") {
-    json.target = { mindUrl: targetUrl || null };
-  }
-
-  // UI / Welcome
-  const showHud = !!document.getElementById('svShowHud')?.checked;
-  const overlayBackground = document.getElementById('svOverlayBg')?.value || 'poster';
-  const cta = document.getElementById('svCTA')?.value || 'OK – Erlebnis starten';
-  const eyebrow = document.getElementById('svEyebrow')?.value || 'ARea – Szene';
-  const wTitle  = document.getElementById('svTitle')?.value   || title || sceneId;
-  const desc    = document.getElementById('svDesc')?.value    || 'Klicke auf OK, um zu starten.';
-  json.ui = {
-    showHud,
-    overlayBackground,
-    welcome: { eyebrow, title: wTitle, desc, cta, poster: `./poster.jpg` }
-  };
-
-  // Animation / Audio
-  const clipName = getSelectedClipNameForExport();
-  const audio = findFirstAudio();
-  json.animation = {
-    enabled: true,
-    clipName,
-    start: (document.getElementById('animStartMode')?.value || 'onStart'),
-    loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
-    iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
-    clampWhenFinished: true, crossfade: 0.25, timeScale: 1
-  };
-  json.audio = audio ? { url: `./audio.mp3`, autoplay: "withAnimation", loop: !!audio.loop, volume: 0.85 } : { url: "" };
-
-  
 
 
     function val(id, def=''){ const el = document.getElementById(id); const v=(el?.value||'').trim(); return v || def; }
 
 function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
   const base = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
-
   const showHud = !!document.getElementById('svShowHud')?.checked;
   const overlayBackground = document.getElementById('svOverlayBg')?.value || 'poster';
   const cta = document.getElementById('svCTA')?.value || 'OK – Erlebnis starten';
   const eyebrow = document.getElementById('svEyebrow')?.value || 'ARea – Szene';
   const wTitle  = document.getElementById('svTitle')?.value   || projectName || sceneId;
   const desc    = document.getElementById('svDesc')?.value    || 'Klicke auf OK, um zu starten.';
-
   const clipName = getSelectedClipNameForExport();
   const audio = findFirstAudio();
 
   return {
     ui: {
-      showGround: true,
-      autocenter: true,
-      showHud,
-      overlayBackground,
+      showGround: true, autocenter: true, showHud, overlayBackground,
       welcome: { eyebrow, title: wTitle, desc, cta, poster: `${base}/poster.jpg` }
     },
     camera: { fov: 50, start:[2.2,1.6,3.0], lookAt:[0,1.1,0] },
@@ -1777,15 +1737,10 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
       start: (document.getElementById('animStartMode')?.value || 'onStart'),
       loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
       iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
-      clampWhenFinished: true,
-      crossfade: 0.25,
-      timeScale: 1
+      clampWhenFinished: true, crossfade: 0.25, timeScale: 1
     },
     audio: audio ? {
-      url: `${base}/audio.mp3`,
-      autoplay: "withAnimation",
-      loop: !!audio.loop,
-      volume: 0.85
+      url: `${base}/audio.mp3`, autoplay: "withAnimation", loop: !!audio.loop, volume: 0.85
     } : { url: "" },
     triggers: { buttonLabel: "Animation abspielen", clickAnywhere: false }
   };
@@ -1793,6 +1748,41 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
 
 
     json.ar = { autoPlace: true, tapToPlace: false };
+
+    function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
+  const json = {
+    meta:  { version: "1.2", mode, title: title || sceneId, createdAt: new Date().toISOString() },
+    model: { url: glbUrl, usdzUrl: usdzUrl || null, animation: "*" },
+    ar:    { autoPlace: true, tapToPlace: false }
+  };
+
+  if (mode === "image") json.target = { mindUrl: targetUrl || null };
+
+  const showHud = !!document.getElementById('svShowHud')?.checked;
+  const overlayBackground = document.getElementById('svOverlayBg')?.value || 'poster';
+  const cta = document.getElementById('svCTA')?.value || 'OK – Erlebnis starten';
+  const eyebrow = document.getElementById('svEyebrow')?.value || 'ARea – Szene';
+  const wTitle  = document.getElementById('svTitle')?.value   || title || sceneId;
+  const desc    = document.getElementById('svDesc')?.value    || 'Klicke auf OK, um zu starten.';
+  json.ui = {
+    showHud, overlayBackground,
+    welcome: { eyebrow, title: wTitle, desc, cta, poster: `./poster.jpg` }
+  };
+
+  const clipName = getSelectedClipNameForExport();
+  const audio = findFirstAudio();
+  json.animation = {
+    enabled: true, clipName,
+    start: (document.getElementById('animStartMode')?.value || 'onStart'),
+    loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
+    iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
+    clampWhenFinished: true, crossfade: 0.25, timeScale: 1
+  };
+  json.audio = audio ? { url: `./audio.mp3`, autoplay: "withAnimation", loop: !!audio.loop, volume: 0.85 } : { url: "" };
+
+  return json; // <-- wichtig
+}
+
 
     function showSharePanel(url){
       let el = document.getElementById('shareOverlay');
@@ -1819,9 +1809,8 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
     
 async function publish(){
   const EP  = (window.__AREA||{}).PUBLISH_ENDPOINT || '';
-  const KEY = (window.__AREA||{}).PUBLISH_KEY || '';
-  if (!EP || /YOUR-SUBDOMAIN/.test(EP) || !KEY || /YOUR-PUBLISH-KEY/.test(KEY)) {
-    alert('Publish ist noch nicht konfiguriert. Bitte in <script> window.__AREA.PUBLISH_ENDPOINT & PUBLISH_KEY setzen.');
+  if (!EP || /YOUR-SUBDOMAIN/.test(EP)) {
+    alert('Publish ist noch nicht konfiguriert. Bitte window.__AREA.PUBLISH_ENDPOINT setzen.');
     return;
   }
 
