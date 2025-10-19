@@ -85,9 +85,27 @@
     .content{padding:10px;overflow:auto}
 
 /* ► Kräftiger Lila-Verlauf & Akzente für Nebula */
+/* === Nebula Theme (Glass + Lila-Gradient) ============================ */
 :root.theme-nebula{
-  --accent:#f472b6;   /* pink */
+  --bg:#0a0f1e;
+  --panel:#0e1424;
+  --panel2:#121a2e;
+  --text:#e8eefb;
+  --muted:#a9b7da;
+  --border:#1e2a45;
+  --accent:#7dd3fc;   /* cyan */
   --accent2:#a78bfa;  /* lila */
+
+  /* Glas-Parameter */
+  --glass:       rgba(255,255,255,0.07);
+  --glass-2:     rgba(255,255,255,0.10);
+  --glass-border:rgba(255,255,255,0.18);
+  --glass-blur:  14px;
+
+  color-scheme: dark;
+}
+:root.theme-nebula body{
+  background:#0a0f1e;
 }
 :root.theme-nebula body::before{
   content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
@@ -98,30 +116,7 @@
     linear-gradient(180deg, #0a0f1e 0%, #10182a 100%);
 }
 
-  /* Glas-Parameter – etwas „nasser“ */
-  --glass:       rgba(255,255,255,0.07);
-  --glass-2:     rgba(255,255,255,0.10);
-  --glass-border:rgba(255,255,255,0.18);
-  --glass-blur:  14px;
-
-  --panel:#0e1424;
-  --panel2:#121a2e;
-  --text:#e8eefb;
-  --muted:#a9b7da;
-  --border:#1e2a45;
-  --accent:#7dd3fc;   /* cyan */
-  --accent2:#a78bfa;  /* lila für subtile Glows */
-  color-scheme: dark;
-}
-
-/* Hintergrund-Layer nur für Nebula */
-:root.theme-nebula body{ background:#0a0f1e; }
-:root.theme-nebula body::before{
-  content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
-  background: var(--bg-grad);
-}
-
-/* Glassmorphism */
+/* Glass auf UI-Elementen */
 :root.theme-nebula .top,
 :root.theme-nebula .panel,
 :root.theme-nebula .menu-pop,
@@ -171,7 +166,7 @@
     0 0 0 1px rgba(255,255,255,.06);
 }
 
-/* Hover-Feedback für Clickables */
+/* Hover-Feedback */
 :root.theme-nebula .btn:hover,
 :root.theme-nebula .menubtn:hover,
 :root.theme-nebula .toolbtn:hover{
@@ -181,6 +176,9 @@
     0 0 0 1px rgba(255,255,255,.06),
     0 0 20px -6px color-mix(in srgb, var(--accent) 55%, transparent);
 }
+
+
+.wrap, .top, .panel, .status-badge, .hint-fab{ position:relative; z-index:10; }
 
 /* kleine Z-Index/Pointer-Sauberkeit */
 .top, .panel, .viewport { position:relative; }
@@ -214,8 +212,8 @@
 
 
     .viewport{position:relative;overflow:hidden;min-height:0;height:100%}
-    #stage{position:absolute;inset:0;width:100%;height:100%}
-    canvas{display:block}
+   #stage{ position:fixed; inset:0; z-index:0; }
+.wrap, .top, .panel, .status-badge, .hint-fab{ position:relative; z-index:10; }
 
     .hint-fab{
       position:absolute;left:12px;bottom:12px;z-index:6;width:40px;height:40px;border-radius:999px;
@@ -515,6 +513,24 @@
   <div class="kv"><div>Eyebrow</div><input id="svEyebrow" class="input" maxlength="24" placeholder="z. B. ARea – Szene"></div>
   <div class="kv"><div>Titel</div><input  id="svTitle"   class="input" maxlength="60" placeholder="Titel der Szene"></div>
   <div class="kv"><div>Textzeile</div><input id="svDesc"    class="input" maxlength="90" placeholder="Kurzbeschreibung …"></div>
+  <!-- Extras für Welcome + HUD -->
+<div class="kv"><div>CTA-Text</div>
+  <input id="svCTA" class="input" maxlength="40" value="OK – Erlebnis starten">
+</div>
+
+<div class="kv"><div>HUD anzeigen</div>
+  <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
+    <input id="svShowHud" type="checkbox"> <span>Nein (empfohlen)</span>
+  </label>
+</div>
+
+<div class="kv"><div>Overlay-Hintergrund</div>
+  <select id="svOverlayBg" class="select">
+    <option value="poster" selected>Poster</option>
+    <option value="camera">Kamera</option>
+  </select>
+</div>
+
 </div>
 
       </div>
@@ -660,7 +676,9 @@ function setAnchorSel(v){
 }
 function updateSVBlockVisible(){
   const sv = document.getElementById('svBlock');
-  if (sv) sv.style.display = (getAnchorSel() === 'scene-viewer') ? 'block' : 'none';
+  if (!sv) return;
+  const m = getAnchorSel();
+  sv.style.display = (m === 'scene-viewer' || m === 'surface-webxr') ? 'block' : 'none';
 }
 
 // Nur der rechte Select triggert UI-Updates
@@ -1396,8 +1414,17 @@ async function blobToBase64(blob){
       return {
         version:'2.2.9',
         meta:{ app:'WebAR Editor', projectName, savedAt:new Date().toISOString() },
-        settings:{roomSize: parseFloat($('#roomSize').value)||24,gridVisible: $('#gridVisible').checked,anchorMode: getAnchorSel(),animStartMode: document.getElementById('animStartMode')?.value || 'onStart',sceneViewer: {eyebrow: $('#svEyebrow')?.value||'',title:   $('#svTitle')?.value||'',desc:    $('#svDesc')?.value||'',
-    posterData: customPosterBlob ? await blobToBase64(customPosterBlob) : (customPosterDataUrl || '')
+        settings:{roomSize: parseFloat($('#roomSize').value)||24,gridVisible: $('#gridVisible').checked,anchorMode: getAnchorSel(),animStartMode: document.getElementById('animStartMode')?.value || 'onStart',sceneViewer: {
+  eyebrow: $('#svEyebrow')?.value||'',
+  title:   $('#svTitle')?.value||'',
+  desc:    $('#svDesc')?.value||'',
+  cta:     $('#svCTA')?.value || 'OK – Erlebnis starten',
+  showHud: !!$('#svShowHud')?.checked,
+  overlayBackground: ($('#svOverlayBg')?.value || 'poster'),
+  posterData: customPosterBlob ? await blobToBase64(customPosterBlob)
+                               : (customPosterDataUrl || '')
+}
+
   }
 },
 
@@ -1447,6 +1474,10 @@ if (data.settings?.sceneViewer){
   (document.getElementById('svEyebrow')||{}).value = sv.eyebrow||'';
   (document.getElementById('svTitle')||{}).value   = sv.title||'';
   (document.getElementById('svDesc')||{}).value    = sv.desc||'';
+  (document.getElementById('svCTA')||{}).value = data.settings.sceneViewer.cta || 'OK – Erlebnis starten';
+(document.getElementById('svShowHud')||{}).checked = !!data.settings.sceneViewer.showHud;
+(document.getElementById('svOverlayBg')||{}).value = data.settings.sceneViewer.overlayBackground || 'poster';
+
   if (sv.posterData){
     // Vorschau & Blob rekonstruieren
     const b = await dataUrlToBlob(sv.posterData);
@@ -1665,13 +1696,14 @@ async function exportSceneGLB(){
 
 
     function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
-      const json = {
-        meta: { version: "1.0", mode, title: title || sceneId, createdAt: new Date().toISOString() },
-        model: { url: glbUrl, usdzUrl: usdzUrl || null, animation: "*" }
-      };
+  const json = {
+    meta: { version: "1.1", mode, title: title || sceneId, createdAt: new Date().toISOString() },
+    model: { url: glbUrl, usdzUrl: usdzUrl || null, animation: "*" }
+  };
+
       if (mode === "image") {
-        json.target = { mindUrl: targetUrl || null };
-      }
+    json.target = { mindUrl: targetUrl || null };
+  }
       return json;
     }
 
@@ -1681,40 +1713,71 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
   const base = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
   const clipName = getSelectedClipNameForExport();
   const audio = findFirstAudio();
+  json.animation = {
+    enabled: true,
+    clipName,
+    start: (document.getElementById('animStartMode')?.value || 'onStart'),
+    loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
+    iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
+    clampWhenFinished: true, crossfade: 0.25, timeScale: 1
+  };
+  json.audio = audio ? { url: `./audio.mp3`, autoplay: "withAnimation", loop: !!audio.loop, volume: 0.85 } : { url: "" };
+    json.ar = { autoPlace: true, tapToPlace: false };
+  }
+  return json;
+}
+
+  if (mode === "surface-webxr") {
 
   return {
-    ui: {
-      showGround: true,
-      autocenter: true,
-      welcome: {
-        eyebrow: document.getElementById('svEyebrow')?.value || "ARea – Szene",
-        title:   document.getElementById('svTitle')?.value   || projectName || sceneId,
-        desc:    document.getElementById('svDesc')?.value    || "Klicke auf OK, um zu starten.",
-        cta:     "OK",
-        poster:  `${base}/poster.jpg`
-      }
-    },
-    camera: { fov: 50, start:[2.2,1.6,3.0], lookAt:[0,1.1,0] },
-    model:  { url: `${base}/scene.glb`, scale: 1, rotateY: 0 },
-    animation: {
-      enabled: true,
-      clipName,
-      start: (document.getElementById('animStartMode')?.value || 'onStart'), // onStart|onClick
-      loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
-      iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
-      clampWhenFinished: true,
-      crossfade: 0.25,
-      timeScale: 1
-    },
-    audio: audio ? {
-      url: `${base}/audio.mp3`,
-      autoplay: "withAnimation",
-      loop: !!audio.loop,
-      volume: 0.85
-    } : { url: "" },
-    triggers: { buttonLabel: "Animation abspielen", clickAnywhere: false }
+  ui: {
+    showGround: true,
+    autocenter: true,
+    showHud,                       // HUD vorerst ausblenden
+    overlayBackground,             // "poster" oder "camera"
+    welcome: {
+      eyebrow: document.getElementById('svEyebrow')?.value || "ARea – Szene",
+      title:   document.getElementById('svTitle')?.value   || projectName || sceneId,
+      desc:    document.getElementById('svDesc')?.value    || "Klicke auf OK, um zu starten.",
+      const showHud = !!document.getElementById('svShowHud')?.checked;
+  const overlayBackground = document.getElementById('svOverlayBg')?.value || 'poster';
+  const cta = document.getElementById('svCTA')?.value || 'OK – Erlebnis starten';
+  const eyebrow = document.getElementById('svEyebrow')?.value || 'ARea – Szene';
+  const wTitle  = document.getElementById('svTitle')?.value   || title || sceneId;
+  const desc    = document.getElementById('svDesc')?.value    || 'Klicke auf OK, um zu starten.';
+
+  json.ui = {
+    showHud,
+    overlayBackground,
+    welcome: {
+      eyebrow, title: wTitle, desc, cta,
+      poster: `./poster.jpg` // wird beim Publish mit hochgeladen
+    }
   };
-}
+    }
+
+    
+  },
+  camera: { fov: 50, start:[2.2,1.6,3.0], lookAt:[0,1.1,0] },
+  model:  { url: `${base}/scene.glb`, scale: 1, rotateY: 0 },
+  animation: {
+    enabled: true,
+    clipName,
+    start: (document.getElementById('animStartMode')?.value || 'onStart'),
+    loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
+    iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
+    clampWhenFinished: true,
+    crossfade: 0.25,
+    timeScale: 1
+  },
+  audio: audio ? {
+    url: `${base}/audio.mp3`,
+    autoplay: "withAnimation", // startet zusammen mit Animation (falls onStart)
+    loop: !!audio.loop,
+    volume: 0.85
+  } : { url: "" },
+  triggers: { buttonLabel: "Animation abspielen", clickAnywhere: false }
+};
 
 
     function showSharePanel(url){
