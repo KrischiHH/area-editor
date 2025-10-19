@@ -4,70 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WebAR Editor v2.2.9</title>
-
-/* === CardNav Glass Topbar ====================================== */
-.cardnav{
-  position:absolute; left:50%; top:12px; transform:translateX(-50%);
-  width:min(92vw,980px); height:60px; /* geschlossen */
-  border-radius:18px; border:1px solid var(--glass-border);
-  background:var(--glass);
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-          backdrop-filter: blur(var(--glass-blur));
-  box-shadow:
-    0 12px 30px rgba(0,0,0,.38),
-    inset 0 1px 0 rgba(255,255,255,.08),
-    0 0 0 1px rgba(255,255,255,.06);
-  overflow:hidden; z-index:1200;
-  transition:height .35s ease;
-}
-.cardnav-top{ height:60px; display:flex; align-items:center; gap:10px; padding:6px 10px; position:relative; }
-.cardnav .brand-pill{
-  --pill-h:36px; height:var(--pill-h); display:inline-flex; align-items:stretch;
-  border-radius:999px; overflow:hidden; background:var(--glass-2); border:none;
-  box-shadow: inset 10px 10px 18px rgba(0,0,0,.55), inset -8px -8px 16px rgba(255,255,255,.08), 0 0 0 1px rgba(255,255,255,.06);
-}
-.cardnav .brand-pill img{ height:100%; width:auto; display:block; border-radius:inherit }
-.cardnav .status-pill{ margin-left:auto; pointer-events:auto; }
-
-.hamburger{ width:44px; height:44px; display:grid; place-items:center;
-  border:1px solid var(--glass-border); border-radius:12px;
-  background:var(--glass-2); cursor:pointer;
-}
-.hamburger span{ display:block; width:22px; height:2px; background:var(--text);
-  transition:transform .25s ease, opacity .2s ease; transform-origin:50% 50%;
-}
-.hamburger span + span{ margin-top:6px; }
-.cardnav.open .hamburger span:first-child{ transform: translateY(4px) rotate(45deg); }
-.cardnav.open .hamburger span:last-child { transform: translateY(-4px) rotate(-45deg); }
-
-.cardnav-content{ position:relative; display:flex; gap:12px; align-items:stretch; padding:10px 10px 12px; }
-.nav-card{
-  flex:1 1 0; min-width:0; border-radius:14px;
-  background: color-mix(in srgb, var(--panel) 60%, transparent);
-  border:1px solid var(--glass-border);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
-  padding:12px 14px; display:flex; flex-direction:column; gap:10px;
-}
-.nav-card-label{ font-weight:800; letter-spacing:.02em; color:var(--muted); }
-.nav-card-links{ display:flex; flex-direction:column; gap:6px; }
-.menuitem.btnlike{
-  display:flex; justify-content:space-between; align-items:center;
-  padding:8px 10px; border-radius:10px; border:1px solid var(--glass-border);
-  background:var(--glass-2); color:var(--text); cursor:pointer; font-weight:700;
-}
-.menuitem.btnlike:hover{
-  border-color:var(--accent);
-  box-shadow: 0 6px 18px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.06),
-             0 0 20px -6px color-mix(in srgb, var(--accent) 55%, transparent);
-}
-.menuitem.btnlike input[type="file"]{ display:none; }
-
-@media (max-width:820px){
-  .cardnav{ width:min(94vw,720px); }
-  .cardnav-content{ flex-direction:column; }
-}
-
-  
   <style>
     :root { color-scheme: dark; } /* nur Globales hier rein */
 
@@ -399,61 +335,31 @@
 </head>
 <body>
   <div class="top">
-    <!-- NEW: Glass CardNav Topbar -->
-<nav id="cardTop" class="cardnav glass">
-  <div class="cardnav-top">
-    <button id="navBurger" class="hamburger" aria-expanded="false" aria-label="Menü öffnen">
-      <span></span><span></span>
-    </button>
-
     <a class="brand-pill" href="#" aria-label="Home" title="AREA">
       <img src="https://cdn.jsdelivr.net/gh/KrischiHH/area@58a250a0bc3b9868cf5e8d7ba12864720315662c/icons/areaLogo.jpg" alt="AREA Logo">
     </a>
 
-    <div class="status-pill" id="projNamePill" title="Projektname (Doppelklick zum Umbenennen)">
-      Unbenanntes Projekt
+    <div class="menu" id="projectMenu">
+      <button id="btn-project-menu" class="menubtn" aria-haspopup="true" aria-expanded="false">Projekt ▾</button>
+      <div class="menu-pop" id="projectMenuPop" role="menu">
+        <button id="btn-new" class="menuitem" role="menuitem">+ Neues Projekt…</button>
+        <label class="menuitem" role="menuitem">Projekt öffnen <input id="file-project" type="file" accept=".webar,.json"></label>
+        <button id="btn-save" class="menuitem" role="menuitem">Speichern</button>
+        <button id="btn-save-as" class="menuitem" role="menuitem">Speichern unter…</button>
+        <button id="btn-preview" class="menuitem" role="menuitem">Vorschau (Module)…</button>
+        <button id="btn-publish" class="menuitem" role="menuitem">Veröffentlichen (Link &amp; QR)…</button>
+
+        <!-- Theme-Button IM Menü – funktioniert jetzt zuverlässig -->
+        <button id="themeToggle" class="btn" title="Theme wechseln">Theme</button>
+      </div>
     </div>
+
+    <label class="btn">Objekt import<input id="file-glb" type="file" accept=".glb,.gltf,.fbx" style="display:none"></label>
+    <label class="btn">Medien import <input id="file-media" type="file" accept="video/*,audio/*" style="display:none"></label>
+
+    <div class="sp"></div>
+    <div class="status-pill" id="projNamePill" title="Projektname (Doppelklick zum Umbenennen)">Unbenanntes Projekt</div>
   </div>
-
-  <div class="cardnav-content" id="cardNavContent">
-    <!-- Card 1: Projekt -->
-    <section class="nav-card">
-      <div class="nav-card-label">Projekt</div>
-      <div class="nav-card-links">
-        <button id="btn-new" class="menuitem btnlike">+ Neues Projekt…</button>
-        <label class="menuitem btnlike">Projekt öffnen
-          <input id="file-project" type="file" accept=".webar,.json" hidden>
-        </label>
-        <button id="btn-save" class="menuitem btnlike">Speichern</button>
-        <button id="btn-save-as" class="menuitem btnlike">Speichern unter…</button>
-        <button id="themeToggle" class="menuitem btnlike">Theme</button>
-      </div>
-    </section>
-
-    <!-- Card 2: Import -->
-    <section class="nav-card">
-      <div class="nav-card-label">Import</div>
-      <div class="nav-card-links">
-        <label class="menuitem btnlike">Objekt import
-          <input id="file-glb" type="file" accept=".glb,.gltf,.fbx" hidden>
-        </label>
-        <label class="menuitem btnlike">Medien import
-          <input id="file-media" type="file" accept="video/*,audio/*" hidden>
-        </label>
-      </div>
-    </section>
-
-    <!-- Card 3: Vorschau & Publish -->
-    <section class="nav-card">
-      <div class="nav-card-label">Vorschau &amp; Teilen</div>
-      <div class="nav-card-links">
-        <button id="btn-preview" class="menuitem btnlike">Vorschau (Module)…</button>
-        <button id="btn-publish" class="menuitem btnlike">Veröffentlichen (Link &amp; QR)…</button>
-      </div>
-    </section>
-  </div>
-</nav>
-
 
   <div class="wrap"><!-- GRID START -->
 
@@ -2013,53 +1919,32 @@ if (mode === 'surface-webxr') {
   }
 }
 
-    // === CardNav: Hamburger & Aktionen (ersetzt altes Projektmenü) ===
-(function(){
-  const nav    = document.getElementById('cardTop');        // <nav id="cardTop"> … (aus dem neuen HTML)
-  const burger = document.getElementById('navBurger');      // Hamburger
-  const content= document.getElementById('cardNavContent'); // Cards-Container
+    // Hint FAB + Projektmenü
+    (function(){
+      const hint=$('.hint'); const fab=$('#hintFab'); if(!hint||!fab) return; let timer=null;
+      function open(){ if(timer){clearTimeout(timer);timer=null;} hint.classList.remove('hidden'); fab.setAttribute('aria-expanded','true'); fab.textContent='×'; }
+      function close(){ if(timer){clearTimeout(timer);timer=null;} hint.classList.add('hidden'); fab.setAttribute('aria-expanded','false'); fab.textContent='i'; }
+      fab.addEventListener('mouseenter', open);
+      fab.addEventListener('mouseleave', ()=>{ timer=setTimeout(()=>{ if(!hint.matches(':hover')) close(); },200); });
+      hint.addEventListener('mouseleave', ()=>{ timer=setTimeout(()=>{ if(!fab.matches(':hover')) close(); },100); });
+      hint.addEventListener('mouseenter', ()=>{ if(timer){clearTimeout(timer);timer=null;} });
+      fab.addEventListener('click', e=>{ e.preventDefault(); if(hint.classList.contains('hidden')) open(); else close(); }, {passive:false});
+    })();
 
-  const CLOSED = 60; // geschlossene Höhe
+    (function(){
+      const menu=$('#projectMenu'); const btn=$('#btn-project-menu');
+      function close(){ menu.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+      btn.addEventListener('click', e=>{ e.stopPropagation(); menu.classList.toggle('open'); btn.setAttribute('aria-expanded', menu.classList.contains('open')?'true':'false'); });
+      document.addEventListener('click', e=>{ if(!menu.contains(e.target)) close(); });
+      window.addEventListener('keydown', e=>{ if(e.key==='Escape') close(); });
 
-  function setHeight(){
-    if (!nav) return;
-    const open = nav.classList.contains('open');
-    const target = open ? (CLOSED + (content?.scrollHeight || 0) + 8) : CLOSED;
-    nav.style.height = target + 'px';
-  }
-  setHeight();
-  window.addEventListener('resize', ()=>{ if (nav?.classList.contains('open')) setHeight(); });
-
-  burger?.addEventListener('click', ()=>{
-    const open = !nav.classList.contains('open');
-    nav.classList.toggle('open', open);
-    burger.setAttribute('aria-expanded', open ? 'true' : 'false');
-    setHeight();
-  });
-
-  const closeNav = ()=>{ if (nav?.classList.contains('open')){ nav.classList.remove('open'); burger?.setAttribute('aria-expanded','false'); setHeight(); } };
-
-  // === Aktionen – IDs bleiben identisch wie früher ===
-  document.getElementById('btn-new')?.addEventListener('click', ()=>{
-    closeNav();
-    if(!confirm('Szene leeren und neues Projekt anlegen?')) return;
-    setProjectName(prompt('Projektname:', 'Neues AR-Projekt')||'Unbenanntes Projekt');
-    document.getElementById('btn-clear')?.click();
-  });
-
-  document.getElementById('btn-save')?.addEventListener('click', ()=>{ closeNav(); saveProject({saveAs:false}); });
-  document.getElementById('btn-save-as')?.addEventListener('click', ()=>{ closeNav(); saveProject({saveAs:true}); });
-
-  document.getElementById('file-project')?.addEventListener('change', e=>{
-    closeNav();
-    const f = e.target.files?.[0]; if(!f){ e.target.value=''; return; }
-    importProjectFile(f); e.target.value='';
-  });
-
-  document.getElementById('btn-preview')?.addEventListener('click', ()=>{ closeNav(); previewModules(); });
-  document.getElementById('btn-publish')?.addEventListener('click', ()=>{ closeNav(); publish(); });
-})();
-
+      $('#btn-new').addEventListener('click', ()=>{ close(); if(!confirm('Aktuelle Szene leeren und neues Projekt anlegen?')) return; setProjectName(prompt('Projektname:', 'Neues AR-Projekt')||'Unbenanntes Projekt'); $('#btn-clear').click(); });
+      $('#btn-save').addEventListener('click', ()=>{ close(); saveProject({saveAs:false}); });
+      $('#btn-save-as').addEventListener('click', ()=>{ close(); saveProject({saveAs:true}); });
+      $('#file-project').addEventListener('change', e=>{ close(); const f=e.target.files?.[0]; if(!f){ e.target.value=''; return;} importProjectFile(f); e.target.value=''; });
+      $('#btn-preview').addEventListener('click', ()=>{ close(); previewModules(); });
+      $('#btn-publish').addEventListener('click', ()=>{ close(); publish(); });
+    })();
 
     // Render
     const clock=new THREE.Clock();
