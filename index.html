@@ -178,8 +178,6 @@
 }
 
 
-.wrap, .top, .panel, .status-badge, .hint-fab{ position:relative; z-index:10; }
-
 /* kleine Z-Index/Pointer-Sauberkeit */
 .top, .panel, .viewport { position:relative; }
 .menu-pop{ z-index:3000; } /* Menü liegt sicher über allem, blockiert nichts daneben */
@@ -1706,13 +1704,6 @@ async function exportSceneGLB(){
   });
 }
 
-
-
-
-
-
-    function val(id, def=''){ const el = document.getElementById(id); const v=(el?.value||'').trim(); return v || def; }
-
 function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
   const base = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
   const showHud = !!document.getElementById('svShowHud')?.checked;
@@ -1746,8 +1737,6 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
   };
 }
 
-
-    json.ar = { autoPlace: true, tapToPlace: false };
 
     function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
   const json = {
