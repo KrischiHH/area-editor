@@ -1990,7 +1990,21 @@ if (mode === 'surface-webxr') {
     updateToolButtons(); applySnap(); setSpace('local'); updateGroupButtons(); updateOutlineSelection();
 
     window.addEventListener('keydown', (e)=>{
-      const t=e.target; if(t && (t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.isContentEditable)) return;
+      function isEditingTarget(el){
+  return el &&
+    (/^(INPUT|TEXTAREA|SELECT)$/i.test(el.tagName) || el.isContentEditable || el.closest?.('[contenteditable="true"]'));
+}
+
+window.addEventListener('keydown', (e)=>{
+  if (e.defaultPrevented || e.repeat) return;
+  if (isEditingTarget(e.target)) return;             // ← nicht wenn im Feld
+  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return; // keine Modifikatoren
+  if ((e.key||'').toLowerCase() === 't'){
+    e.preventDefault();
+    cycle();                                         // dein Theme-Wechsel
+  }
+});
+
       if(tcontrols?.dragging) return;
       const k=e.key.toLowerCase();
       if(k==='w') { tcontrols.setMode('translate'); updateToolButtons(); }
