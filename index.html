@@ -27,6 +27,11 @@
       color-scheme: dark;
     }
 
+    :root.theme-slate  { --topline:#2b3a58; }   /* kräftiger als --border */
+:root.theme-aurora { --topline:#12424b; }   /* dunkler Türkis */
+:root.theme-nebula { --topline:var(--glass-border); }
+
+
     /* sanfte Übergänge beim Theme-Wechsel (ohne Layout-Jank) */
     html, body,
     .panel, .btn, .menubtn, .menu-pop, .toolbtn, .status-badge, .status-pill,
@@ -62,7 +67,7 @@
 
     *{box-sizing:border-box}
     html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Inter,Roboto,Arial,sans-serif}
-    .top{height:56px;display:flex;gap:8px;align-items:center;padding:0 12px;background:var(--panel);border-bottom:1px solid var(--border);position:relative;z-index:10}
+    .top{height:56px;display:flex;gap:8px;align-items:center;padding:0 12px;background:var(--panel);border-bottom:1px solid var(--topline, var(--border));position:relative;z-index:10}
     .brand{font-weight:800;letter-spacing:.02em}
     .ver{opacity:.75;margin-left:6px}
     .muted{color:var(--muted)}
