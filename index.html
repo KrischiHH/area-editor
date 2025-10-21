@@ -318,12 +318,14 @@
 
   <!-- Minimal Config -->
   <script>
-    window.__AREA = Object.assign({
-      PUBLISH_ENDPOINT: "https://area-publish.area-webar.workers.dev/publish",
-      PUBLISH_KEY: "131ewefsdfs34534tfvsfdgsdgsdgvsd",
-      VIEWER_BASE: "https://area-viewer.pages.dev"
-    }, window.__AREA||{});
-  </script>
+  window.__AREA = Object.assign({
+    // HIER AUF DEN PROXY ZEIGEN:
+    PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish",
+    // KEIN Secret mehr im Browser:
+    PUBLISH_KEY: "",
+    VIEWER_BASE: "https://area-viewer.pages.dev"
+  }, window.__AREA||{});
+</script>
 
   <script type="importmap">
   {
@@ -1813,7 +1815,12 @@ if (posterBlob){
     /* ====== END MODE-BRANCH ====== */
 
     toast('Lade hoch…');
-    const res = await fetch(EP, { method:'POST', body: form, headers:{ 'X-AREA-Key': KEY, 'Accept':'application/json' } });
+    const res = await fetch(EP, {
+  method: 'POST',
+  body: form,
+  headers: { 'Accept': 'application/json' } // optional, schadet nicht
+});
+
     if(!res.ok){
       const t=await res.text().catch(()=> ''); 
       throw new Error(t || ('HTTP '+res.status));
