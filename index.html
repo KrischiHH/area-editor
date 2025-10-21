@@ -228,24 +228,31 @@
     }, window.__AREA||{});
   </script>
 
-  <!-- in <head>, vor dem importmap-Tag -->
+<!-- es-module-shims muss VOR den Import-Maps stehen -->
 <script async src="https://unpkg.com/es-module-shims@1.10.0/dist/es-module-shims.js" crossorigin="anonymous"></script>
 
-<!-- unten im Body: ändere type="module" -> "module-shim" -->
-<script type="module-shim">
-  // dein kompletter Modul-Code bleibt unverändert
+<!-- Für Browser MIT Shim -->
+<script type="importmap-shim">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "qrcode": "https://esm.sh/qrcode@1.5.3"
+  }
+}
 </script>
 
-
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-      "qrcode": "https://esm.sh/qrcode@1.5.3"
-    }
+<!-- Für Browser mit NATIVER Import-Map-Unterstützung (IDENTISCHER Inhalt!) -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "qrcode": "https://esm.sh/qrcode@1.5.3"
   }
-  </script>
+}
+</script>
+
 </head>
 <body>
   <div class="top">
