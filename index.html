@@ -1524,11 +1524,12 @@ updateAnchorUI();
   const viewerBase = (window.__AREA || {}).VIEWER_BASE || 'https://area-viewer.pages.dev';
 
   const pathByMode = {
-    'surface-webxr': '/webxr.html',
-    'native':        '/index.html',
-    'image':         '/image-ar/viewer.html',
-    'scene-viewer':  '/scene-viewer/index.html'
-  };
+  'surface-webxr': '/surface-ar/webxr.html',   // vorher: '/webxr.html'
+  'native':        '/surface-ar/index.html',   // vorher: '/index.html'
+  'image':         '/image-ar/viewer.html',
+  'scene-viewer':  '/scene-viewer/index.html'
+};
+
   const entry = pathByMode[mode] || '/webxr.html';
 
   (async () => {
@@ -1823,11 +1824,12 @@ if (posterBlob){
     // Ziel-Link passend zum Modus bauen
     const viewerBase = (window.__AREA||{}).VIEWER_BASE || 'https://area-viewer.pages.dev';
     const entryByMode = {
-      'surface-webxr': '/webxr.html',
-      'native':        '/index.html',
-      'image':         '/image-ar/viewer.html',
-      'scene-viewer':  '/scene-viewer/index.html'
-    };
+  'surface-webxr': '/surface-ar/webxr.html',   // vorher: '/webxr.html'
+  'native':        '/surface-ar/index.html',   // vorher: '/index.html'
+  'image':         '/image-ar/viewer.html',
+  'scene-viewer':  '/scene-viewer/index.html'
+};
+
     const entry = entryByMode[mode] || '/webxr.html';
 
     const viewerUrl = json.viewerUrl
