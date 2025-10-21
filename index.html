@@ -317,14 +317,12 @@
   </style>
 
   <!-- Minimal Config -->
-  <script>
+ <script>
   window.__AREA = Object.assign({
-    // HIER AUF DEN PROXY ZEIGEN:
     PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish",
-    // KEIN Secret mehr im Browser:
-    PUBLISH_KEY: "",
+    PUBLISH_KEY: "ok",                  // darf irgendwas Nicht-Leeres sein
     VIEWER_BASE: "https://area-viewer.pages.dev"
-  }, window.__AREA||{});
+  }, window.__AREA || {});
 </script>
 
   <script type="importmap">
