@@ -320,11 +320,8 @@
 <!-- Minimal Config -->
 <script>
   window.__AREA = {
-    // MUSS auf den PROXY zeigen:
     PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish"
-
-    // Optional: du kannst PUBLISH_KEY vollständig weglassen.
-    // PUBLISH_KEY: ""
+    // kein PUBLISH_KEY hier!
   };
 </script>
 
@@ -1751,7 +1748,7 @@ if (!EP || /YOUR-SUBDOMAIN/.test(EP)) {
   alert('Publish ist nicht konfiguriert: window.__AREA.PUBLISH_ENDPOINT fehlt.');
   return;
 }
-// KEIN Key mehr prüfen, KEIN Header setzen
+
 
   try {
     const defaultId = sanitizeId(projectName);
@@ -1817,18 +1814,20 @@ if (!EP || /YOUR-SUBDOMAIN/.test(EP)) {
 
     toast('Lade hoch…');
 
-    // Header: KEY nur setzen, wenn einer vorhanden ist (Direktmodus)
-    const headers = { 'Accept': 'application/json' };
-    if (KEY) headers['X-AREA-Key'] = KEY;
+// Proxy-Upload: KEIN Key-Header schicken
+const res = await fetch(EP, {
+  method: 'POST',
+  body: form,
+  headers: { 'Accept': 'application/json' } // optional, schadet nicht
+});
 
-    const res = await fetch(EP, { method: 'POST', body: form, headers });
-    const res = await fetch(EP, { method: 'POST', body: form, headers: { 'Accept': 'application/json' } // optional });
-    if(!res.ok){
-      const t = await res.text().catch(()=> '');
-      throw new Error(t || ('HTTP '+res.status));
-    }
+if (!res.ok) {
+  const t = await res.text().catch(() => '');
+  throw new Error(t || ('HTTP ' + res.status));
+}
 
-    const json = await res.json().catch(()=> ({}));
+const json = await res.json().catch(() => ({}));
+
 
     // Ziel-URL: Upstream (area-publish) liefert schon viewerUrl.
     // Fallback nur, falls nicht vorhanden:
