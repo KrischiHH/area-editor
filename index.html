@@ -320,10 +320,11 @@
  <script>
   window.__AREA = Object.assign({
     PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish",
-    PUBLISH_KEY: "ok",                  // darf irgendwas Nicht-Leeres sein
+    PUBLISH_KEY: "dummy-not-used-by-proxy",  // darf ein Platzhalter sein
     VIEWER_BASE: "https://area-viewer.pages.dev"
-  }, window.__AREA || {});
+  }, window.__AREA||{});
 </script>
+
 
   <script type="importmap">
   {
