@@ -320,9 +320,8 @@
 <script>
   window.__AREA = {
     PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish",
-    PUBLISH_KEY: "" // leer lassen beim Proxy-Betrieb
-    // optional:
-    // VIEWER_BASE: "https://area-viewer.pages.dev"
+    PUBLISH_KEY: ""  // beim Proxy-Betrieb LEER lassen
+    // optional: VIEWER_BASE: "https://area-viewer.pages.dev"
   };
 </script>
 
@@ -1813,20 +1812,19 @@ if (!EP || /YOUR-SUBDOMAIN/.test(EP)) {
       form.append('file', new File([JSON.stringify(sceneJson,null,2)], 'scene.json', { type:'application/json' }));
     }
 
-    toast('Lade hoch…');
+   toast('Lade hoch…');
 
 const res = await fetch(EP, {
   method: 'POST',
-  body: form,                 // FormData mit scene.glb, scene.json, poster.jpg …
-  headers: { 'Accept': 'application/json' } // sonst nichts
+  body: form,                           // FormData mit scene.glb, scene.json, poster.jpg/ audio.mp3 (optional)
+  headers: { 'Accept': 'application/json' } // sonst KEINE Header
 });
 
 if (!res.ok) {
-  const t = await res.text().catch(() => '');
+  const t = await res.text().catch(()=> '');
   throw new Error(t || ('HTTP ' + res.status));
 }
 
-const json = await res.json().catch(() => ({}));
 
 
     // Ziel-URL: Upstream (area-publish) liefert schon viewerUrl.
