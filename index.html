@@ -317,11 +317,12 @@
   </style>
 
   <!-- Minimal Config -->
-<!-- Minimal Config -->
 <script>
   window.__AREA = {
-    PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish"
-    // kein PUBLISH_KEY hier!
+    PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish",
+    PUBLISH_KEY: "" // leer lassen beim Proxy-Betrieb
+    // optional:
+    // VIEWER_BASE: "https://area-viewer.pages.dev"
   };
 </script>
 
@@ -1814,11 +1815,10 @@ if (!EP || /YOUR-SUBDOMAIN/.test(EP)) {
 
     toast('Lade hoch…');
 
-// Proxy-Upload: KEIN Key-Header schicken
 const res = await fetch(EP, {
   method: 'POST',
-  body: form,
-  headers: { 'Accept': 'application/json' } // optional, schadet nicht
+  body: form,                 // FormData mit scene.glb, scene.json, poster.jpg …
+  headers: { 'Accept': 'application/json' } // sonst nichts
 });
 
 if (!res.ok) {
