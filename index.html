@@ -319,11 +319,14 @@
   <!-- Minimal Config -->
  <script>
   window.__AREA = Object.assign({
+    // WICHTIG: Proxy-URL inkl. /publish
     PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish",
-    PUBLISH_KEY: "ignored-by-proxy",   // darf Placeholder sein
+    // Beim Proxy wird KEIN Key vom Browser mitgeschickt
+    PUBLISH_KEY: "",
     VIEWER_BASE: "https://area-viewer.pages.dev"
-  }, window.__AREA||{});
+  }, window.__AREA || {});
 </script>
+
 
 
 
