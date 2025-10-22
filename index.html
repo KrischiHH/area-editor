@@ -320,14 +320,11 @@
 <!-- Minimal Config -->
 <script>
   window.__AREA = {
-    // -> IMMER auf den PROXY zeigen (sonst läge das Secret im Browser)
-    PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish",
+    // MUSS auf den PROXY zeigen:
+    PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish"
 
-    // Beim Proxy IMMER leer lassen (der Proxy fügt das Secret serverseitig an)
-    PUBLISH_KEY: "",
-
-    // Optional, aber praktisch für Preview/Fallback
-    VIEWER_BASE: "https://area-viewer.pages.dev"
+    // Optional: du kannst PUBLISH_KEY vollständig weglassen.
+    // PUBLISH_KEY: ""
   };
 </script>
 
@@ -1749,14 +1746,12 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
 
     
 async function publish(){
-  const cfg = window.__AREA || {};
-  const EP  = cfg.PUBLISH_ENDPOINT || "";
-  const KEY = cfg.PUBLISH_KEY || ""; // darf beim Proxy LEER sein
-
-  if (!EP || /YOUR-SUBDOMAIN/i.test(EP)) {
-    alert('Publish ist nicht konfiguriert. Bitte PUBLISH_ENDPOINT setzen.');
-    return;
-  }
+  const EP = (window.__AREA?.PUBLISH_ENDPOINT || '').trim();
+if (!EP || /YOUR-SUBDOMAIN/.test(EP)) {
+  alert('Publish ist nicht konfiguriert: window.__AREA.PUBLISH_ENDPOINT fehlt.');
+  return;
+}
+// KEIN Key mehr prüfen, KEIN Header setzen
 
   try {
     const defaultId = sanitizeId(projectName);
@@ -1827,6 +1822,7 @@ async function publish(){
     if (KEY) headers['X-AREA-Key'] = KEY;
 
     const res = await fetch(EP, { method: 'POST', body: form, headers });
+    const res = await fetch(EP, { method: 'POST', body: form, headers: { 'Accept': 'application/json' } // optional });
     if(!res.ok){
       const t = await res.text().catch(()=> '');
       throw new Error(t || ('HTTP '+res.status));
