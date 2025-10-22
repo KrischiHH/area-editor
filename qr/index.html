@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>QR-Code Generator</title>
+  <style>
+    html,body{margin:0;height:100%;display:grid;place-items:center;background:#0f1220;color:#e8eefc;font-family:system-ui}
+    .card{padding:20px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);width:min(560px,92vw)}
+    input{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:#0e1325;color:#fff}
+    button{margin-top:10px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:#171b2d;color:#fff}
+    #qrcode{display:grid;place-items:center;margin-top:16px;background:#fff;padding:12px;border-radius:12px}
+    small{opacity:.8}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+</head>
+<body>
+  <div class="card">
+    <h2>QR-Code Generator</h2>
+    <p>Gib die URL deiner veröffentlichten AR-Seite ein (z. B. <code>https://deinname.github.io/deinrepo/image-ar/</code>)</p>
+    <input id="url" type="text" placeholder="https://…"/>
+    <button id="gen">QR-Code erzeugen</button>
+    <div id="qrcode"></div>
+    <button id="save" style="display:none">PNG speichern</button>
+    <p><small>Tipp: Drucke den QR-Code zusammen mit deinem Image‑Target aus.</small></p>
+  </div>
+  <script>
+    const urlInput = document.getElementById('url');
+    const genBtn = document.getElementById('gen');
+    const saveBtn = document.getElementById('save');
+    const container = document.getElementById('qrcode');
+    let canvasEl = null;
+
+    genBtn.addEventListener('click', async ()=>{
+      const text = urlInput.value.trim();
+      if (!text) return;
+      container.innerHTML = '';
+      canvasEl = document.createElement('canvas');
+      container.appendChild(canvasEl);
+      await QRCode.toCanvas(canvasEl, text, {width: 280, margin: 1});
+      saveBtn.style.display = 'inline-block';
+    });
+
+    saveBtn.addEventListener('click', ()=>{
+      if (!canvasEl) return;
+      const a = document.createElement('a');
+      a.href = canvasEl.toDataURL('image/png');
+      a.download = 'qr.png';
+      a.click();
+    });
+  </script>
+</body>
+</html>
