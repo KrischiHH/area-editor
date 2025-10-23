@@ -319,9 +319,12 @@
   <!-- Minimal Config -->
 <script>
   window.__AREA = {
+    // Dein Proxy – nur /publish (der Proxy dient NUR zum Upload)
     PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish",
-    PUBLISH_KEY: ""  // beim Proxy-Betrieb LEER lassen
-    // optional: VIEWER_BASE: "https://area-viewer.pages.dev"
+    // Beim Proxy KEIN Key vom Browser mitsenden:
+    PUBLISH_KEY: "",
+    // Viewer-Basis (Upstream liefert i.d.R. ohnehin viewerUrl zurück)
+    VIEWER_BASE: "https://area-viewer.pages.dev"
   };
 </script>
 
@@ -1679,13 +1682,11 @@ async function exportSceneGLB(){
 
     function val(id, def=''){ const el = document.getElementById(id); const v=(el?.value||'').trim(); return v || def; }
 
-function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
-  const base = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
+function buildSceneViewerJSON_CF({ sceneId }) {
   const clipName = getSelectedClipNameForExport();
   const audio = findFirstAudio();
 
   return {
-    meta: { version: "1.0", mode: "scene-viewer", title: projectName || sceneId, createdAt: new Date().toISOString() },
     ui: {
       showGround: true,
       autocenter: true,
@@ -1694,11 +1695,13 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
         title:   document.getElementById('svTitle')?.value   || projectName || sceneId,
         desc:    document.getElementById('svDesc')?.value    || "Klicke auf OK, um zu starten.",
         cta:     "OK",
-        poster:  `${base}/poster.jpg`
+        // RELATIV – der Viewer lädt /scenes/<id>/poster.jpg
+        poster:  "poster.jpg"
       }
     },
     camera: { fov: 50, start:[2.2,1.6,3.0], lookAt:[0,1.1,0] },
-    model:  { url: `${base}/scene.glb`, scale: 1, rotateY: 0 },
+    // RELATIV – der Viewer lädt /scenes/<id>/scene.glb
+    model:  { url: "scene.glb", scale: 1, rotateY: 0 },
     animation: {
       enabled: true,
       clipName,
@@ -1709,8 +1712,9 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
       crossfade: 0.25,
       timeScale: 1
     },
+    // RELATIV – falls Audio vorhanden, wird audio.mp3 bereitgestellt
     audio: audio ? {
-      url: `${base}/audio.mp3`,
+      url: "audio.mp3",
       autoplay: "withAnimation",
       loop: !!audio.loop,
       volume: 0.85
@@ -1718,6 +1722,7 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
     triggers: { buttonLabel: "Animation abspielen", clickAnywhere: false }
   };
 }
+
 
 
 
@@ -1743,10 +1748,19 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
       btnClose.onclick=()=>{ el.remove(); };
     }
 
+function addParam(url, key, val){
+  try {
+    const u = new URL(url, location.href);
+    if (!u.searchParams.has(key)) u.searchParams.set(key, val);
+    return u.toString();
+  } catch { return url; }
+}
     
 async function publish(){
-  const EP = (window.__AREA?.PUBLISH_ENDPOINT || '').trim();
-  if (!EP || /YOUR-SUBDOMAIN/.test(EP)) {
+  const cfg = window.__AREA || {};
+  const EP  = (cfg.PUBLISH_ENDPOINT || '').trim();
+
+  if (!EP) {
     alert('Publish ist nicht konfiguriert: window.__AREA.PUBLISH_ENDPOINT fehlt.');
     return;
   }
@@ -1765,17 +1779,15 @@ async function publish(){
       throw new Error('Exportierte Datei ist kein GLB (fehlende "glTF"-Magic-Bytes).');
     }
 
-    const mode         = (document.getElementById('anchorMode')?.value || 'surface-webxr');
-    const workerOrigin = new URL(EP).origin; // beim Proxy = Proxy-Origin (Upstream liefert i.d.R. eigene viewerUrl)
-    const sceneBase    = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
+    const mode = (document.getElementById('anchorMode')?.value || 'surface-webxr');
 
-    // FormData: immer scene.glb + passende scene.json; optional poster/audio
+    // FormData aufbauen
     const form = new FormData();
     form.append('sceneId', sceneId);
     form.append('file', new File([glbBlob], 'scene.glb', { type:'model/gltf-binary' }));
 
     if (mode === 'scene-viewer') {
-      // Poster (User-Poster oder Canvas-Snapshot)
+      // Poster: Nutzer-Datei oder Snapshot
       let posterBlob = null;
       if (customPosterBlob) {
         posterBlob = customPosterBlob;
@@ -1786,7 +1798,7 @@ async function publish(){
         form.append('file', new File([posterBlob], 'poster.jpg', { type:'image/jpeg' }));
       }
 
-      // optional: erstes Audio als audio.mp3
+      // optional 1. Audio-Objekt mitschicken
       const a = findFirstAudio();
       if (a){
         const audioBlob = a.fromFile ? a.fromFile : (a.fromDataUrl ? await dataUrlToBlob(a.fromDataUrl) : null);
@@ -1795,82 +1807,62 @@ async function publish(){
         }
       }
 
-      // Scene-Viewer JSON
-      const sceneJsonSV = buildSceneViewerJSON_CF({ sceneId, workerOrigin });
+      // Scene-Viewer JSON (RELATIVE URLs)
+      const sceneJsonSV = buildSceneViewerJSON_CF({ sceneId });
       form.append('file', new File([JSON.stringify(sceneJsonSV, null, 2)], 'scene.json', { type:'application/json' }));
-
     } else {
-      // WebXR / Native / Image JSON
-      const glbUrl    = (mode === 'native' && (document.getElementById('nativeGlbUrl')?.value||'').trim())
-                          ? document.getElementById('nativeGlbUrl').value.trim()
-                          : `${sceneBase}/scene.glb`;
-      const usdzUrl   = (mode === 'native' && (document.getElementById('nativeUsdzUrl')?.value||'').trim())
-                          ? document.getElementById('nativeUsdzUrl').value.trim()
-                          : null;
-      const targetUrl = (mode === 'image'  && (document.getElementById('imageTargetUrl')?.value||'').trim())
-                          ? document.getElementById('imageTargetUrl').value.trim()
-                          : null;
-
-      const sceneJson = buildSceneJSON({ sceneId, title: projectName, mode, glbUrl, usdzUrl, targetUrl });
-      form.append('file', new File([JSON.stringify(sceneJson,null,2)], 'scene.json', { type:'application/json' }));
+      // WebXR / Native / Image → einfache JSON mit RELATIVER model.url
+      const j = {
+        meta: { version: '1.0', mode, title: projectName || sceneId, createdAt: new Date().toISOString() },
+        model: { url: "scene.glb", animation: "*" }
+      };
+      if (mode === 'image') {
+        const t = (document.getElementById('imageTargetUrl')?.value||'').trim();
+        if (t) j.target = { mindUrl: t };
+      }
+      form.append('file', new File([JSON.stringify(j, null, 2)], 'scene.json', { type:'application/json' }));
     }
 
     toast('Lade hoch…');
 
-const res = await fetch(EP, {
-  method: 'POST',
-  body: form,
-  headers: { 'Accept': 'application/json' } // nur Accept; KEINE weiteren Header
-});
-if (!res.ok) {
-  const t = await res.text().catch(()=> '');
-  throw new Error(t || ('HTTP ' + res.status));
-}
+    // **WICHTIG**: Nur 'Accept' mitsenden – KEIN Key im Browser!
+    const res = await fetch(EP, { method:'POST', body: form, headers: { 'Accept':'application/json' } });
 
-// --- NEU: Antwort wirklich als JSON parsen
-const json = await res.json().catch(()=> ({}));
+    if (!res.ok) {
+      const t = await res.text().catch(()=> '');
+      throw new Error(t || ('HTTP '+res.status));
+    }
 
-// --- Ziel-URL festlegen: gewünschten Viewer *hart* wählen
-const viewerBase  = (window.__AREA?.VIEWER_BASE || 'https://area-viewer.pages.dev');
-const entryByMode = {
-  'surface-webxr': '/surface-ar/webxr.html',
-  'native':        '/surface-ar/index.html',
-  'image':         '/image-ar/viewer.html',
-  'scene-viewer':  '/scene-viewer/index.html'
-};
-const entryWanted = entryByMode[mode] || '/surface-ar/webxr.html';
+    const json = await res.json();
 
-// 1) Basis: Upstream-URL oder Fallback
-let viewerUrl = (json.viewerUrl && typeof json.viewerUrl === 'string')
-  ? json.viewerUrl
-  : `${viewerBase}${entryWanted}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
+    // Upstream liefert i.d.R. viewerUrl. Fallback nur, falls nicht vorhanden:
+    const viewerBase   = cfg.VIEWER_BASE || 'https://area-viewer.pages.dev';
+    const entryByMode  = {
+      'surface-webxr': '/surface-ar/webxr.html',
+      'native':        '/surface-ar/index.html',
+      'image':         '/image-ar/viewer.html',
+      'scene-viewer':  '/scene-viewer/index.html'
+    };
 
-// 2) Pfad *erzwingen* (falls Upstream was anderes lieferte)
-try { const u = new URL(viewerUrl); u.pathname = entryWanted; viewerUrl = u.toString(); } catch {}
+    let url = json.viewerUrl || (
+      // Fallback: auf Basis der Proxy-Origin (funktioniert, aber Upstream ist besser)
+      `${viewerBase}${entryByMode[mode] || '/surface-ar/webxr.html'}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(new URL(EP).origin)}`
+    );
 
-// 3) „Force“-Schalter gegen Viewer-Autofallback (entscheidend fürs Problem)
-try {
-  const u = new URL(viewerUrl);
-  if (mode === 'surface-webxr') u.searchParams.set('force', 'webxr');
-  if (mode === 'native')        u.searchParams.set('force', 'native');
-  viewerUrl = u.toString();
-} catch {}
+    // Erzwinge WebXR, wenn „Surface (WebXR)“ gewählt wurde:
+    if (mode === 'surface-webxr') {
+      url = addParam(url, 'force', 'webxr');
+    }
 
-// Anzeigen & kopieren
-showSharePanel(viewerUrl);
-try { await navigator.clipboard.writeText(viewerUrl); } catch {}
-toast('Veröffentlicht');
-
-
-
-    showSharePanel(viewerUrl);
-    try { await navigator.clipboard.writeText(viewerUrl); } catch {}
+    showSharePanel(url);
+    try { await navigator.clipboard.writeText(url); } catch {}
     toast('Veröffentlicht');
   } catch (err) {
     console.error(err);
     alert('Publish fehlgeschlagen: ' + (err?.message || err));
   }
 }
+
 
 
 
