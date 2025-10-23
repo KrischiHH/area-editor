@@ -1787,7 +1787,7 @@ async function publish(){
     form.append('file', new File([glbBlob], 'scene.glb', { type:'model/gltf-binary' }));
 
     if (mode === 'scene-viewer') {
-      // Poster: Nutzer-Datei oder Snapshot
+      // Poster: Nutzer-Datei oder Canvas-Snapshot
       let posterBlob = null;
       if (customPosterBlob) {
         posterBlob = customPosterBlob;
@@ -1798,7 +1798,7 @@ async function publish(){
         form.append('file', new File([posterBlob], 'poster.jpg', { type:'image/jpeg' }));
       }
 
-      // optional 1. Audio-Objekt mitschicken
+      // optional: erstes Audio mitsenden
       const a = findFirstAudio();
       if (a){
         const audioBlob = a.fromFile ? a.fromFile : (a.fromDataUrl ? await dataUrlToBlob(a.fromDataUrl) : null);
@@ -1810,10 +1810,11 @@ async function publish(){
       // Scene-Viewer JSON (RELATIVE URLs)
       const sceneJsonSV = buildSceneViewerJSON_CF({ sceneId });
       form.append('file', new File([JSON.stringify(sceneJsonSV, null, 2)], 'scene.json', { type:'application/json' }));
+
     } else {
-      // WebXR / Native / Image → einfache JSON mit RELATIVER model.url
+      // WebXR / Native / Image → einfache JSON (RELATIVE model.url)
       const j = {
-        meta: { version: '1.0', mode, title: projectName || sceneId, createdAt: new Date().toISOString() },
+        meta:  { version: '1.0', mode, title: projectName || sceneId, createdAt: new Date().toISOString() },
         model: { url: "scene.glb", animation: "*" }
       };
       if (mode === 'image') {
@@ -1825,9 +1826,8 @@ async function publish(){
 
     toast('Lade hoch…');
 
-    // **WICHTIG**: Nur 'Accept' mitsenden – KEIN Key im Browser!
+    // Nur 'Accept' mitsenden – KEIN Key im Browser!
     const res = await fetch(EP, { method:'POST', body: form, headers: { 'Accept':'application/json' } });
-
     if (!res.ok) {
       const t = await res.text().catch(()=> '');
       throw new Error(t || ('HTTP '+res.status));
@@ -1835,34 +1835,35 @@ async function publish(){
 
     const json = await res.json();
 
-    // Upstream liefert i.d.R. viewerUrl. Fallback nur, falls nicht vorhanden:
-    const viewerBase   = cfg.VIEWER_BASE || 'https://area-viewer.pages.dev';
-    const entryByMode  = {
+    // Viewer-URL: bevorzugt vom Upstream, sonst robuster Fallback
+    const viewerBase  = (cfg.VIEWER_BASE || 'https://area-viewer.pages.dev');
+    const entryByMode = {
       'surface-webxr': '/surface-ar/webxr.html',
       'native':        '/surface-ar/index.html',
       'image':         '/image-ar/viewer.html',
       'scene-viewer':  '/scene-viewer/index.html'
     };
 
-    let url = json.viewerUrl || (
-      // Fallback: auf Basis der Proxy-Origin (funktioniert, aber Upstream ist besser)
-      `${viewerBase}${entryByMode[mode] || '/surface-ar/webxr.html'}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(new URL(EP).origin)}`
-    );
+    // Fallback immer mit der öffentlichen Publish-Origin
+    const fallbackUrl =
+      `${viewerBase}${entryByMode[mode] || '/surface-ar/webxr.html'}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent('https://area-publish.area-webar.workers.dev')}`;
 
-    // Erzwinge WebXR, wenn „Surface (WebXR)“ gewählt wurde:
+    let url = json.viewerUrl || fallbackUrl;
+
+    // base-Param hart korrigieren, falls "internal" o.ä. daherkommt
+    try {
+      const u = new URL(url);
+      const b = (u.searchParams.get("base") || "").trim();
+      if (!b || b === "internal" || b === "https://internal" || b === "http://internal") {
+        u.searchParams.set("base", "https://area-publish.area-webar.workers.dev");
+      }
+      url = u.toString();
+    } catch {}
+
+    // WebXR erzwingen, wenn Surface (WebXR) gewählt wurde
     if (mode === 'surface-webxr') {
       url = addParam(url, 'force', 'webxr');
     }
-    let viewerUrl = json.viewerUrl || fallbackUrl;
-try {
-  const u = new URL(viewerUrl);
-  const b = (u.searchParams.get("base") || "").trim();
-  if (!b || b === "internal" || b === "https://internal" || b === "http://internal") {
-    u.searchParams.set("base", "https://area-publish.area-webar.workers.dev");
-    viewerUrl = u.toString();
-  }
-} catch {}
-
 
     showSharePanel(url);
     try { await navigator.clipboard.writeText(url); } catch {}
