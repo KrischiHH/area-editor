@@ -1817,18 +1817,20 @@ async function publish(){
 
     toast('Lade hoch…');
 
-    // WICHTIG: KEIN X-AREA-Key im Browser!
-    const res  = await fetch(EP, { method:'POST', body: form, headers: { 'Accept': 'application/json' } });
-    const text = await res.text().catch(()=> '');
-    let json   = null; try { json = JSON.parse(text); } catch {}
+const res = await fetch(EP, {
+  method: 'POST',
+  body: form,
+  headers: { 'Accept': 'application/json' } // nur Accept; KEINE weiteren Header
+});
+if (!res.ok) {
+  const t = await res.text().catch(()=> '');
+  throw new Error(t || ('HTTP ' + res.status));
+}
 
-    if (!res.ok || !json || !json.ok) {
-      const msg = (json && (json.error || json.message)) || text || ('HTTP ' + res.status);
-      throw new Error(msg);
-    }
+// --- NEU: Antwort wirklich als JSON parsen
+const json = await res.json().catch(()=> ({}));
 
-    // Ziel-URL: Upstream liefert i.d.R. viewerUrl; wir setzen trotzdem
-// das Entry zur Sicherheit auf den gewählten Anchor (robust gegen Fehl-Mapping).
+// --- Ziel-URL festlegen: gewünschten Viewer *hart* wählen
 const viewerBase  = (window.__AREA?.VIEWER_BASE || 'https://area-viewer.pages.dev');
 const entryByMode = {
   'surface-webxr': '/surface-ar/webxr.html',
@@ -1838,21 +1840,27 @@ const entryByMode = {
 };
 const entryWanted = entryByMode[mode] || '/surface-ar/webxr.html';
 
-// 1) Basis aus Upstream oder Fallback
+// 1) Basis: Upstream-URL oder Fallback
 let viewerUrl = (json.viewerUrl && typeof json.viewerUrl === 'string')
   ? json.viewerUrl
   : `${viewerBase}${entryWanted}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
 
-// 2) Falls Upstream ein anderes Entry gab (z.B. immer webxr), „repare“ Path:
+// 2) Pfad *erzwingen* (falls Upstream was anderes lieferte)
+try { const u = new URL(viewerUrl); u.pathname = entryWanted; viewerUrl = u.toString(); } catch {}
+
+// 3) „Force“-Schalter gegen Viewer-Autofallback (entscheidend fürs Problem)
 try {
   const u = new URL(viewerUrl);
-  u.pathname = entryWanted;
+  if (mode === 'surface-webxr') u.searchParams.set('force', 'webxr');
+  if (mode === 'native')        u.searchParams.set('force', 'native');
   viewerUrl = u.toString();
-} catch { /* ignore */ }
+} catch {}
 
+// Anzeigen & kopieren
 showSharePanel(viewerUrl);
 try { await navigator.clipboard.writeText(viewerUrl); } catch {}
 toast('Veröffentlicht');
+
 
 
     showSharePanel(viewerUrl);
