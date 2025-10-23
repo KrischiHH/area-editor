@@ -1685,6 +1685,7 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
   const audio = findFirstAudio();
 
   return {
+    meta: { version: "1.0", mode: "scene-viewer", title: projectName || sceneId, createdAt: new Date().toISOString() },
     ui: {
       showGround: true,
       autocenter: true,
@@ -1701,7 +1702,7 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
     animation: {
       enabled: true,
       clipName,
-      start: (document.getElementById('animStartMode')?.value || 'onStart'), // onStart|onClick
+      start: (document.getElementById('animStartMode')?.value || 'onStart'),
       loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
       iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
       clampWhenFinished: true,
@@ -1717,6 +1718,7 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }){
     triggers: { buttonLabel: "Animation abspielen", clickAnywhere: false }
   };
 }
+
 
 
     function showSharePanel(url){
@@ -1825,18 +1827,33 @@ async function publish(){
       throw new Error(msg);
     }
 
-    // Ziel-URL: Upstream liefert normal eine viewerUrl; ansonsten Fallback bauen
-    const viewerBase  = (window.__AREA?.VIEWER_BASE || 'https://area-viewer.pages.dev');
-    const entryByMode = {
-      'surface-webxr': '/surface-ar/webxr.html',
-      'native':        '/surface-ar/index.html',
-      'image':         '/image-ar/viewer.html',
-      'scene-viewer':  '/scene-viewer/index.html'
-    };
-    const entry     = entryByMode[mode] || '/webxr.html';
-    const viewerUrl = json.viewerUrl
-      ? json.viewerUrl
-      : `${viewerBase}${entry}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
+    // Ziel-URL: Upstream liefert i.d.R. viewerUrl; wir setzen trotzdem
+// das Entry zur Sicherheit auf den gewählten Anchor (robust gegen Fehl-Mapping).
+const viewerBase  = (window.__AREA?.VIEWER_BASE || 'https://area-viewer.pages.dev');
+const entryByMode = {
+  'surface-webxr': '/surface-ar/webxr.html',
+  'native':        '/surface-ar/index.html',
+  'image':         '/image-ar/viewer.html',
+  'scene-viewer':  '/scene-viewer/index.html'
+};
+const entryWanted = entryByMode[mode] || '/surface-ar/webxr.html';
+
+// 1) Basis aus Upstream oder Fallback
+let viewerUrl = (json.viewerUrl && typeof json.viewerUrl === 'string')
+  ? json.viewerUrl
+  : `${viewerBase}${entryWanted}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
+
+// 2) Falls Upstream ein anderes Entry gab (z.B. immer webxr), „repare“ Path:
+try {
+  const u = new URL(viewerUrl);
+  u.pathname = entryWanted;
+  viewerUrl = u.toString();
+} catch { /* ignore */ }
+
+showSharePanel(viewerUrl);
+try { await navigator.clipboard.writeText(viewerUrl); } catch {}
+toast('Veröffentlicht');
+
 
     showSharePanel(viewerUrl);
     try { await navigator.clipboard.writeText(viewerUrl); } catch {}
