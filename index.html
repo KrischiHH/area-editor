@@ -1853,6 +1853,16 @@ async function publish(){
     if (mode === 'surface-webxr') {
       url = addParam(url, 'force', 'webxr');
     }
+    let viewerUrl = json.viewerUrl || fallbackUrl;
+try {
+  const u = new URL(viewerUrl);
+  const b = (u.searchParams.get("base") || "").trim();
+  if (!b || b === "internal" || b === "https://internal" || b === "http://internal") {
+    u.searchParams.set("base", "https://area-publish.area-webar.workers.dev");
+    viewerUrl = u.toString();
+  }
+} catch {}
+
 
     showSharePanel(url);
     try { await navigator.clipboard.writeText(url); } catch {}
