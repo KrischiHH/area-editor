@@ -24,7 +24,34 @@ async function publish(){
 
     const mode = (document.getElementById('anchorMode')?.value || 'surface-webxr');
 
+    // 1) Robust PUBLISH_ENDPOINT parsing and workerOrigin fallback
+    // Support relative EP values (e.g., "/api/publish") and absolute URLs
+    let workerOrigin;
+    try {
+      const epUrl = new URL(EP, location.href);
+      workerOrigin = epUrl.origin;
+    } catch {
+      // Fallback if EP is malformed
+      workerOrigin = location.origin;
+    }
+
+    // Check if we should use editor/local base for preview links
+    // (e.g., when anchorMode indicates 'editor-local' or 'local')
+    const isLocalPreview = (mode === 'editor-local' || mode === 'local');
+    if (isLocalPreview && cfg.EDITOR_WORKER_BASE) {
+      try {
+        const editorBaseUrl = new URL(cfg.EDITOR_WORKER_BASE, location.href);
+        workerOrigin = editorBaseUrl.origin;
+      } catch {
+        // If EDITOR_WORKER_BASE is malformed, use location.origin
+        workerOrigin = location.origin;
+      }
+    }
+
     // Upload-Payload
+    // NOTE: FormData fields use multiple 'file' entries for backward compatibility
+    // with existing backend. If server is updated in future, consider using explicit
+    // field names: 'glb', 'poster', 'audio', 'sceneJson' for clearer semantics.
     const form = new FormData();
     form.append('sceneId', sceneId);
     form.append('file', new File([glbBlob], 'scene.glb', { type:'model/gltf-binary' }));
@@ -51,13 +78,11 @@ async function publish(){
       }
 
       // Scene-Viewer JSON (RELATIVE URLs über Worker-Base)
-      const workerOrigin = new URL(EP).origin;
       const sceneJsonSV = buildSceneViewerJSON_CF({ sceneId, workerOrigin });
       form.append('file', new File([JSON.stringify(sceneJsonSV, null, 2)], 'scene.json', { type:'application/json' }));
 
     } else {
       // WebXR / Native / Image: einfache scene.json + ggf. native URLs
-      const workerOrigin = new URL(EP).origin;
       const sceneBase    = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
 
       const glbUrl  = (mode === 'native' && (document.getElementById('nativeGlbUrl')?.value||'').trim())
@@ -104,20 +129,63 @@ async function publish(){
       'scene-viewer':  '/scene-viewer/index.html'
     };
     const entry = entryByMode[mode] || '/webxr.html';
-    const workerOrigin = new URL(EP).origin;
 
-    // Fallback, falls der Worker nichts zurückgibt
-    let url = json.viewerUrl
-           || `${viewerBase}${entry}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
+    let url;
+    if (json.viewerUrl) {
+      // 2) Normalize server-provided viewerUrl to absolute URL using viewerBase as base
+      try {
+        const viewerUrl = new URL(json.viewerUrl, viewerBase);
+        url = viewerUrl.toString();
+      } catch {
+        // If malformed, fall back to constructing URL ourselves
+        url = `${viewerBase}${entry}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
+      }
+    } else {
+      // Fallback if server doesn't return viewerUrl
+      url = `${viewerBase}${entry}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
+    }
 
-    // base-Param absichern (kein „internal“ etc.)
+    // 3) Improve base query param validation
+    // Validate 'base' param accepts only valid origins (protocol + hostname + optional port)
     try {
       const u = new URL(url);
       const b = (u.searchParams.get('base') || '').trim();
-      if (!b || b === 'internal' || b === 'https://internal' || b === 'http://internal') {
+      
+      // Validate base parameter
+      let validBase = false;
+      if (b) {
+        try {
+          const baseUrl = new URL(b);
+          // Check if it's a valid origin (has protocol and hostname)
+          validBase = !!(baseUrl.protocol && baseUrl.hostname);
+        } catch {
+          validBase = false;
+        }
+      }
+      
+      // If base is missing or invalid, set to workerOrigin
+      if (!validBase) {
         u.searchParams.set('base', workerOrigin);
       }
+      
       url = u.toString();
+    } catch {}
+
+    // 6) Small UX: mark shared URL as 'preview' when base is location.origin or editor base
+    // Append '&preview=1' if base is editor-local origin
+    try {
+      const u = new URL(url);
+      const base = u.searchParams.get('base') || '';
+      
+      // Check if base is local/editor origin
+      const isPreviewUrl = (base === location.origin) || 
+                          (cfg.EDITOR_WORKER_BASE && base === new URL(cfg.EDITOR_WORKER_BASE, location.href).origin) ||
+                          isLocalPreview;
+      
+      if (isPreviewUrl) {
+        u.searchParams.set('preview', '1');
+        url = u.toString();
+      }
     } catch {}
 
     showSharePanel(url);
