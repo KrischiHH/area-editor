@@ -348,6 +348,36 @@
                      color-mix(in srgb, var(--panel2) 90%, var(--accent2) 10%) 40%);
 }
 
+    /* === Uiverse Hover-Sweep für Menü-Pills (scoped) === */
+.top .ui-pill.sweep{
+  position: relative;
+  overflow: hidden;
+  isolation: isolate; /* eigener Stacking-Context */
+}
+.top .ui-pill.sweep::after{
+  content: "";
+  position: absolute;
+  /* etwas breiter als der Button, damit der Sweep seitlich rein/rausfährt */
+  left: -25%; right: -25%; top: 0; bottom: 0;
+  background: var(--text);          /* Sweep-Farbe (hell) */
+  transform: skewX(-45deg) scaleX(0);
+  transform-origin: left center;
+  transition: transform .5s ease;
+  opacity: .9;
+  z-index: 0;                       /* unter Text/Icon, über Hintergrund */
+}
+.top .ui-pill.sweep:hover::after{
+  transform: skewX(-45deg) scaleX(1);
+}
+.top .ui-pill.sweep > *{
+  position: relative;
+  z-index: 1;                       /* Inhalt über dem Sweep */
+}
+.top .ui-pill.sweep:hover{
+  color: #000;                      /* Text wird schwarz, wie im Uiverse-Beispiel */
+}
+
+
 /* Menüeinträge dezenter, dafür klar lesbar */
 .menu .menuitem{
   display:flex; align-items:center; gap:10px;
@@ -446,24 +476,36 @@
     <img src="https://cdn.jsdelivr.net/gh/KrischiHH/area@58a250a0bc3b9868cf5e8d7ba12864720315662c/icons/areaLogo.jpg" alt="AREA Logo">
   </a>
 
-  <!-- Projekt mit Dropdown (öffnet nach unten) -->
+  <!-- Projekt-Menü (öffnet nach unten) -->
   <div class="menu" id="projectMenu">
-  <button id="btn-project-menu" class="menubtn ui-pill" aria-haspopup="true" aria-expanded="false">Projekt ▾</button>
-  <div class="menu-pop ui-tooltip" id="projectMenuPop" role="menu">
-    <button id="btn-new" class="menuitem" role="menuitem">+ Neues Projekt…</button>
-    <label class="menuitem" role="menuitem">Projekt öffnen <input id="file-project" type="file" accept=".webar,.json"></label>
-    <button id="btn-save" class="menuitem" role="menuitem">Speichern</button>
-    <button id="btn-save-as" class="menuitem" role="menuitem">Speichern unter…</button>
-    <button id="btn-preview" class="menuitem" role="menuitem">Vorschau (Module)…</button>
-    <button id="btn-publish" class="menuitem" role="menuitem">Veröffentlichen (Link &amp; QR)…</button>
-    <!-- Theme-Button entfernt -->
+    <button id="btn-project-menu" class="menubtn ui-pill sweep" aria-haspopup="true" aria-expanded="false">
+      Projekt ▾
+    </button>
+    <div class="menu-pop ui-tooltip" id="projectMenuPop" role="menu">
+      <button id="btn-new" class="menuitem" role="menuitem">+ Neues Projekt…</button>
+      <label class="menuitem" role="menuitem">Projekt öffnen <input id="file-project" type="file" accept=".webar,.json"></label>
+      <button id="btn-save" class="menuitem" role="menuitem">Speichern</button>
+      <button id="btn-save-as" class="menuitem" role="menuitem">Speichern unter…</button>
+      <button id="btn-preview" class="menuitem" role="menuitem">Vorschau (Module)…</button>
+      <button id="btn-publish" class="menuitem" role="menuitem">Veröffentlichen (Link &amp; QR)…</button>
+    </div>
   </div>
-</div>
 
+  <!-- Einmalige Import-Pills (passen zu deinem JS: #file-glb / #file-media) -->
+  <label class="ui-pill sweep">
+    Objekt import
+    <input id="file-glb" type="file" accept=".glb,.gltf,.fbx" hidden>
+  </label>
 
-   <div class="sp"></div>
+  <label class="ui-pill sweep">
+    Medien import
+    <input id="file-media" type="file" accept="video/*,audio/*" hidden>
+  </label>
+
+  <div class="sp"></div>
   <div class="status-pill" id="projNamePill" title="Projektname (Doppelklick zum Umbenennen)">Unbenanntes Projekt</div>
 </div>
+
 
 
   <div class="wrap"><!-- GRID START -->
