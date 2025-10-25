@@ -1799,8 +1799,8 @@ updateAnchorUI();
   const viewerBase = (window.__AREA || {}).VIEWER_BASE || 'https://area-viewer.pages.dev';
 
   const pathByMode = {
-  'surface-webxr': '/webxr.html',   // vorher: '/webxr.html'
-  'native':        '/surface-ar/index.html',   // vorher: '/index.html'
+  'surface-webxr': '/webxr.html',
+  'native':        '/surface-ar/index.html',   // ← konsistent
   'image':         '/image-ar/viewer.html',
   'scene-viewer':  '/scene-viewer/index.html'
 };
@@ -1883,15 +1883,21 @@ async function capturePosterBlob(quality=0.9){
 
 // === Erstes Audio-Objekt in der Szene greifen (optional) ===
 function findFirstAudio(){
-  for (const rec of (state?.objects||[])){
-    if (rec.media?.kind==='video') { rec.media.el.load(); }
-      const fromFile   = rec.file instanceof File ? rec.file : null;
-      const fromDataUrl= (!fromFile && rec.media?.src && rec.media.src.startsWith('data:')) ? rec.media.src : null;
-      return { fromFile, fromDataUrl, loop: !!rec.media.loop, repeats: rec.media.repeats||1 };
+  for (const rec of (state?.objects || [])){
+    if (rec?.media?.kind === 'audio'){
+      const fromFile    = rec.file instanceof File ? rec.file : null;
+      const fromDataUrl = (!fromFile && rec.media.src && rec.media.src.startsWith('data:')) ? rec.media.src : null;
+      return {
+        fromFile,
+        fromDataUrl,
+        loop: !!rec.media.loop,
+        repeats: rec.media.repeats || 1
+      };
     }
   }
   return null;
 }
+    
 async function dataUrlToBlob(u){ const r = await fetch(u); return await r.blob(); }
 
 // === Namen des Anim-Clip aus UI/Selection bestimmen ===
@@ -1953,6 +1959,9 @@ async function exportSceneGLB(){
 function buildSceneViewerJSON_CF({ sceneId, workerOrigin }) {
   const clipName = getSelectedClipNameForExport();
   const audioInfo = findFirstAudio();
+  const audioBlock = audioInfo ? { url: `${base}/audio.mp3`, autoplay: "withAnimation", loop: !!audioInfo.loop, volume: 0.85} : { url: "" };
+  
+return {
   const showPlay = !!document.getElementById('svShowPlayBtn')?.checked;
   const showMute = !!document.getElementById('svShowMuteBtn')?.checked;
 
@@ -2123,11 +2132,13 @@ async function publish(){
     // Viewer-URL (deine funktionierenden Pfade beibehalten)
     const viewerBase  = (cfg.VIEWER_BASE || 'https://area-viewer.pages.dev');
     const entryByMode = {
-      'surface-webxr': '/webxr.html',
-      'native':        '/index.html',
-      'image':         '/image-ar/viewer.html',
-      'scene-viewer':  '/scene-viewer/index.html'
-    };
+  'surface-webxr': '/webxr.html',
+  'native':        '/surface-ar/index.html',   // ← hier angleichen
+  'image':         '/image-ar/viewer.html',
+  'scene-viewer':  '/scene-viewer/index.html'
+};
+
+    
     const entry = entryByMode[mode] || '/webxr.html';
     const workerOrigin = new URL(EP).origin;
 
