@@ -438,7 +438,7 @@
   transform: skewX(-45deg) scaleX(0);
   transform-origin: left center;
   transition: transform .5s ease;
-  opacity: .92;
+  opacity: .85;
   z-index: 0;
 }
 .top .ui-pill.sweep:hover::after{ transform: skewX(-45deg) scaleX(1); }
@@ -848,7 +848,8 @@
    
   </div><!-- /.wrap --> 
   
-  <div class="toast" id="toast"></div>
+  <div class="toast" id="toast" aria-live="polite"></div>
+
 
   <script type="module">
     import * as THREE from 'three';
