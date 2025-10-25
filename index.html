@@ -269,66 +269,7 @@
     .select option{background:#0f1420;color:var(--text)}
     .kv{display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center;margin-bottom:8px}
 
-    /* === Topbar CTA (Uiverse-inspiriert) === */
-.cta-wrap{ position:relative; display:inline-block; }
-
-.cta,
-label.cta{
-  display:inline-flex; align-items:center; justify-content:center;
-  padding:10px 16px; font-weight:800; letter-spacing:.02em;
-  color:#fff; border:0; border-radius:12px; cursor:pointer;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  box-shadow: 0 8px 18px rgba(0,0,0,.35);
-  transition: transform .08s ease, filter .2s ease, box-shadow .2s ease;
-  user-select:none; -webkit-user-select:none;
-}
-.cta:hover, label.cta:hover{ filter: brightness(1.06); box-shadow:0 10px 24px rgba(0,0,0,.42); }
-.cta:active, label.cta:active{ transform: translateY(1px); }
-.cta:focus-visible, label.cta:focus-visible{ outline:2px solid color-mix(in srgb, var(--accent2) 60%, #fff); outline-offset:2px; }
-
-/* Dropdown nur für den Projekt-Button */
-.cta-dropdown{
-  position:absolute; left:50%; top: calc(100% + 12px);
-  transform: translateX(-50%) translateY(-6px);
-  width:260px; padding:8px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color:#fff; border-radius:14px;
-  box-shadow:0 12px 26px rgba(0,0,0,.45);
-  opacity:0; visibility:hidden; transition: all .22s ease;
-  z-index:2000;
-  clip-path: polygon(0 8px, 100% 8px, 100% 100%, 0 100%);
-}
-.cta-arrow{
-  position:absolute; top:-10px; left:50%; transform:translateX(-50%);
-  width:0; height:0;
-  border-left:10px solid transparent;
-  border-right:10px solid transparent;
-  border-bottom:10px solid var(--accent);
-  filter: drop-shadow(0 2px 2px rgba(0,0,0,.25));
-}
-
-/* Öffnen per Hover/Focus oder .open (Touch) */
-.cta-wrap.menu:hover .cta-dropdown,
-.cta-wrap.menu:focus-within .cta-dropdown,
-.cta-wrap.menu.open .cta-dropdown{
-  opacity:1; visibility:visible; transform: translateX(-50%) translateY(0);
-}
-
-/* Menüitems im Drop */
-.cta-dropdown .menuitem{
-  background:transparent; border:1px solid transparent;
-  color:#fff; width:100%;
-}
-.cta-dropdown .menuitem:hover{
-  background:rgba(0,0,0,.12); border-color:rgba(255,255,255,.18);
-}
-.cta-dropdown .btn{
-  background:rgba(0,0,0,.18); border-color:rgba(255,255,255,.22);
-}
-
-/* altes Popup im Projekt-Menü deaktivieren */
-#projectMenu .menu-pop{ display:none !important; }
-
+ 
     /* === Topbar Pills (harmonisch zu Slate/Aurora/Nebula) === */
 .top .ui-pill{
   position: relative;
