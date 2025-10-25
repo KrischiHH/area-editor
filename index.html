@@ -348,34 +348,104 @@
                      color-mix(in srgb, var(--panel2) 90%, var(--accent2) 10%) 40%);
 }
 
-    /* === Uiverse Hover-Sweep für Menü-Pills (scoped) === */
+/* Einheitliche Basis für alle Topbar-Pills (auch "Projekt") */
+.top .menubtn.ui-pill {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--panel2) 80%, var(--accent) 20%) 0%,
+      color-mix(in srgb, var(--panel2) 88%, var(--accent2) 12%) 100%);
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  color: var(--text);
+}
+
+/* ---------- Sweep (hover) – wie Uiverse, aber thematisch getönt ---------- */
+:root.theme-nebula { 
+  --sweep-bg: linear-gradient(90deg,
+                color-mix(in srgb, var(--accent2) 70%, transparent),
+                color-mix(in srgb, var(--accent) 65%, transparent));
+  --sweep-fg: #0a0f1e;  /* dunkle Schrift auf hellem Sweep */
+}
+:root.theme-slate {
+  --sweep-bg: linear-gradient(90deg,
+                color-mix(in srgb, var(--accent) 55%, transparent),
+                color-mix(in srgb, var(--accent2) 50%, transparent));
+  --sweep-fg: #0b1220;
+}
+:root.theme-aurora {
+  --sweep-bg: linear-gradient(90deg,
+                color-mix(in srgb, #22d3ee 55%, transparent),
+                color-mix(in srgb, #67e8f9 50%, transparent));
+  --sweep-fg: #031a1e;
+}
+
+    /* 3-Wege Theme Toggle */
+.theme-toggle3{
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  align-items: center;
+  gap: 6px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+  user-select: none;
+}
+.theme-toggle3 input{
+  position:absolute; opacity:0; pointer-events:none;
+}
+.theme-toggle3 label{
+  text-align:center; padding:6px 8px;
+  font-weight: 900; letter-spacing:.02em;
+  color: var(--muted);
+  cursor: pointer;
+  z-index:1;
+}
+.theme-toggle3 .thumb{
+  position:absolute; left:4px; top:4px; bottom:4px;
+  width: calc((100% - 8px) / 3);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--accent) 22%, var(--panel2) 78%),
+      color-mix(in srgb, var(--accent2) 18%, var(--panel2) 82%));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  box-shadow: 0 6px 16px rgba(0,0,0,.35);
+  transform: translateX(calc(var(--i,0) * (100% + 6px)));
+  transition: transform .3s cubic-bezier(.2,.7,.2,1);
+  z-index:0;
+}
+/* aktive Beschriftung betonen */
+.theme-toggle3 input:checked + label{ color: var(--text); }
+
+/* Thumb-Position über :checked steuern (Input + Label + Input + Label …) */
+#th-slate:checked  ~ .thumb{ --i: 0; }
+#th-aurora:checked ~ .thumb{ --i: 1; }
+#th-nebula:checked ~ .thumb{ --i: 2; }
+
+
+/* Uiverse-Style Sweep – aber farbig und lesbar */
 .top .ui-pill.sweep{
   position: relative;
   overflow: hidden;
-  isolation: isolate; /* eigener Stacking-Context */
+  isolation: isolate;
 }
 .top .ui-pill.sweep::after{
   content: "";
   position: absolute;
-  /* etwas breiter als der Button, damit der Sweep seitlich rein/rausfährt */
   left: -25%; right: -25%; top: 0; bottom: 0;
-  background: var(--text);          /* Sweep-Farbe (hell) */
+  background: var(--sweep-bg);
   transform: skewX(-45deg) scaleX(0);
   transform-origin: left center;
   transition: transform .5s ease;
-  opacity: .9;
-  z-index: 0;                       /* unter Text/Icon, über Hintergrund */
+  opacity: .92;
+  z-index: 0;
 }
-.top .ui-pill.sweep:hover::after{
-  transform: skewX(-45deg) scaleX(1);
-}
-.top .ui-pill.sweep > *{
-  position: relative;
-  z-index: 1;                       /* Inhalt über dem Sweep */
-}
-.top .ui-pill.sweep:hover{
-  color: #000;                      /* Text wird schwarz, wie im Uiverse-Beispiel */
-}
+.top .ui-pill.sweep:hover::after{ transform: skewX(-45deg) scaleX(1); }
+.top .ui-pill.sweep > *{ position: relative; z-index: 1; }
+/* dunkle Schrift auf hellem Sweep */
+.top .ui-pill.sweep:hover{ color: var(--sweep-fg); }
+
 
 
 /* Menüeinträge dezenter, dafür klar lesbar */
@@ -611,7 +681,28 @@
         <div class="kv"><div>Grid anzeigen</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="gridVisible" type="checkbox" checked> <span>Ein</span></label></div>
         <div class="kv"><div>Belichtung</div><input id="exposure" class="input" type="range" min="0.5" max="3" step="0.05" value="1.4"></div>
         <div class="kv"><div>Kameralicht</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="headlight" type="checkbox" checked> <span>an</span></label></div></div>
+        <!-- Theme Toggle (3 Wege) -->
+<div class="kv">
+  <div>Theme</div>
+  <div>
+    <div class="theme-toggle3" role="group" aria-label="Theme">
+      <input id="th-slate"  type="radio" name="theme3" value="theme-slate">
+      <label for="th-slate"  title="Slate">S</label>
 
+      <input id="th-aurora" type="radio" name="theme3" value="theme-aurora">
+      <label for="th-aurora" title="Aurora">A</label>
+
+      <input id="th-nebula" type="radio" name="theme3" value="theme-nebula">
+      <label for="th-nebula" title="Nebula">N</label>
+
+      <span class="thumb" aria-hidden="true"></span>
+    </div>
+    <div class="muted" style="font-size:12px;margin-top:6px">Slate · Aurora · Nebula</div>
+  </div>
+</div>
+
+
+      
         <!-- Anchor-Modus UI -->
         <div class="kv"><div>Anchor-Modus</div>
           <select id="anchorMode" class="select">
@@ -1207,8 +1298,13 @@ async function blobToBase64(blob){
     $('#space-world').addEventListener('click', ()=>setSpace('world'));
 
  function duplicateSelected(){
-  const ids = [...state.selection];
-  if (!ids.length) return;
+  const ids=[...state.selection];
+  if(!ids.length) return;
+  // Guard: Gruppen aktuell nicht duplizieren
+  if (ids.some(id => findRec(id)?.type === 'group')) {
+    toast('Gruppen-Duplikat noch nicht unterstützt'); 
+    return;
+  }
 
   const newIds = [];
   ids.forEach(id=>{
@@ -1702,7 +1798,7 @@ updateAnchorUI();
   const viewerBase = (window.__AREA || {}).VIEWER_BASE || 'https://area-viewer.pages.dev';
 
   const pathByMode = {
-  'surface-webxr': '/surface-ar/webxr.html',   // vorher: '/webxr.html'
+  'surface-webxr': '/webxr.html',   // vorher: '/webxr.html'
   'native':        '/surface-ar/index.html',   // vorher: '/index.html'
   'image':         '/image-ar/viewer.html',
   'scene-viewer':  '/scene-viewer/index.html'
@@ -1787,7 +1883,7 @@ async function capturePosterBlob(quality=0.9){
 // === Erstes Audio-Objekt in der Szene greifen (optional) ===
 function findFirstAudio(){
   for (const rec of (state?.objects||[])){
-    if (rec.media?.kind === 'audio'){
+    if (rec.media?.kind==='video') { rec.media.el.load(); }
       const fromFile   = rec.file instanceof File ? rec.file : null;
       const fromDataUrl= (!fromFile && rec.media?.src && rec.media.src.startsWith('data:')) ? rec.media.src : null;
       return { fromFile, fromDataUrl, loop: !!rec.media.loop, repeats: rec.media.repeats||1 };
@@ -2137,14 +2233,37 @@ async function publish(){
     catch { return null; }
   })();
 
-  const THEMES = ['theme-slate','theme-aurora','theme-nebula'];
+  // ... in deinem Theme-Block:
+const THEMES = ['theme-slate','theme-aurora','theme-nebula'];
 
-  function setTheme(theme){
-    THEMES.forEach(t => html.classList.remove(t));
-    html.classList.add(theme);
-    try { storage?.setItem('theme', theme); } catch {}
-    requestAnimationFrame(() => window.__applyThemeToThree?.());
-  }
+function setTheme(theme){
+  THEMES.forEach(t => html.classList.remove(t));
+  html.classList.add(theme);
+  try { storage?.setItem('theme', theme); } catch {}
+  requestAnimationFrame(() => {
+    window.__applyThemeToThree?.();
+    syncThemeToggleUI();       // <-- NEU: UI nachziehen
+  });
+}
+
+function syncThemeToggleUI(){
+  const cur = THEMES.find(t => html.classList.contains(t)) || 'theme-nebula';
+  const map = { 'theme-slate':'th-slate', 'theme-aurora':'th-aurora', 'theme-nebula':'th-nebula' };
+  const id = map[cur];
+  const el = document.getElementById(id);
+  if (el) el.checked = true;
+}
+
+// beim Start richtige Radio-Option setzen
+requestAnimationFrame(syncThemeToggleUI);
+
+// Change-Events binden
+document.querySelectorAll('.theme-toggle3 input[name="theme3"]').forEach(inp=>{
+  inp.addEventListener('change', (e)=> setTheme(e.target.value));
+});
+
+// Optional: Taste „T“ zum Durchschalten beibehalten (dein Code bleibt)
+
 
   // Initial
   const saved = storage?.getItem('theme');
