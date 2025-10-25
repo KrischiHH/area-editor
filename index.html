@@ -1759,6 +1759,7 @@ function addParam(url, key, val){
 async function publish(){
   const cfg = window.__AREA || {};
   const EP  = (cfg.PUBLISH_ENDPOINT || '').trim();
+  const KEY = (cfg.PUBLISH_KEY || '').trim(); // optional – wird nur gesendet, wenn vorhanden
 
   if (!EP) {
     alert('Publish ist nicht konfiguriert: window.__AREA.PUBLISH_ENDPOINT fehlt.');
@@ -1771,7 +1772,7 @@ async function publish(){
 
     toast('Exportiere Szene…');
 
-    // GLB exportieren + Magic-Bytes prüfen
+    // GLB exportieren + Magic-Bytes check
     let glbBlob = await exportSceneGLB();
     const ab = await glbBlob.arrayBuffer();
     const u8 = new Uint8Array(ab, 0, 4);
@@ -1781,15 +1782,15 @@ async function publish(){
 
     const mode = (document.getElementById('anchorMode')?.value || 'surface-webxr');
 
-    // FormData aufbauen
+    // Upload-Payload
     const form = new FormData();
     form.append('sceneId', sceneId);
     form.append('file', new File([glbBlob], 'scene.glb', { type:'model/gltf-binary' }));
 
     if (mode === 'scene-viewer') {
-      // Poster: Nutzer-Datei oder Canvas-Snapshot
+      // Poster: bevorzugt Nutzer-Upload, sonst Canvas-Snapshot
       let posterBlob = null;
-      if (customPosterBlob) {
+      if (typeof customPosterBlob !== 'undefined' && customPosterBlob) {
         posterBlob = customPosterBlob;
       } else {
         try { posterBlob = await capturePosterBlob(0.9); } catch {}
@@ -1803,76 +1804,90 @@ async function publish(){
       if (a){
         const audioBlob = a.fromFile ? a.fromFile : (a.fromDataUrl ? await dataUrlToBlob(a.fromDataUrl) : null);
         if (audioBlob){
-          form.append('file', new File([audioBlob], 'audio.mp3', { type: (audioBlob.type||'audio/mpeg') }));
+          form.append('file', new File([audioBlob], 'audio.mp3', { type:(audioBlob.type||'audio/mpeg') }));
         }
       }
 
-      // Scene-Viewer JSON (RELATIVE URLs)
-      const sceneJsonSV = buildSceneViewerJSON_CF({ sceneId });
+      // Scene-Viewer JSON (RELATIVE URLs über Worker-Base)
+      const workerOrigin = new URL(EP).origin;
+      const sceneJsonSV = buildSceneViewerJSON_CF({ sceneId, workerOrigin });
       form.append('file', new File([JSON.stringify(sceneJsonSV, null, 2)], 'scene.json', { type:'application/json' }));
 
     } else {
-      // WebXR / Native / Image → einfache JSON (RELATIVE model.url)
-      const j = {
-        meta:  { version: '1.0', mode, title: projectName || sceneId, createdAt: new Date().toISOString() },
-        model: { url: "scene.glb", animation: "*" }
-      };
-      if (mode === 'image') {
-        const t = (document.getElementById('imageTargetUrl')?.value||'').trim();
-        if (t) j.target = { mindUrl: t };
-      }
-      form.append('file', new File([JSON.stringify(j, null, 2)], 'scene.json', { type:'application/json' }));
+      // WebXR / Native / Image: einfache scene.json + ggf. native URLs
+      const workerOrigin = new URL(EP).origin;
+      const sceneBase    = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
+
+      const glbUrl  = (mode === 'native' && (document.getElementById('nativeGlbUrl')?.value||'').trim())
+                        ? document.getElementById('nativeGlbUrl').value.trim()
+                        : `${sceneBase}/scene.glb`;
+      const usdzUrl = (mode === 'native' && (document.getElementById('nativeUsdzUrl')?.value||'').trim())
+                        ? document.getElementById('nativeUsdzUrl').value.trim()
+                        : null;
+      const targetUrl = (mode === 'image' && (document.getElementById('imageTargetUrl')?.value||'').trim())
+                        ? document.getElementById('imageTargetUrl').value.trim()
+                        : null;
+
+      const sceneJson = buildSceneJSON({
+        sceneId,
+        title: projectName,
+        mode,
+        glbUrl,
+        usdzUrl,
+        targetUrl
+      });
+      form.append('file', new File([JSON.stringify(sceneJson, null, 2)], 'scene.json', { type:'application/json' }));
     }
 
     toast('Lade hoch…');
 
-    // Nur 'Accept' mitsenden – KEIN Key im Browser!
-    const res = await fetch(EP, { method:'POST', body: form, headers: { 'Accept':'application/json' } });
+    // Header: Accept immer, Key nur wenn vorhanden
+    const headers = { 'Accept': 'application/json' };
+    if (KEY) headers['X-AREA-Key'] = KEY;
+
+    const res = await fetch(EP, { method:'POST', body: form, headers });
     if (!res.ok) {
       const t = await res.text().catch(()=> '');
       throw new Error(t || ('HTTP '+res.status));
     }
 
-    const json = await res.json();
+    const json = await res.json().catch(()=> ({}));
 
-    // Viewer-URL: bevorzugt vom Upstream, sonst robuster Fallback
+    // Viewer-URL (deine funktionierenden Pfade beibehalten)
     const viewerBase  = (cfg.VIEWER_BASE || 'https://area-viewer.pages.dev');
     const entryByMode = {
-      'surface-webxr': '/surface-ar/webxr.html',
-      'native':        '/surface-ar/index.html',
+      'surface-webxr': '/webxr.html',
+      'native':        '/index.html',
       'image':         '/image-ar/viewer.html',
       'scene-viewer':  '/scene-viewer/index.html'
     };
+    const entry = entryByMode[mode] || '/webxr.html';
+    const workerOrigin = new URL(EP).origin;
 
-    // Fallback immer mit der öffentlichen Publish-Origin
-    const fallbackUrl =
-      `${viewerBase}${entryByMode[mode] || '/surface-ar/webxr.html'}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent('https://area-publish.area-webar.workers.dev')}`;
+    // Fallback, falls der Worker nichts zurückgibt
+    let url = json.viewerUrl
+           || `${viewerBase}${entry}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
 
-    let url = json.viewerUrl || fallbackUrl;
-
-    // base-Param hart korrigieren, falls "internal" o.ä. daherkommt
+    // base-Param absichern (kein „internal“ etc.)
     try {
       const u = new URL(url);
-      const b = (u.searchParams.get("base") || "").trim();
-      if (!b || b === "internal" || b === "https://internal" || b === "http://internal") {
-        u.searchParams.set("base", "https://area-publish.area-webar.workers.dev");
+      const b = (u.searchParams.get('base') || '').trim();
+      if (!b || b === 'internal' || b === 'https://internal' || b === 'http://internal') {
+        u.searchParams.set('base', workerOrigin);
       }
       url = u.toString();
     } catch {}
 
-    // WebXR erzwingen, wenn Surface (WebXR) gewählt wurde
-    if (mode === 'surface-webxr') {
-      url = addParam(url, 'force', 'webxr');
-    }
-
     showSharePanel(url);
     try { await navigator.clipboard.writeText(url); } catch {}
     toast('Veröffentlicht');
+
   } catch (err) {
     console.error(err);
     alert('Publish fehlgeschlagen: ' + (err?.message || err));
   }
 }
+
 
 
 
