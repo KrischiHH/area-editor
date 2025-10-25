@@ -405,31 +405,47 @@ label.cta{
 </head>
 <body>
   <div class="top">
-    <a class="brand-pill" href="#" aria-label="Home" title="AREA">
-      <img src="https://cdn.jsdelivr.net/gh/KrischiHH/area@58a250a0bc3b9868cf5e8d7ba12864720315662c/icons/areaLogo.jpg" alt="AREA Logo">
-    </a>
+  <a class="brand-pill" href="#" aria-label="Home" title="AREA">
+    <img src="https://cdn.jsdelivr.net/gh/KrischiHH/area@58a250a0bc3b9868cf5e8d7ba12864720315662c/icons/areaLogo.jpg" alt="AREA Logo">
+  </a>
 
-    <div class="menu" id="projectMenu">
-      <button id="btn-project-menu" class="menubtn" aria-haspopup="true" aria-expanded="false">Projekt ▾</button>
-      <div class="menu-pop" id="projectMenuPop" role="menu">
-        <button id="btn-new" class="menuitem" role="menuitem">+ Neues Projekt…</button>
-        <label class="menuitem" role="menuitem">Projekt öffnen <input id="file-project" type="file" accept=".webar,.json"></label>
-        <button id="btn-save" class="menuitem" role="menuitem">Speichern</button>
-        <button id="btn-save-as" class="menuitem" role="menuitem">Speichern unter…</button>
-        <button id="btn-preview" class="menuitem" role="menuitem">Vorschau (Module)…</button>
-        <button id="btn-publish" class="menuitem" role="menuitem">Veröffentlichen (Link &amp; QR)…</button>
+  <!-- Projekt mit Dropdown (öffnet nach unten) -->
+  <div class="cta-wrap menu" id="projectMenu">
+    <button id="btn-project-menu" class="cta cta--menu" aria-haspopup="true" aria-expanded="false">
+      Projekt ▾
+    </button>
+    <div class="cta-dropdown" id="projectMenuPop" role="menu">
+      <span class="cta-arrow" aria-hidden="true"></span>
 
-        <!-- Theme-Button IM Menü – funktioniert jetzt zuverlässig -->
-        <button id="themeToggle" class="btn" title="Theme wechseln">Theme</button>
-      </div>
+      <!-- Deine existierenden Menüeinträge (IDs bleiben gleich!) -->
+      <button id="btn-new" class="menuitem" role="menuitem">+ Neues Projekt…</button>
+      <label class="menuitem" role="menuitem">Projekt öffnen
+        <input id="file-project" type="file" accept=".webar,.json" hidden>
+      </label>
+      <button id="btn-save" class="menuitem" role="menuitem">Speichern</button>
+      <button id="btn-save-as" class="menuitem" role="menuitem">Speichern unter…</button>
+      <button id="btn-preview" class="menuitem" role="menuitem">Vorschau (Module)…</button>
+      <button id="btn-publish" class="menuitem" role="menuitem">Veröffentlichen (Link &amp; QR)…</button>
+      <button id="themeToggle" class="btn" title="Theme wechseln">Theme</button>
     </div>
-
-    <label class="btn">Objekt import<input id="file-glb" type="file" accept=".glb,.gltf,.fbx" style="display:none"></label>
-    <label class="btn">Medien import <input id="file-media" type="file" accept="video/*,audio/*" style="display:none"></label>
-
-    <div class="sp"></div>
-    <div class="status-pill" id="projNamePill" title="Projektname (Doppelklick zum Umbenennen)">Unbenanntes Projekt</div>
   </div>
+
+  <!-- Objekt import – Uiverse-Look, kein Dropdown -->
+  <div class="cta-wrap">
+    <label class="cta" for="file-glb">Objekt import</label>
+    <input id="file-glb" type="file" accept=".glb,.gltf,.fbx" hidden>
+  </div>
+
+  <!-- Medien import – Uiverse-Look, kein Dropdown -->
+  <div class="cta-wrap">
+    <label class="cta" for="file-media">Medien import</label>
+    <input id="file-media" type="file" accept="video/*,audio/*" hidden>
+  </div>
+
+  <div class="sp"></div>
+  <div class="status-pill" id="projNamePill" title="Projektname (Doppelklick zum Umbenennen)">Unbenanntes Projekt</div>
+</div>
+
 
   <div class="wrap"><!-- GRID START -->
 
