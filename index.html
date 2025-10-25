@@ -9,14 +9,14 @@
 
     /* ===================== Themes ===================== */
     :root.theme-slate{
-      --bg:#0e1116; --panel:#111828; --panel2:#192339; --text:#e9ecf5;
+      --bg:#161b23; --panel:#111828; --panel2:#192339; --text:#e9ecf5;
       --muted:#9fb3d9; --border:#24314a; --accent:#60a5fa; --accent2:#93c5fd;
       color-scheme: dark;
     }
 
     /* Aurora: deutlich anders (türkise Akzente, grünlich-dunkler Hintergrund) */
     :root.theme-aurora{
-      --bg:#041a1f;     /* deutlich grün/blau */
+      --bg:#062026;     /* deutlich grün/blau */
       --panel:#06242b;
       --panel2:#08323c;
       --text:#e6fffb;   /* sehr hell, leicht mint */
@@ -472,7 +472,7 @@
         <div class="kv"><div>Grid Helligkeit</div><input id="gridIntensity" class="input" type="range" min="0.5" max="1" step="0.05" value="0.95"></div>
         <div class="kv"><div>Grid anzeigen</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="gridVisible" type="checkbox" checked> <span>Ein</span></label></div>
         <div class="kv"><div>Belichtung</div><input id="exposure" class="input" type="range" min="0.5" max="3" step="0.05" value="1.4"></div>
-        <div class="kv"><div>Kameralicht</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="headlight" type="checkbox" checked> <span>an</span></label></div>
+        <div class="kv"><div>Kameralicht</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="headlight" type="checkbox" checked> <span>an</span></label></div></div>
 
         <!-- Anchor-Modus UI -->
         <div class="kv"><div>Anchor-Modus</div>
@@ -519,6 +519,21 @@
   <div class="kv"><div>Eyebrow</div><input id="svEyebrow" class="input" maxlength="24" placeholder="z. B. ARea – Szene"></div>
   <div class="kv"><div>Titel</div><input  id="svTitle"   class="input" maxlength="60" placeholder="Titel der Szene"></div>
   <div class="kv"><div>Textzeile</div><input id="svDesc"    class="input" maxlength="90" placeholder="Kurzbeschreibung …"></div>
+
+  <!-- Scene-Viewer: Controls (neu) -->
+  <div class="kv">
+    <div>Controls</div>
+    <div style="display:grid; gap:6px">
+      <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
+        <input id="svShowPlayBtn" type="checkbox">
+        <span>Play/Pause-Button anzeigen</span>
+      </label>
+      <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
+        <input id="svShowMuteBtn" type="checkbox">
+        <span>Mute-Button anzeigen</span>
+      </label>
+    </div>
+  </div>
 </div>
 
       </div>
@@ -1400,11 +1415,22 @@ async function blobToBase64(blob){
       return {
         version:'2.2.9',
         meta:{ app:'WebAR Editor', projectName, savedAt:new Date().toISOString() },
-        settings:{roomSize: parseFloat($('#roomSize').value)||24,gridVisible: $('#gridVisible').checked,anchorMode: getAnchorSel(),animStartMode: document.getElementById('animStartMode')?.value || 'onStart',sceneViewer: {eyebrow: $('#svEyebrow')?.value||'',title:   $('#svTitle')?.value||'',desc:    $('#svDesc')?.value||'',
-    posterData: customPosterBlob ? await blobToBase64(customPosterBlob) : (customPosterDataUrl || '')
-  }
-},
-
+        settings:{
+          roomSize: parseFloat($('#roomSize').value)||24,
+          gridVisible: $('#gridVisible').checked,
+          anchorMode: getAnchorSel(),
+          animStartMode: document.getElementById('animStartMode')?.value || 'onStart',
+          sceneViewer: {
+            eyebrow: $('#svEyebrow')?.value||'',
+            title:   $('#svTitle')?.value||'',
+            desc:    $('#svDesc')?.value||'',
+            posterData: customPosterBlob ? await blobToBase64(customPosterBlob) : (customPosterDataUrl || ''),
+            controls: {
+              showPlay: !!document.getElementById('svShowPlayBtn')?.checked,
+              showMute: !!document.getElementById('svShowMuteBtn')?.checked
+            }
+          }
+        },
         objects: out
       };
     }
@@ -1456,6 +1482,9 @@ if (data.settings?.sceneViewer){
     const b = await dataUrlToBlob(sv.posterData);
     setPoster(new File([b], 'poster.jpg', { type:'image/jpeg' }));
   }
+  const controls = sv.controls || {};
+  (document.getElementById('svShowPlayBtn')||{}).checked = !!controls.showPlay;
+  (document.getElementById('svShowMuteBtn')||{}).checked = !!controls.showMute;
 }
 updateAnchorUI();
 
@@ -1682,9 +1711,13 @@ async function exportSceneGLB(){
 
     function val(id, def=''){ const el = document.getElementById(id); const v=(el?.value||'').trim(); return v || def; }
 
-function buildSceneViewerJSON_CF({ sceneId }) {
+function buildSceneViewerJSON_CF({ sceneId, workerOrigin }) {
   const clipName = getSelectedClipNameForExport();
-  const audio = findFirstAudio();
+  const audioInfo = findFirstAudio();
+  const showPlay = !!document.getElementById('svShowPlayBtn')?.checked;
+  const showMute = !!document.getElementById('svShowMuteBtn')?.checked;
+
+  const base = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
 
   return {
     ui: {
@@ -1695,12 +1728,11 @@ function buildSceneViewerJSON_CF({ sceneId }) {
         title:   document.getElementById('svTitle')?.value   || projectName || sceneId,
         desc:    document.getElementById('svDesc')?.value    || "Klicke auf OK, um zu starten.",
         cta:     "OK",
-        // RELATIV – der Viewer lädt /scenes/<id>/poster.jpg
-        poster:  "poster.jpg"
-      }
+        poster:  `${base}/poster.jpg` // ← dynamisch
+      },
+      controls: { showPlay, showMute }
     },
     camera: { fov: 50, start:[2.2,1.6,3.0], lookAt:[0,1.1,0] },
-    // RELATIV – der Viewer lädt /scenes/<id>/scene.glb
     model:  { url: "scene.glb", scale: 1, rotateY: 0 },
     animation: {
       enabled: true,
@@ -1712,19 +1744,15 @@ function buildSceneViewerJSON_CF({ sceneId }) {
       crossfade: 0.25,
       timeScale: 1
     },
-    // RELATIV – falls Audio vorhanden, wird audio.mp3 bereitgestellt
-    audio: audio ? {
-      url: "audio.mp3",
+    audio: audioInfo ? {
+      url: `${base}/audio.mp3`,  // ← dynamisch
       autoplay: "withAnimation",
-      loop: !!audio.loop,
+      loop: !!audioInfo.loop,
       volume: 0.85
     } : { url: "" },
     triggers: { buttonLabel: "Animation abspielen", clickAnywhere: false }
   };
 }
-
-
-
 
     function showSharePanel(url){
       let el = document.getElementById('shareOverlay');
@@ -1994,9 +2022,12 @@ async function publish(){
   };
   btn?.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); cycle(); });
 
-  // Shortcut: Taste „T“
+  // Shortcut: Taste „T“ with guard (inputs/selects/contenteditable or inside #svBlock)
   window.addEventListener('keydown', (e)=>{
-    if (e.key?.toLowerCase() === 't' && !e.ctrlKey && !e.metaKey && !e.altKey) cycle();
+    if ((e.key||'').toLowerCase() !== 't' || e.ctrlKey || e.metaKey || e.altKey) return;
+    const el = e.target;
+    if (el && el.closest && el.closest('input,textarea,select,[contenteditable="true"],#svBlock')) return;
+    cycle();
   });
 })();
 
