@@ -1957,15 +1957,11 @@ async function exportSceneGLB(){
     function val(id, def=''){ const el = document.getElementById(id); const v=(el?.value||'').trim(); return v || def; }
 
 function buildSceneViewerJSON_CF({ sceneId, workerOrigin }) {
+  const base = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
   const clipName = getSelectedClipNameForExport();
   const audioInfo = findFirstAudio();
-  const audioBlock = audioInfo ? { url: `${base}/audio.mp3`, autoplay: "withAnimation", loop: !!audioInfo.loop, volume: 0.85} : { url: "" };
-  
-return {
   const showPlay = !!document.getElementById('svShowPlayBtn')?.checked;
   const showMute = !!document.getElementById('svShowMuteBtn')?.checked;
-
-  const base = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
 
   return {
     ui: {
@@ -1976,12 +1972,12 @@ return {
         title:   document.getElementById('svTitle')?.value   || projectName || sceneId,
         desc:    document.getElementById('svDesc')?.value    || "Klicke auf OK, um zu starten.",
         cta:     "OK",
-        poster:  `${base}/poster.jpg` // ← dynamisch
+        poster:  `${base}/poster.jpg`
       },
       controls: { showPlay, showMute }
     },
     camera: { fov: 50, start:[2.2,1.6,3.0], lookAt:[0,1.1,0] },
-    model:  { url: "scene.glb", scale: 1, rotateY: 0 },
+    model:  { url: `${base}/scene.glb`, scale: 1, rotateY: 0 },
     animation: {
       enabled: true,
       clipName,
@@ -1993,7 +1989,7 @@ return {
       timeScale: 1
     },
     audio: audioInfo ? {
-      url: `${base}/audio.mp3`,  // ← dynamisch
+      url: `${base}/audio.mp3`,
       autoplay: "withAnimation",
       loop: !!audioInfo.loop,
       volume: 0.85
@@ -2001,6 +1997,7 @@ return {
     triggers: { buttonLabel: "Animation abspielen", clickAnywhere: false }
   };
 }
+
 
     function showSharePanel(url){
       let el = document.getElementById('shareOverlay');
