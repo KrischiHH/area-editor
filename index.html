@@ -1956,28 +1956,30 @@ async function exportSceneGLB(){
 
     function val(id, def=''){ const el = document.getElementById(id); const v=(el?.value||'').trim(); return v || def; }
 
-function buildSceneViewerJSON_CF({ sceneId, workerOrigin }) {
-  const base = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
-  const clipName = getSelectedClipNameForExport();
-  const audioInfo = findFirstAudio();
+function buildSceneViewerJSON_CF() {
+  const clipName = getSelectedClipNameForExport() || "*";
   const showPlay = !!document.getElementById('svShowPlayBtn')?.checked;
   const showMute = !!document.getElementById('svShowMuteBtn')?.checked;
+
+  const eyebrow = document.getElementById('svEyebrow')?.value || "ARea – Szene";
+  const title   = document.getElementById('svTitle')?.value   || projectName || "Scene";
+  const desc    = document.getElementById('svDesc')?.value    || "Klicke auf OK, um zu starten.";
+
+  const audioInfo = findFirstAudio(); // dein Helper
 
   return {
     ui: {
       showGround: true,
       autocenter: true,
       welcome: {
-        eyebrow: document.getElementById('svEyebrow')?.value || "ARea – Szene",
-        title:   document.getElementById('svTitle')?.value   || projectName || sceneId,
-        desc:    document.getElementById('svDesc')?.value    || "Klicke auf OK, um zu starten.",
-        cta:     "OK",
-        poster:  `${base}/poster.jpg`
+        eyebrow, title, desc, cta: "OK",
+        // WICHTIG: NUR RELATIV!
+        poster: "poster.jpg"
       },
       controls: { showPlay, showMute }
     },
     camera: { fov: 50, start:[2.2,1.6,3.0], lookAt:[0,1.1,0] },
-    model:  { url: `${base}/scene.glb`, scale: 1, rotateY: 0 },
+    model:  { url: "scene.glb", scale: 1, rotateY: 0 }, // RELATIV
     animation: {
       enabled: true,
       clipName,
@@ -1989,14 +1991,15 @@ function buildSceneViewerJSON_CF({ sceneId, workerOrigin }) {
       timeScale: 1
     },
     audio: audioInfo ? {
-      url: `${base}/audio.mp3`,
+      // WICHTIG: NUR RELATIV!
+      url: "audio.mp3",
       autoplay: "withAnimation",
       loop: !!audioInfo.loop,
       volume: 0.85
-    } : { url: "" },
-    triggers: { buttonLabel: "Animation abspielen", clickAnywhere: false }
+    } : { url: "" }
   };
 }
+
 
 
     function showSharePanel(url){
