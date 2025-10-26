@@ -568,28 +568,29 @@
   isolation: isolate;                       /* keine Durchscheineffekte */
 }
 
- /* Nur diese beiden Tabs kompakt */
+/* Einheitliche Breite, Icons wieder rechts */
 #sec-look > summary,
-#sec-anim > summary{
-  display: inline-flex !important;
-  width: auto !important;
-  justify-content: flex-start !important; /* kein space-between */
+#sec-anim > summary {
+  display: flex !important;
+  width: calc(100% - 10px) !important;     /* volle Breite wie die anderen */
+  justify-content: space-between !important;
   gap: 8px;
-  margin-right: 10px;                     /* gleicher Gutter wie die anderen */
-  max-width: calc(100% - 10px);           /* Sicherheit, falls Text lang */
+  margin-right: 10px;
+  box-sizing: border-box;
 }
 
-/* Icons nicht nach ganz rechts drücken */
 #sec-look > summary .sum-icons,
-#sec-anim > summary .sum-icons{
-  margin-left: 8px !important;            /* hebt margin-left:auto auf */
+#sec-anim > summary .sum-icons {
+  margin-left: auto !important;  /* Icons ganz nach rechts */
   flex: 0 0 auto;
 }
 
-/* Titel darf schrumpfen/ellipsieren */
 #sec-look > summary .sum-title,
-#sec-anim > summary .sum-title{
-  flex: 0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+#sec-anim > summary .sum-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 
