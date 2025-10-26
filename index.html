@@ -521,6 +521,24 @@
     white-space:nowrap;    /* nicht umbrechen */
   }
 
+    /* Section-Header: volle Breite & sauber ausgerichtet */
+.panel .section { display:block; }
+
+.panel .section > summary{
+  display:flex;            /* statt inline-flex */
+  width:100%;              /* volle Breite des Panels */
+  max-width:100%;
+  white-space:normal;      /* darf umbrechen */
+  margin:0;                /* UA-Defaults neutralisieren */
+}
+
+/* Icons rechts fixieren, damit nichts "springt" */
+.panel .section > summary .sum-icons{
+  margin-left:auto;
+  flex:0 0 auto;
+}
+
+
     #btn-del{ display:none !important; }
 
     
