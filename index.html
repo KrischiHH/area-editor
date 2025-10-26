@@ -1943,16 +1943,50 @@ async function exportSceneGLB(){
 
 
 
-    function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
-      const json = {
-        meta: { version: "1.0", mode, title: title || sceneId, createdAt: new Date().toISOString() },
-        model: { url: glbUrl, usdzUrl: usdzUrl || null, animation: "*" }
-      };
-      if (mode === "image") {
-        json.target = { mindUrl: targetUrl || null };
+    // ERSETZEN
+function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
+  const clipName = getSelectedClipNameForExport() || "*";
+  const audioInfo = findFirstAudio(); // nutzt deinen Helper
+
+  const json = {
+    meta: { version: "1.1", mode, title: title || sceneId, createdAt: new Date().toISOString() },
+    model: { 
+      url: glbUrl, 
+      usdzUrl: usdzUrl || null, 
+      scale: 1,         // optionaler zusätzlicher Faktor im Viewer
+      rotateY: 0,       // optional
+      animation: {      // ← NEU: explizit
+        enabled: true,
+        clipName,
+        start: (document.getElementById('animStartMode')?.value || 'onStart'),
+        loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
+        iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
+        clampWhenFinished: true
       }
-      return json;
+    },
+    ui: {
+      showGround: true,
+      autocenter: true,
+      loader: "minimal" // der Viewer kann damit den Splash/Loader abspecken
     }
+  };
+
+  if (mode === "image") {
+    json.target = { mindUrl: targetUrl || null };
+  }
+
+  if (audioInfo){
+    json.audio = {
+      url: "audio.mp3",           // RELATIV
+      autoplay: "onPlace",        // ← beim ersten Tap-to-Place starten (User-Gesture)
+      loop: !!audioInfo.loop,
+      volume: 0.85
+    };
+  }
+
+  return json;
+}
+
 
     function val(id, def=''){ const el = document.getElementById(id); const v=(el?.value||'').trim(); return v || def; }
 
@@ -2035,12 +2069,8 @@ function addParam(url, key, val){
 async function publish(){
   const cfg = window.__AREA || {};
   const EP  = (cfg.PUBLISH_ENDPOINT || '').trim();
-  const KEY = (cfg.PUBLISH_KEY || '').trim(); // optional – wird nur gesendet, wenn vorhanden
-
-  if (!EP) {
-    alert('Publish ist nicht konfiguriert: window.__AREA.PUBLISH_ENDPOINT fehlt.');
-    return;
-  }
+  const KEY = (cfg.PUBLISH_KEY || '').trim();
+  if (!EP) { alert('Publish ist nicht konfiguriert: window.__AREA.PUBLISH_ENDPOINT fehlt.'); return; }
 
   try {
     const defaultId = sanitizeId(projectName);
@@ -2048,23 +2078,26 @@ async function publish(){
 
     toast('Exportiere Szene…');
 
-    // GLB exportieren + Magic-Bytes check
-    let glbBlob = await exportSceneGLB();
+    const mode = getAnchorSel();
+    const isAR = (mode === 'surface-webxr' || mode === 'image' || mode === 'native');
+    const glbBlob = await exportSceneGLB({ targetSizeMeters: isAR ? 1.0 : null });
+
+    // "glTF" Magic Bytes prüfen
     const ab = await glbBlob.arrayBuffer();
     const u8 = new Uint8Array(ab, 0, 4);
     if (!(u8[0]===0x67 && u8[1]===0x6C && u8[2]===0x54 && u8[3]===0x46)) {
       throw new Error('Exportierte Datei ist kein GLB (fehlende "glTF"-Magic-Bytes).');
     }
 
-    const mode = (document.getElementById('anchorMode')?.value || 'surface-webxr');
-
     // Upload-Payload
     const form = new FormData();
     form.append('sceneId', sceneId);
     form.append('file', new File([glbBlob], 'scene.glb', { type:'model/gltf-binary' }));
 
+    const workerOrigin = new URL(EP).origin;
+
     if (mode === 'scene-viewer') {
-      // Poster: bevorzugt Nutzer-Upload, sonst Canvas-Snapshot
+      // Poster (Upload bevorzugt, sonst Canvas-Snapshot)
       let posterBlob = null;
       if (typeof customPosterBlob !== 'undefined' && customPosterBlob) {
         posterBlob = customPosterBlob;
@@ -2075,28 +2108,15 @@ async function publish(){
         form.append('file', new File([posterBlob], 'poster.jpg', { type:'image/jpeg' }));
       }
 
-      // optional: erstes Audio mitsenden
-      const a = findFirstAudio();
-      if (a){
-        const audioBlob = a.fromFile ? a.fromFile : (a.fromDataUrl ? await dataUrlToBlob(a.fromDataUrl) : null);
-        if (audioBlob){
-          form.append('file', new File([audioBlob], 'audio.mp3', { type:(audioBlob.type||'audio/mpeg') }));
-        }
-      }
-
-      // Scene-Viewer JSON (RELATIVE URLs über Worker-Base)
-      const workerOrigin = new URL(EP).origin;
-      const sceneJsonSV = buildSceneViewerJSON_CF({ sceneId, workerOrigin });
+      // scene.json (Scene-Viewer)
+      const sceneJsonSV = buildSceneViewerJSON_CF();
       form.append('file', new File([JSON.stringify(sceneJsonSV, null, 2)], 'scene.json', { type:'application/json' }));
 
     } else {
-      // WebXR / Native / Image: einfache scene.json + ggf. native URLs
-      const workerOrigin = new URL(EP).origin;
-      const sceneBase    = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}`;
-
+      // scene.json (WebXR / Image / Native)
       const glbUrl  = (mode === 'native' && (document.getElementById('nativeGlbUrl')?.value||'').trim())
                         ? document.getElementById('nativeGlbUrl').value.trim()
-                        : `${sceneBase}/scene.glb`;
+                        : `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.glb`;
       const usdzUrl = (mode === 'native' && (document.getElementById('nativeUsdzUrl')?.value||'').trim())
                         ? document.getElementById('nativeUsdzUrl').value.trim()
                         : null;
@@ -2115,9 +2135,17 @@ async function publish(){
       form.append('file', new File([JSON.stringify(sceneJson, null, 2)], 'scene.json', { type:'application/json' }));
     }
 
+    // Audio (optional) – EINMAL anhängen, nach scene.json
+    const a = findFirstAudio();
+    if (a){
+      const audioBlob = a.fromFile ? a.fromFile : (a.fromDataUrl ? await dataUrlToBlob(a.fromDataUrl) : null);
+      if (audioBlob){
+        form.append('file', new File([audioBlob], 'audio.mp3', { type:(audioBlob.type||'audio/mpeg') }));
+      }
+    }
+
     toast('Lade hoch…');
 
-    // Header: Accept immer, Key nur wenn vorhanden
     const headers = { 'Accept': 'application/json' };
     if (KEY) headers['X-AREA-Key'] = KEY;
 
@@ -2126,27 +2154,22 @@ async function publish(){
       const t = await res.text().catch(()=> '');
       throw new Error(t || ('HTTP '+res.status));
     }
-
     const json = await res.json().catch(()=> ({}));
 
-    // Viewer-URL (deine funktionierenden Pfade beibehalten)
     const viewerBase  = (cfg.VIEWER_BASE || 'https://area-viewer.pages.dev');
     const entryByMode = {
-  'surface-webxr': '/webxr.html',
-  'native':        '/surface-ar/index.html',   // ← hier angleichen
-  'image':         '/image-ar/viewer.html',
-  'scene-viewer':  '/scene-viewer/index.html'
-};
-
-    
+      'surface-webxr': '/webxr.html',
+      'native':        '/surface-ar/index.html',
+      'image':         '/image-ar/viewer.html',
+      'scene-viewer':  '/scene-viewer/index.html'
+    };
     const entry = entryByMode[mode] || '/webxr.html';
-    const workerOrigin = new URL(EP).origin;
 
-    // Fallback, falls der Worker nichts zurückgibt
+    // Viewer-URL (Preferiere vom Worker, sonst selbst bauen)
     let url = json.viewerUrl
            || `${viewerBase}${entry}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
 
-    // base-Param absichern (kein „internal“ etc.)
+    // base-Param absichern
     try {
       const u = new URL(url);
       const b = (u.searchParams.get('base') || '').trim();
@@ -2167,6 +2190,7 @@ async function publish(){
 }
 
 
+// (duplicate autoscale/exportSceneGLB removed – unified version is defined above)   
 
 
 
