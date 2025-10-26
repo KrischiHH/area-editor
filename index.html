@@ -931,6 +931,7 @@ const renderer = new THREE.WebGLRenderer({
   powerPreference: 'high-performance',
   alpha: true
 });
+renderer.setClearColor(0x000000, 0); // ← wichtig: Alpha 0
 renderer.setClearAlpha(0); // transparenter Canvas (Gradient sichtbar)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1065,6 +1066,9 @@ svInput?.addEventListener('change', (e)=>{
     function initPost(){
       composer = new EffectComposer(renderer);
       renderPass = new RenderPass(scene, camera);
+      renderPass.clear = true;
+      renderPass.clearColor = new THREE.Color(0x000000);
+      renderPass.clearAlpha = 0; // ← sorgt dafür, dass die Canvas durchsichtig bleibt
       composer.addPass(renderPass);
       outlinePass = new OutlinePass(new THREE.Vector2(stage.clientWidth||1, stage.clientHeight||1), scene, camera);
       outlinePass.edgeStrength=3; outlinePass.edgeThickness=2; outlinePass.pulsePeriod=0;
@@ -2368,6 +2372,7 @@ document.querySelectorAll('.theme-toggle3 input[name="theme3"]').forEach(inp=>{
   // Initial
   const saved = storage?.getItem('theme');
   setTheme(THEMES.includes(saved) ? saved : 'theme-nebula'); // ← Nebula als frischer Default
+  scheduleRoomRebuild(); // ← damit Grid-Farben zum Theme passen
 
   const btn = document.getElementById('themeToggle');
   const cycle = () => {
