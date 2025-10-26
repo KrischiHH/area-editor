@@ -513,29 +513,40 @@
 
     .viewport,#stage{min-width:0}
 
- /* OVERRIDE: Einheitliche Pill-Breite im rechten Panel */
-  .panel .section > summary{
-    display:inline-flex;   /* nicht die ganze Zeile ausfüllen */
-    width:auto;
-    max-width:100%;
-    white-space:nowrap;    /* nicht umbrechen */
-  }
-
-    /* Section-Header: volle Breite & sauber ausgerichtet */
+ 
+    /* Section-Header: einzeilig, gleiche Höhe, ellipsiert */
 .panel .section { display:block; }
 
 .panel .section > summary{
   display:flex;            /* statt inline-flex */
-  width:100%;              /* volle Breite des Panels */
+  align-items:center;
+  gap:10px;
+  width:100%;              /* volle Breite */
   max-width:100%;
-  white-space:normal;      /* darf umbrechen */
   margin:0;                /* UA-Defaults neutralisieren */
+
+  /* WICHTIG: alles einzeilig */
+  white-space:nowrap;      /* kein Umbruch */
+  overflow:hidden;         /* zu langer Text abgeschnitten */
+  text-overflow:ellipsis;  /* … am Ende */
+
+  /* gleiche Höhe für alle Tabs */
+  min-height:40px;
+  box-sizing:border-box;
 }
 
 /* Icons rechts fixieren, damit nichts "springt" */
 .panel .section > summary .sum-icons{
   margin-left:auto;
   flex:0 0 auto;
+}
+
+/* Titel-Zeile darf sich zusammenziehen und ellipsieren */
+.panel .section > summary .sum-title{
+  flex:1 1 auto;
+  min-width:0;             /* nötig für text-overflow */
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 
