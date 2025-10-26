@@ -1799,7 +1799,7 @@ updateAnchorUI();
   const viewerBase = (window.__AREA || {}).VIEWER_BASE || 'https://area-viewer.pages.dev';
 
   const pathByMode = {
-  'surface-webxr': '/webxr.html',
+  'surface-webxr': '/surface-ar/webxr.html',
   'native':        '/surface-ar/index.html',   // ← konsistent
   'image':         '/image-ar/viewer.html',
   'scene-viewer':  '/scene-viewer/index.html'
@@ -2157,27 +2157,51 @@ async function publish(){
     const json = await res.json().catch(()=> ({}));
 
     const viewerBase  = (cfg.VIEWER_BASE || 'https://area-viewer.pages.dev');
-    const entryByMode = {
-      'surface-webxr': '/surface-ar/webxr.html',
-      'native':        '/surface-ar/index.html',
-      'image':         '/image-ar/viewer.html',
-      'scene-viewer':  '/scene-viewer/index.html'
-    };
-    const entry = entryByMode[mode] || '/webxr.html';
+const entryByMode = {
+  'surface-webxr': '/surface-ar/webxr.html',
+  'native':        '/surface-ar/index.html',
+  'image':         '/image-ar/viewer.html',
+  'scene-viewer':  '/scene-viewer/index.html'
+};
+const entry = entryByMode[mode] || '/surface-ar/webxr.html';
+const workerOrigin = new URL(EP).origin;
 
-    // Viewer-URL (Preferiere vom Worker, sonst selbst bauen)
-    let url = json.viewerUrl
-           || `${viewerBase}${entry}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
+// Fallback: immer korrekt zusammensetzen
+let url = `${viewerBase}${entry}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
+if (mode === 'native') url += '&force=native';
 
-    // base-Param absichern
-    try {
-      const u = new URL(url);
-      const b = (u.searchParams.get('base') || '').trim();
-      if (!b || b === 'internal' || b === 'https://internal' || b === 'http://internal') {
-        u.searchParams.set('base', workerOrigin);
+// Wenn der Worker eine URL liefert, übernehmen – aber ggf. reparieren
+const raw = (json.viewerUrl || '').trim();
+if (raw) {
+  try {
+    const u = new URL(raw, viewerBase);
+
+    // Pfad je nach Modus korrigieren (Worker gibt teils /index.html etc. zurück)
+    const want = entryByMode[mode];
+    if (want && u.pathname !== want) {
+      if (
+        u.pathname === '/' ||
+        u.pathname.endsWith('/index.html') ||
+        u.pathname === '/webxr.html' ||
+        u.pathname === '/surface-ar/'
+      ) {
+        u.pathname = want;
       }
-      url = u.toString();
-    } catch {}
+    }
+
+    // base= absichern
+    const b = (u.searchParams.get('base') || '').trim();
+    if (!b || b === 'internal' || b === 'https://internal' || b === 'http://internal') {
+      u.searchParams.set('base', workerOrigin);
+    }
+
+    // force=native sicherstellen
+    if (mode === 'native') u.searchParams.set('force', 'native');
+
+    url = u.toString();
+  } catch {}
+}
+
 
     showSharePanel(url);
     try { await navigator.clipboard.writeText(url); } catch {}
