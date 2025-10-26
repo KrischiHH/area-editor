@@ -517,12 +517,13 @@
 /* Einheitliche Section-Pills (volle Breite) */
 .panel .section { display:block; }
 
-.panel .section > summary{
+..panel .section > summary{
+  /* bleibt wie bei dir … */
   display:flex;
   align-items:center;
-  justify-content: space-between;   /* ← explizit */
+  justify-content: flex-start;   /* ← überschreibt das space-between der Basis */
   gap:10px;
-  width: calc(100% - 10px);         /* dein rechter Gutter */
+  width: calc(100% - 10px);
   margin: 0 10px 0 0;
   white-space: nowrap;
   overflow: hidden;
@@ -531,12 +532,11 @@
   box-sizing: border-box;
 }
 .panel .section > summary .sum-title{
-  flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  flex: 1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
 }
 .panel .section > summary .sum-icons{
   margin-left:auto; flex:0 0 auto;
 }
-
 
     #btn-del{ display:none !important; }
 
@@ -568,31 +568,29 @@
   isolation: isolate;                       /* keine Durchscheineffekte */
 }
 
-/* Einheitliche Breite, Icons wieder rechts */
+/* Nur diese beiden Tabs kompakt/“Chip”-artig */
 #sec-look > summary,
-#sec-anim > summary {
-  display: flex !important;
-  width: calc(100% - 10px) !important;     /* volle Breite wie die anderen */
-  justify-content: space-between !important;
+#sec-anim > summary{
+  display: inline-flex !important;
+  width: auto !important;
+  justify-content: flex-start !important;  /* kein verteilen */
   gap: 8px;
-  margin-right: 10px;
-  box-sizing: border-box;
+  margin-right: 10px;                      /* statt auto */
+  max-width: calc(100% - 10px);
 }
 
+/* Bei den kompakten Tabs sollen die Icons NICHT ganz nach rechts springen */
 #sec-look > summary .sum-icons,
-#sec-anim > summary .sum-icons {
-  margin-left: auto !important;  /* Icons ganz nach rechts */
+#sec-anim > summary .sum-icons{
+  margin-left: 8px !important;             /* hebt auto auf */
   flex: 0 0 auto;
 }
 
+/* Titel im kompakten Tab darf ellipsieren */
 #sec-look > summary .sum-title,
-#sec-anim > summary .sum-title {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+#sec-anim > summary .sum-title{
+  flex: 0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
 }
-
 
     
   </style>
