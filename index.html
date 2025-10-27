@@ -469,17 +469,17 @@
 
     /* Icons (Masken) – zentral definiert */
     :root{
-      --ico-transform:     url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/transform_icon.svg");
-      --ico-scene:         url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/camera%20icon.svg");
-      --ico-animation:     url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/animation_movie_icon.svg");
-      --ico-material:      url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/material-icon.svg");
-      --ico-media:         url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/player_video_icon.svg");
-      --ico-audio:         url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/audio_icon.svg");
-      --ico-lock-closed:   url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/closed_lock_icon.svg");
-      --ico-lock-open:     url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/lock_open_icon.svg");
-      --ico-eye-open:      url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/eye_icon.svg");
-      --ico-eye-closed:    url("https://raw.githubusercontent.com/KrischiHH/area/refs/heads/main/icons/eye_close_icon.svg");
-      --ico-chev:          url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 10l4 4 4-4' fill='none' stroke='%23A9C7FF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        --ico-transform: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/transform_icon.svg");
+        --ico-scene:     url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/camera%20icon.svg");
+        --ico-animation: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/animation_movie_icon.svg");
+        --ico-material:  url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/material-icon.svg");
+        --ico-media:     url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/player_video_icon.svg");
+        --ico-audio:     url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/audio_icon.svg");
+        --ico-lock-closed:url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/closed_lock_icon.svg");
+        --ico-lock-open: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/lock_open_icon.svg");
+        --ico-eye-open:  url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/eye_icon.svg");
+        --ico-eye-closed:url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/eye_close_icon.svg");
+        --ico-chev:          url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 10l4 4 4-4' fill='none' stroke='%23A9C7FF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     }
     .ico-mask{
       width:16px; height:16px; flex:0 0 16px;
@@ -898,26 +898,7 @@
       </div>
     </details>
 
-    <details id="sec-media" class="section" open style="display:none">
-      <summary>
-        <span class="sum-title">Medien</span>
-        <span class="sum-icons">
-          <span class="ico-mask ico--media" aria-hidden="true"></span>
-          <span class="ico-mask ico--chev"  aria-hidden="true"></span>
-        </span>
-      </summary>
-      <div class="body">
-        <div class="kv"><div>Typ</div><input id="mediaType" class="input" disabled></div>
-        <div class="kv"><div>Loop</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="mediaLoop" type="checkbox"> <span>an</span></label></div>
-        <div class="kv"><div>Wiederholungen</div><input id="mediaRepeats" class="input" type="number" min="1" step="1" value="1"></div>
-        <div class="toolbar">
-          <button id="mediaPlay"  class="toolbtn">Play</button>
-          <button id="mediaPause" class="toolbtn">Pause</button>
-          <button id="mediaStop"  class="toolbtn">Stop</button>
-        </div>
-      </div>
-    </details>
-
+   
     <div class="toolbar">
       <button id="btn-del" class="btn">Löschen (Entf)</button>
     </div>
@@ -1653,14 +1634,22 @@ async function blobToBase64(blob){
     }
 
     function syncMediaUI(){
-      const box=$('#sec-media'); const t=$('#mediaType'); const loop=$('#mediaLoop'); const reps=$('#mediaRepeats');
-      if(state.selection.size!==1){ box.style.display='none'; return; }
-      const rec=findRec(state.selectedId); if(!rec?.media){ box.style.display='none'; return; }
-      box.style.display='block';
-      t.value = rec.media.kind==='video' ? 'Video' : 'Audio (3D)';
-      loop.checked = !!rec.media.loop;
-      reps.value = rec.media.repeats ?? 1;
-    }
+  const box = document.getElementById('sec-media');
+  const t = document.getElementById('mediaType');
+  const loop = document.getElementById('mediaLoop');
+  const reps = document.getElementById('mediaRepeats');
+
+  if (state.selection.size !== 1){ box.open = false; box.style.display='none'; return; }
+  const rec = findRec(state.selectedId);
+  if (!rec?.media){ box.open = false; box.style.display='none'; return; }
+
+  box.style.display = 'block';
+  box.open = true;                  // ← wichtig, damit der Body sichtbar ist
+  t.value  = rec.media.kind==='video' ? 'Video' : 'Audio (3D)';
+  loop.checked = !!rec.media.loop;
+  reps.value   = rec.media.repeats ?? 1;
+}
+
     $('#mediaLoop').addEventListener('change', ()=>{
       if(state.selection.size!==1) return; const rec=findRec(state.selectedId); if(!rec?.media) return;
       rec.media.loop = $('#mediaLoop').checked;
