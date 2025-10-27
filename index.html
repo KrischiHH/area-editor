@@ -664,6 +664,8 @@
       <button id="btn-save" class="menuitem" role="menuitem">Speichern</button>
       <button id="btn-save-as" class="menuitem" role="menuitem">Speichern unter</button>
       <button id="btn-preview" class="menuitem" role="menuitem">Vorschau (Module)</button>
+      <button id="btn-preview" class="menuitem" role="menuitem">Vorschau (Module)</button>
+      <button id="btn-preview-draft" class="menuitem" role="menuitem">Schnell-Preview (Draft)</button>
       <button id="btn-publish" class="menuitem" role="menuitem">Veröffentlichen</button>
     </div>
   </div>
@@ -2105,33 +2107,37 @@ async function exportSceneGLB(){
 
 
 
-    // ERSETZEN
-
-  function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
-  const clipName = getSelectedClipNameForExport() || "*";
-    const audioInfo = findFirstAudio(); // nutzt deinen Helper
+function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
+  const clipName  = getSelectedClipNameForExport() || "*";
+  const audioInfo = findFirstAudio();
 
   const json = {
-    meta: { version: "1.1", mode, title: title || sceneId, createdAt: new Date().toISOString() },
+    meta: {
+      version: "1.1",
+      mode,
+      title: title || sceneId,
+      createdAt: new Date().toISOString()
+    },
     model: { url: glbUrl, usdzUrl: usdzUrl || null, scale: 1, rotateY: 0 },
     animation: {
       enabled: true,
       clipName,
       start: (document.getElementById('animStartMode')?.value || 'onStart'),
-      loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
-      iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
+      loop:  (document.getElementById('animLoop')?.value || 'repeat') === 'repeat',
+      iterations: parseInt(document.getElementById('animRepeats')?.value || '9999', 10) || 9999,
       clampWhenFinished: true
     },
     ui: { showGround: true, autocenter: true, loader: "minimal" }
   };
 
-  if (mode === "image") json.target = { mindUrl: targetUrl || null };
+  if (mode === "image") {
+    json.target = { mindUrl: targetUrl || null };
   }
 
-  if (audioInfo){
+  if (audioInfo) {
     json.audio = {
-      url: "audio.mp3",           // RELATIV
-      autoplay: "onPlace",        // ← beim ersten Tap-to-Place starten (User-Gesture)
+      url: "audio.mp3",      // relativ
+      autoplay: "onPlace",   // startet nach erstem Tap-to-place
       loop: !!audioInfo.loop,
       volume: 0.85
     };
@@ -2139,6 +2145,7 @@ async function exportSceneGLB(){
 
   return json;
 }
+
 
 
     function val(id, def=''){ const el = document.getElementById(id); const v=(el?.value||'').trim(); return v || def; }
@@ -2247,6 +2254,7 @@ async function publish(){
     const form = new FormData();
     form.append('sceneId', sceneId);
     form.append('file', new File([glbBlob], 'scene.glb', { type:'model/gltf-binary' }));
+    form.append('file', new File([usdzBlob], 'model.usdz', { type:'model/vnd.usdz+zip' }));
 
     const workerOrigin = new URL(EP).origin;
 
@@ -2351,6 +2359,149 @@ async function publish(){
     alert('Publish fehlgeschlagen: ' + (err?.message || err));
   }
 }
+
+    async function previewDraft(){
+  const cfg = window.__AREA || {};
+  const EP  = (cfg.PUBLISH_ENDPOINT || '').trim();
+  const KEY = (cfg.PUBLISH_KEY || '').trim(); // beim Proxy i. d. R. leer
+  if (!EP) { alert('Draft-Preview ist nicht konfiguriert: window.__AREA.PUBLISH_ENDPOINT fehlt.'); return; }
+
+  // 1) Draft-ID bauen (einzigartig, kompakt)
+  const baseId = sanitizeId(projectName) || 'scene';
+  const sceneId = `${baseId}-draft-${Date.now().toString(36).slice(-5)}`;
+
+  try{
+    toast('Exportiere Szene für Draft…');
+
+    // 2) GLB exportieren (wie publish)
+    const mode = getAnchorSel();
+    const isAR = (mode === 'surface-webxr' || mode === 'image' || mode === 'native');
+    const glbBlob = await exportSceneGLB({ targetSizeMeters: isAR ? 1.0 : null });
+
+    // Magic bytes check (glTF)
+    {
+      const ab = await glbBlob.arrayBuffer();
+      const u8 = new Uint8Array(ab, 0, 4);
+      if (!(u8[0]===0x67 && u8[1]===0x6C && u8[2]===0x54 && u8[3]===0x46)) {
+        throw new Error('Exportierte Datei ist kein GLB (fehlende "glTF"-Magic-Bytes).');
+      }
+    }
+
+    // 3) FormData bauen
+    const form = new FormData();
+    form.append('sceneId', sceneId);
+    form.append('file', new File([glbBlob], 'scene.glb', { type:'model/gltf-binary' }));
+
+    const workerOrigin = new URL(EP).origin;
+
+    if (mode === 'scene-viewer' || mode === 'surface-guided'){
+      // Poster beilegen: zuerst Custom, sonst Canvas-Snapshot
+      let posterBlob = customPosterBlob || null;
+      if (!posterBlob){
+        try { posterBlob = await capturePosterBlob(0.9); } catch {}
+      }
+      if (posterBlob){
+        form.append('file', new File([posterBlob], 'poster.jpg', { type:'image/jpeg' }));
+      }
+      // Scene-Viewer JSON (relative Pfade)
+      const sceneJsonSV = buildSceneViewerJSON_CF();
+      form.append('file', new File([JSON.stringify(sceneJsonSV, null, 2)], 'scene.json', { type:'application/json' }));
+    } else {
+      // WebXR / Image / Native JSON
+      const glbUrl  = (mode === 'native' && (document.getElementById('nativeGlbUrl')?.value||'').trim())
+                        ? document.getElementById('nativeGlbUrl').value.trim()
+                        : `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.glb`;
+      const usdzUrl = (mode === 'native' && (document.getElementById('nativeUsdzUrl')?.value||'').trim())
+                        ? document.getElementById('nativeUsdzUrl').value.trim()
+                        : null;
+      const targetUrl = (mode === 'image' && (document.getElementById('imageTargetUrl')?.value||'').trim())
+                        ? document.getElementById('imageTargetUrl').value.trim()
+                        : null;
+
+      const sceneJson = buildSceneJSON({
+        sceneId,
+        title: projectName,
+        mode,
+        glbUrl,
+        usdzUrl,
+        targetUrl
+      });
+      form.append('file', new File([JSON.stringify(sceneJson, null, 2)], 'scene.json', { type:'application/json' }));
+    }
+
+    // Optionales Audio relativ beilegen
+    const a = findFirstAudio();
+    if (a){
+      const audioBlob = a.fromFile ? a.fromFile : (a.fromDataUrl ? await dataUrlToBlob(a.fromDataUrl) : null);
+      if (audioBlob){
+        form.append('file', new File([audioBlob], 'audio.mp3', { type:(audioBlob.type||'audio/mpeg') }));
+      }
+    }
+
+    // 4) Draft-Flag mitsenden (Worker darf es ignorieren – ist nur ein Hint)
+    form.append('draft', '1');
+
+    toast('Draft hochladen…');
+    const headers = { 'Accept': 'application/json' };
+    if (KEY) headers['X-AREA-Key'] = KEY;
+
+    const res = await fetch(EP, { method:'POST', body: form, headers });
+    if (!res.ok){
+      const t = await res.text().catch(()=> '');
+      throw new Error(t || ('HTTP '+res.status));
+    }
+    const json = await res.json().catch(()=> ({}));
+
+    // 5) Viewer-URL aufbauen (wie publish), mit Cache-Bust
+    const viewerBase  = (cfg.VIEWER_BASE || 'https://area-viewer.pages.dev');
+    const entryByMode = {
+      'surface-webxr': '/surface-ar/webxr.html',
+      'native':        '/surface-ar/index.html',
+      'image':         '/image-ar/viewer.html',
+      'scene-viewer':  '/scene-viewer/index.html',
+      'surface-guided':'/surface-ar/guided.html'
+    };
+    const entryDefault = entryByMode[mode] || '/surface-ar/webxr.html';
+
+    let url = `${viewerBase}${entryDefault}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}&ts=${Date.now()}`;
+
+    // Worker-URL bevorzugen, wenn vorhanden – Pfad/Params korrigieren
+    const raw = (json.viewerUrl || '').trim();
+    if (raw){
+      try{
+        const u = new URL(raw, viewerBase);
+        const want = entryByMode[mode];
+        if (want && u.pathname !== want){
+          if (u.pathname === '/' || u.pathname.endsWith('/index.html') || u.pathname === '/webxr.html' || u.pathname === '/surface-ar/') {
+            u.pathname = want;
+          }
+        }
+        const b = (u.searchParams.get('base') || '').trim();
+        if (!b || b.startsWith('http://internal') || b.startsWith('https://internal')){
+          u.searchParams.set('base', workerOrigin);
+        }
+        if (mode === 'native') u.searchParams.set('force','native');
+        u.searchParams.set('ts', String(Date.now())); // Cache-Bust
+        url = u.toString();
+      }catch{}
+    }
+
+    window.open(url, '_blank', 'noopener');
+    toast('Draft-Preview geöffnet');
+  } catch(err){
+    console.error(err);
+    alert('Draft-Preview fehlgeschlagen: ' + (err?.message || err));
+  }
+}
+
+// … im Projektmenü-Hook:
+document.getElementById('btn-preview-draft')?.addEventListener('click', ()=>{
+  // Menü schließen wie bei den anderen Buttons:
+  document.getElementById('projectMenu')?.classList.remove('open');
+  document.getElementById('btn-project-menu')?.setAttribute('aria-expanded','false');
+  previewDraft();
+});
+
 
 
 
