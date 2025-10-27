@@ -623,11 +623,9 @@
   <!-- Minimal Config -->
 <script>
   window.__AREA = {
-    // Dein Proxy – nur /publish (der Proxy dient NUR zum Upload)
     PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish",
-    // Beim Proxy KEIN Key vom Browser mitsenden:
+    FILE_BASE:       "https://area-publish.area-webar.workers.dev",   // NEU: dient NUR zum Ausliefern /scenes/
     PUBLISH_KEY: "",
-    // Viewer-Basis (Upstream liefert i.d.R. ohnehin viewerUrl zurück)
     VIEWER_BASE: "https://area-viewer.pages.dev"
   };
 </script>
@@ -2255,7 +2253,7 @@ async function publish(){
     form.append('file', new File([glbBlob], 'scene.glb', { type:'model/gltf-binary' }));
     
 
-    const workerOrigin = new URL(EP).origin;
+    const workerOrigin = (window.__AREA?.FILE_BASE || new URL(EP).origin);
 
     if (mode === 'scene-viewer' || mode === 'surface-guided') {
       // Poster: Upload bevorzugt, sonst Canvas-Snapshot
@@ -2391,7 +2389,7 @@ async function publish(){
     form.append('sceneId', sceneId);
     form.append('file', new File([glbBlob], 'scene.glb', { type:'model/gltf-binary' }));
 
-    const workerOrigin = new URL(EP).origin;
+    const workerOrigin = (window.__AREA?.FILE_BASE || new URL(EP).origin);
 
     if (mode === 'scene-viewer' || mode === 'surface-guided'){
       // Poster beilegen: zuerst Custom, sonst Canvas-Snapshot
