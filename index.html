@@ -579,6 +579,7 @@
   max-width: calc(100% - 10px);
 }
 
+    
 /* Bei den kompakten Tabs sollen die Icons NICHT ganz nach rechts springen */
 #sec-look > summary .sum-icons,
 #sec-anim > summary .sum-icons{
@@ -936,6 +937,36 @@
     <option value="onClick">Per Klick (Play-Button)</option>
   </select>
 </div>        
+
+<details id="sec-media" class="section" style="display:none">
+  <summary>
+    <span class="sum-title">Media</span>
+    <span class="sum-icons">
+      <span class="ico-mask ico--media" aria-hidden="true"></span>
+      <span class="ico-mask ico--chev"  aria-hidden="true"></span>
+    </span>
+  </summary>
+  <div class="body">
+    <div class="kv"><div>Typ</div>
+      <input id="mediaType" class="input" readonly value="—">
+    </div>
+    <div class="kv"><div>Loop</div>
+      <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
+        <input id="mediaLoop" type="checkbox"> <span>an</span>
+      </label>
+    </div>
+    <div class="kv"><div>Repeats</div>
+      <input id="mediaRepeats" class="input" type="number" step="1" min="1" value="1">
+    </div>
+    <div class="toolbar">
+      <button id="mediaPlay"  class="toolbtn">Play</button>
+      <button id="mediaPause" class="toolbtn">Pause</button>
+      <button id="mediaStop"  class="toolbtn">Stop</button>
+    </div>
+  </div>
+</details>
+
+        
         <div class="toolbar">
           <button id="animPlay" class="toolbtn">Play</button>
           <button id="animStop" class="toolbtn">Stop</button>
@@ -1006,6 +1037,13 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 renderer.autoClear = false;
 stage.appendChild(renderer.domElement);
+
+    if ('outputColorSpace' in renderer) {
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+} else {
+  renderer.outputEncoding = THREE.sRGBEncoding;
+}
+
 
 
     // --- Anchor-Mode nur noch aus dem rechten Select lesen ---
@@ -1106,6 +1144,17 @@ svInput?.addEventListener('change', (e)=>{
     const hemi = new THREE.HemisphereLight(0xffffff, 0x334466, 1.2); scene.add(hemi);
     const dir  = new THREE.DirectionalLight(0xffffff, 2.5); dir.position.set(2,6,2); scene.add(dir);
     const amb = new THREE.AmbientLight(0xffffff, 0.25); scene.add(amb);
+
+    // Kameralicht
+const camLight = new THREE.PointLight(0xffffff, 1.6, 0); // unendlich Reichweite
+camera.add(camLight);
+camLight.position.set(0, 0, 0); // hängt an der Kamera
+camLight.visible = document.getElementById('headlight')?.checked ?? true;
+
+document.getElementById('headlight')?.addEventListener('change', (e)=>{
+  camLight.visible = !!e.target.checked;
+});
+
 
     // Environment (IBL)
     const pmrem = new THREE.PMREMGenerator(renderer);
@@ -1894,7 +1943,7 @@ updateAnchorUI();
     function saveBookmark(i){ bookmarks[i]={pos:camera.position.clone(),target:controls.target.clone(),fov:camera.fov}; toast(`Bookmark ${i+1} gespeichert`); }
     function recallBookmark(i){ const bm=bookmarks[i]; if(!bm){ toast(`Kein Bookmark auf ${i+1}`); return; } goCamera([bm.pos.x,bm.pos.y,bm.pos.z],[bm.target.x,bm.target.y,bm.target.z],bm.fov,350); toast(`Bookmark ${i+1} geladen`); }
     const LIGHT_BASE = { hemi: 1.2, dir: 2.5, amb: 0.25 };
-    function applyExposure(){ const e=parseFloat($('#exposure').value)||1; renderer.toneMappingExposure=e; hemi.intensity=LIGHT_BASE.hemi*e; dir.intensity=LIGHT_BASE.dir*e; amb.intensity=LIGHT_BASE.amb*e; }
+    function applyExposure(){ const e=parseFloat($('#exposure').value)||1; renderer.toneMappingExposure=e; hemi.intensity=LIGHT_BASE.hemi*e; dir.intensity=LIGHT_BASE.dir*e; amb.intensity=LIGHT_BASE.amb*e; camLight.intensity = 1.6 * e; }
     $('#exposure').addEventListener('input', applyExposure); applyExposure();
 
     // ===== Anchor-UI toggeln =====
