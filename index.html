@@ -592,6 +592,52 @@
   flex: 0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
 }
 
+
+    /* ----- Einheitliche Section‑Pills: gleiche Form & Ausrichtung ----- */
+/* Wichtig: am Ende der CSS laden, damit vorherige !important-Regeln überschrieben werden */
+#sec-look > summary,
+#sec-anim > summary {
+  display: flex !important;                       /* volle Zeilen-Box */
+  width: calc(100% - 10px) !important;            /* gleiche Breite wie andere Pills */
+  justify-content: space-between !important;      /* Titel links, Icons rechts */
+  gap: 8px;
+  margin-right: 10px !important;
+  box-sizing: border-box;
+  min-height: 40px;
+  align-items: center;
+  padding: 8px 10px;                              /* optional: gleiche innere Abstände */
+}
+
+/* Icons wieder an die rechte Kante schieben */
+#sec-look > summary .sum-icons,
+#sec-anim > summary .sum-icons {
+  margin-left: auto !important;
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Titel darf schrumpfen / ellipsieren wie bei den anderen */
+#sec-look > summary .sum-title,
+#sec-anim > summary .sum-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Stellen sicher, dass alle summary-Elemente gleiche visuelle Basis haben */
+.panel .section > summary {
+  width: calc(100% - 10px);
+  margin-right: 10px;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 40px;
+}
     
   </style>
 
