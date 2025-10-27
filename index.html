@@ -932,6 +932,43 @@
       </div>
     </details>
 
+    </details> <!-- Ende #sec-anim -->
+
+<!-- ▼▼▼ HIER EINFÜGEN: Media-Section ▼▼▼ -->
+<details id="sec-media" class="section" style="display:none">
+  <summary>
+    <span class="sum-title">Media</span>
+    <span class="sum-icons">
+      <span class="ico-mask ico--media" aria-hidden="true"></span>
+      <span class="ico-mask ico--chev"  aria-hidden="true"></span>
+    </span>
+  </summary>
+  <div class="body">
+    <div class="kv"><div>Typ</div>
+      <input id="mediaType" class="input" readonly value="—">
+    </div>
+    <div class="kv"><div>Loop</div>
+      <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
+        <input id="mediaLoop" type="checkbox"> <span>an</span>
+      </label>
+    </div>
+    <div class="kv"><div>Repeats</div>
+      <input id="mediaRepeats" class="input" type="number" step="1" min="1" value="1">
+    </div>
+    <div class="toolbar">
+      <button id="mediaPlay"  class="toolbtn">Play</button>
+      <button id="mediaPause" class="toolbtn">Pause</button>
+      <button id="mediaStop"  class="toolbtn">Stop</button>
+    </div>
+  </div>
+</details>
+<!-- ▲▲▲ /Media-Section ▲▲▲ -->
+
+<div class="toolbar">
+  <button id="btn-del" class="btn">Löschen (Entf)</button>
+</div>
+
+
    
     <div class="toolbar">
       <button id="btn-del" class="btn">Löschen (Entf)</button>
