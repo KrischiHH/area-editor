@@ -2070,31 +2070,40 @@ updateAnchorUI();
       return new Blob([glb], { type: 'model/gltf-binary' });
     }
 
-    // === Poster aus Canvas (JPEG) ===
-async function capturePosterBlob(quality=0.9){
+async function capturePosterBlob(quality = 0.75){
   const c = renderer?.domElement;
   if (!c) throw new Error('Renderer-Canvas fehlt');
-  const dataUrl = c.toDataURL('image/jpeg', quality);
-  const res = await fetch(dataUrl);
-  return await res.blob(); // image/jpeg
+
+  // Zustand merken
+  const prevPR   = renderer.getPixelRatio();
+  const prevSize = renderer.getSize(new THREE.Vector2());
+
+  // Temporär kleiner & PR=1 für schnellen Snapshot
+  const W = 1280, H = 720;
+  renderer.setPixelRatio(1);
+  renderer.setSize(W, H, false);
+
+  // Einen Frame in der neuen Größe rendern
+  renderer.clear();
+  if (composer) {
+    composer.setSize(W, H);
+    composer.render();
+  } else {
+    renderer.render(scene, camera);
+  }
+
+  // Async-Blob statt blockierendem DataURL
+  const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', quality));
+
+  // Zustand zurück
+  renderer.setPixelRatio(prevPR);
+  renderer.setSize(prevSize.x, prevSize.y, false);
+  if (composer) composer.setSize(prevSize.x, prevSize.y);
+  onResize?.();
+
+  return blob;
 }
 
-// === Erstes Audio-Objekt in der Szene greifen (optional) ===
-function findFirstAudio(){
-  for (const rec of (state?.objects || [])){
-    if (rec?.media?.kind === 'audio'){
-      const fromFile    = rec.file instanceof File ? rec.file : null;
-      const fromDataUrl = (!fromFile && rec.media.src && rec.media.src.startsWith('data:')) ? rec.media.src : null;
-      return {
-        fromFile,
-        fromDataUrl,
-        loop: !!rec.media.loop,
-        repeats: rec.media.repeats || 1
-      };
-    }
-  }
-  return null;
-}
     
 async function dataUrlToBlob(u){ const r = await fetch(u); return await r.blob(); }
 
@@ -2246,7 +2255,9 @@ function buildSceneViewerJSON_CF() {
       const btnClose=document.createElement('button'); btnClose.className='btn'; btnClose.textContent='Schließen';
       row.append(btnCopy,btnOpen,btnClose);
       card.append(h,qr,link,row); el.append(card); document.body.append(el);
-      QRCode.toCanvas(qr, url, {margin:1, scale:6});
+      QRCode.toCanvas(qr, url, {  margin: 1,  scale: 4,               // vorher 6
+  errorCorrectionLevel: 'M' // statt 'Q'/'H'
+});
       btnCopy.onclick=async()=>{ try{ await navigator.clipboard.writeText(url); toast('Link kopiert'); }catch{ toast('Konnte nicht kopieren'); } };
       btnOpen.onclick=()=>{ window.open(url,'_blank'); };
       btnClose.onclick=()=>{ el.remove(); };
