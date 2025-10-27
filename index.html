@@ -1046,7 +1046,10 @@ function setAnchorSel(v){
 }
 function updateSVBlockVisible(){
   const sv = document.getElementById('svBlock');
-  if (sv) sv.style.display = (getAnchorSel() === 'scene-viewer') ? 'block' : 'none';
+  if (!sv) return;
+  const mode = getAnchorSel();
+  const wantsPoster = (mode === 'scene-viewer' || mode === 'surface-guided');
+  sv.style.display = wantsPoster ? 'block' : 'none';
 }
 
 // Nur der rechte Select triggert UI-Updates
@@ -2103,35 +2106,26 @@ async function exportSceneGLB(){
 
 
     // ERSETZEN
-function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
+
+  function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
   const clipName = getSelectedClipNameForExport() || "*";
-  const audioInfo = findFirstAudio(); // nutzt deinen Helper
+    const audioInfo = findFirstAudio(); // nutzt deinen Helper
 
   const json = {
     meta: { version: "1.1", mode, title: title || sceneId, createdAt: new Date().toISOString() },
-    model: { 
-      url: glbUrl, 
-      usdzUrl: usdzUrl || null, 
-      scale: 1,         // optionaler zusätzlicher Faktor im Viewer
-      rotateY: 0,       // optional
-      animation: {      // ← NEU: explizit
-        enabled: true,
-        clipName,
-        start: (document.getElementById('animStartMode')?.value || 'onStart'),
-        loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
-        iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
-        clampWhenFinished: true
-      }
+    model: { url: glbUrl, usdzUrl: usdzUrl || null, scale: 1, rotateY: 0 },
+    animation: {
+      enabled: true,
+      clipName,
+      start: (document.getElementById('animStartMode')?.value || 'onStart'),
+      loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
+      iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
+      clampWhenFinished: true
     },
-    ui: {
-      showGround: true,
-      autocenter: true,
-      loader: "minimal" // der Viewer kann damit den Splash/Loader abspecken
-    }
+    ui: { showGround: true, autocenter: true, loader: "minimal" }
   };
 
-  if (mode === "image") {
-    json.target = { mindUrl: targetUrl || null };
+  if (mode === "image") json.target = { mindUrl: targetUrl || null };
   }
 
   if (audioInfo){
@@ -2241,33 +2235,32 @@ async function publish(){
     const isAR = (mode === 'surface-webxr' || mode === 'image' || mode === 'native');
     const glbBlob = await exportSceneGLB({ targetSizeMeters: isAR ? 1.0 : null });
 
-    // "glTF" Magic Bytes prüfen
-    const ab = await glbBlob.arrayBuffer();
-    const u8 = new Uint8Array(ab, 0, 4);
-    if (!(u8[0]===0x67 && u8[1]===0x6C && u8[2]===0x54 && u8[3]===0x46)) {
-      throw new Error('Exportierte Datei ist kein GLB (fehlende "glTF"-Magic-Bytes).');
+    // Magic-Bytes prüfen ("glTF")
+    {
+      const ab = await glbBlob.arrayBuffer();
+      const u8 = new Uint8Array(ab, 0, 4);
+      if (!(u8[0]===0x67 && u8[1]===0x6C && u8[2]===0x54 && u8[3]===0x46)) {
+        throw new Error('Exportierte Datei ist kein GLB (fehlende "glTF"-Magic-Bytes).');
+      }
     }
 
-    // Upload-Payload
     const form = new FormData();
     form.append('sceneId', sceneId);
     form.append('file', new File([glbBlob], 'scene.glb', { type:'model/gltf-binary' }));
 
     const workerOrigin = new URL(EP).origin;
 
-    if (mode === 'scene-viewer') {
-      // Poster (Upload bevorzugt, sonst Canvas-Snapshot)
-      let posterBlob = null;
-      if (typeof customPosterBlob !== 'undefined' && customPosterBlob) {
-        posterBlob = customPosterBlob;
-      } else {
+    if (mode === 'scene-viewer' || mode === 'surface-guided') {
+      // Poster: Upload bevorzugt, sonst Canvas-Snapshot
+      let posterBlob = customPosterBlob || null;
+      if (!posterBlob) {
         try { posterBlob = await capturePosterBlob(0.9); } catch {}
       }
       if (posterBlob) {
         form.append('file', new File([posterBlob], 'poster.jpg', { type:'image/jpeg' }));
       }
 
-      // scene.json (Scene-Viewer)
+      // scene.json (Scene-Viewer / Guided, RELATIVE Pfade)
       const sceneJsonSV = buildSceneViewerJSON_CF();
       form.append('file', new File([JSON.stringify(sceneJsonSV, null, 2)], 'scene.json', { type:'application/json' }));
 
@@ -2294,7 +2287,7 @@ async function publish(){
       form.append('file', new File([JSON.stringify(sceneJson, null, 2)], 'scene.json', { type:'application/json' }));
     }
 
-    // Audio (optional) – EINMAL anhängen, nach scene.json
+    // Optionales Audio (RELATIV im Viewer!)
     const a = findFirstAudio();
     if (a){
       const audioBlob = a.fromFile ? a.fromFile : (a.fromDataUrl ? await dataUrlToBlob(a.fromDataUrl) : null);
@@ -2316,51 +2309,38 @@ async function publish(){
     const json = await res.json().catch(()=> ({}));
 
     const viewerBase  = (cfg.VIEWER_BASE || 'https://area-viewer.pages.dev');
-const entryByMode = {
-  'surface-webxr': '/surface-ar/webxr.html',
-  'native':        '/surface-ar/index.html',
-  'image':         '/image-ar/viewer.html',
-  'scene-viewer':  '/scene-viewer/index.html',
-  'surface-guided':'/surface-ar/guided.html'
-};
-const entry = entryByMode[mode] || '/surface-ar/webxr.html';
+    const entryByMode = {
+      'surface-webxr': '/surface-ar/webxr.html',
+      'native':        '/surface-ar/index.html',
+      'image':         '/image-ar/viewer.html',
+      'scene-viewer':  '/scene-viewer/index.html',
+      'surface-guided':'/surface-ar/guided.html'
+    };
+    const entryDefault = entryByMode[mode] || '/surface-ar/webxr.html';
 
-// Fallback: immer korrekt zusammensetzen
-let url = `${viewerBase}${entry}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
-if (mode === 'native') url += '&force=native';
+    // Fallback-URL (robust)
+    let url = `${viewerBase}${entryDefault}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
+    if (mode === 'native') url += '&force=native';
 
-// Wenn der Worker eine URL liefert, übernehmen – aber ggf. reparieren
-const raw = (json.viewerUrl || '').trim();
-if (raw) {
-  try {
-    const u = new URL(raw, viewerBase);
-
-    // Pfad je nach Modus korrigieren (Worker gibt teils /index.html etc. zurück)
-    const want = entryByMode[mode];
-    if (want && u.pathname !== want) {
-      if (
-        u.pathname === '/' ||
-        u.pathname.endsWith('/index.html') ||
-        u.pathname === '/webxr.html' ||
-        u.pathname === '/surface-ar/'
-      ) {
-        u.pathname = want;
-      }
+    // Worker-URL verwenden, wenn vorhanden – und ggf. korrigieren
+    const raw = (json.viewerUrl || '').trim();
+    if (raw) {
+      try {
+        const u = new URL(raw, viewerBase);
+        const want = entryByMode[mode];
+        if (want && u.pathname !== want) {
+          if (u.pathname === '/' || u.pathname.endsWith('/index.html') || u.pathname === '/webxr.html' || u.pathname === '/surface-ar/') {
+            u.pathname = want;
+          }
+        }
+        const b = (u.searchParams.get('base') || '').trim();
+        if (!b || b.startsWith('http://internal') || b.startsWith('https://internal')) {
+          u.searchParams.set('base', workerOrigin);
+        }
+        if (mode === 'native') u.searchParams.set('force', 'native');
+        url = u.toString();
+      } catch {}
     }
-
-    // base= absichern
-    const b = (u.searchParams.get('base') || '').trim();
-    if (!b || b === 'internal' || b === 'https://internal' || b === 'http://internal') {
-      u.searchParams.set('base', workerOrigin);
-    }
-
-    // force=native sicherstellen
-    if (mode === 'native') u.searchParams.set('force', 'native');
-
-    url = u.toString();
-  } catch {}
-}
-
 
     showSharePanel(url);
     try { await navigator.clipboard.writeText(url); } catch {}
@@ -2371,6 +2351,7 @@ if (raw) {
     alert('Publish fehlgeschlagen: ' + (err?.message || err));
   }
 }
+
 
 
 // (duplicate autoscale/exportSceneGLB removed – unified version is defined above)   
