@@ -823,6 +823,8 @@
             <option value="image">Image Trigger</option>
             <option value="native">Surface (Native)</option>
             <option value="scene-viewer">Szene Viewer</option>
+            <option value="surface-guided">Surface (Guided)</option>
+
           </select>
         </div>
         <div id="imageTargetRow" class="kv" style="display:none">
@@ -1966,6 +1968,7 @@ updateAnchorUI();
   'native':        '/surface-ar/index.html',   // ← konsistent
   'image':         '/image-ar/viewer.html',
   'scene-viewer':  '/scene-viewer/index.html'
+  'surface-guided':'/surface-ar/guided.html'
 };
 
   const entry = pathByMode[mode] || '/webxr.html';
@@ -2325,6 +2328,7 @@ const entryByMode = {
   'native':        '/surface-ar/index.html',
   'image':         '/image-ar/viewer.html',
   'scene-viewer':  '/scene-viewer/index.html'
+  'surface-guided':'/surface-ar/guided.html'
 };
 const entry = entryByMode[mode] || '/surface-ar/webxr.html';
 
