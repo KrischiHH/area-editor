@@ -664,7 +664,6 @@
       <button id="btn-save" class="menuitem" role="menuitem">Speichern</button>
       <button id="btn-save-as" class="menuitem" role="menuitem">Speichern unter</button>
       <button id="btn-preview" class="menuitem" role="menuitem">Vorschau (Module)</button>
-      <button id="btn-preview" class="menuitem" role="menuitem">Vorschau (Module)</button>
       <button id="btn-preview-draft" class="menuitem" role="menuitem">Schnell-Preview (Draft)</button>
       <button id="btn-publish" class="menuitem" role="menuitem">Veröffentlichen</button>
     </div>
@@ -2254,7 +2253,7 @@ async function publish(){
     const form = new FormData();
     form.append('sceneId', sceneId);
     form.append('file', new File([glbBlob], 'scene.glb', { type:'model/gltf-binary' }));
-    form.append('file', new File([usdzBlob], 'model.usdz', { type:'model/vnd.usdz+zip' }));
+    
 
     const workerOrigin = new URL(EP).origin;
 
