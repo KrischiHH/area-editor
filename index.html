@@ -577,31 +577,6 @@
   isolation: isolate;                       /* keine Durchscheineffekte */
 }
 
-/* Nur diese beiden Tabs kompakt/“Chip”-artig */
-#sec-look > summary,
-#sec-anim > summary{
-  display: inline-flex !important;
-  width: auto !important;
-  justify-content: flex-start !important;  /* kein verteilen */
-  gap: 8px;
-  margin-right: 10px;                      /* statt auto */
-  max-width: calc(100% - 10px);
-}
-
-    
-/* Bei den kompakten Tabs sollen die Icons NICHT ganz nach rechts springen */
-#sec-look > summary .sum-icons,
-#sec-anim > summary .sum-icons{
-  margin-left: 8px !important;             /* hebt auto auf */
-  flex: 0 0 auto;
-}
-
-/* Titel im kompakten Tab darf ellipsieren */
-#sec-look > summary .sum-title,
-#sec-anim > summary .sum-title{
-  flex: 0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
-}
-
 
     /* ----- Einheitliche Section‑Pills: gleiche Form & Ausrichtung ----- */
 /* Wichtig: am Ende der CSS laden, damit vorherige !important-Regeln überschrieben werden */
@@ -946,34 +921,6 @@
     <option value="onClick">Per Klick (Play-Button)</option>
   </select>
 </div>        
-
-<details id="sec-media" class="section" style="display:none">
-  <summary>
-    <span class="sum-title">Media</span>
-    <span class="sum-icons">
-      <span class="ico-mask ico--media" aria-hidden="true"></span>
-      <span class="ico-mask ico--chev"  aria-hidden="true"></span>
-    </span>
-  </summary>
-  <div class="body">
-    <div class="kv"><div>Typ</div>
-      <input id="mediaType" class="input" readonly value="—">
-    </div>
-    <div class="kv"><div>Loop</div>
-      <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
-        <input id="mediaLoop" type="checkbox"> <span>an</span>
-      </label>
-    </div>
-    <div class="kv"><div>Repeats</div>
-      <input id="mediaRepeats" class="input" type="number" step="1" min="1" value="1">
-    </div>
-    <div class="toolbar">
-      <button id="mediaPlay"  class="toolbtn">Play</button>
-      <button id="mediaPause" class="toolbtn">Pause</button>
-      <button id="mediaStop"  class="toolbtn">Stop</button>
-    </div>
-  </div>
-</details>
 
         
         <div class="toolbar">
