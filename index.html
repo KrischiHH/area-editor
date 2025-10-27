@@ -37,6 +37,25 @@
       color-scheme: dark;
     }
 
+    /* schlichtes Logo ohne Hintergrund/Pill */
+.top .brand-logo{
+  display:inline-flex;
+  align-items:center;
+  padding:0;
+  margin-right:8px;            /* etwas Abstand zur nächsten Pill */
+  border:none;
+  background:transparent;
+}
+.top .brand-logo img{
+  height:36px;                 /* ggf. 32–40px feinjustieren */
+  width:auto;
+  display:block;
+  border-radius:0;
+  box-shadow:none;
+  opacity:1;
+}
+
+
     /* sanfte Übergänge beim Theme-Wechsel (ohne Layout-Jank) */
     html, body,
     .panel, .btn, .menubtn, .menu-pop, .toolbtn, .status-badge, .status-pill,
