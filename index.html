@@ -617,6 +617,43 @@
   align-items: center;
   min-height: 40px;
 }
+
+:root{
+  --ui-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+             "Helvetica Neue", Arial, "Apple Color Emoji",
+             "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+}
+
+/* global anwenden (kommt NACH der alten body-font Regel) */
+html, body { font-family: var(--ui-font); }
+.btn, .menubtn, .toolbtn, .tab, .status-pill, .menuitem,
+.input, .select, .panel h3 { font-family: var(--ui-font); }
+
+    /* === Icon vor "Szene" im linken Panel ===================== */
+#left > h3{
+  display:flex; align-items:center; gap:8px;
+}
+
+/* Variante A: farbiges PNG anzeigen */
+#left > h3::before{
+  content:"";
+  display:inline-block;           /* sichert Breite/Höhe */
+  width:16px; height:16px; flex:0 0 16px;
+  background: url("icons/layer_icon.png") center / contain no-repeat;
+  opacity:.95;
+}
+
+/* Alternative (Monochrom + Theme-Farbe, falls gewünscht)
+#left > h3::before{
+  content:"";
+  display:inline-block;
+  width:16px; height:16px; flex:0 0 16px;
+  background-color: var(--muted);
+  -webkit-mask: url("icons/layer_icon.png") center / contain no-repeat;
+          mask: url("icons/layer_icon.png") center / contain no-repeat;
+}
+*/
+
     
   </style>
 
