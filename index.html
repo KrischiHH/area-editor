@@ -630,35 +630,28 @@ html, body { font-family: var(--ui-font); }
 .input, .select, .panel h3 { font-family: var(--ui-font); }
 
     /* === Icon vor "Szene" im linken Panel ===================== */
+/* Fallback: PNG-Icon */
 #left > h3{
   display:flex; align-items:center; gap:8px;
+  color: var(--muted);
 }
-
-/* Variante A: farbiges PNG anzeigen */
 #left > h3::before{
   content:"";
-  display:inline-block;           /* sichert Breite/Höhe */
+  display:inline-block;
   width:16px; height:16px; flex:0 0 16px;
   background: url("icons/layer_icon.png") center / contain no-repeat;
   opacity:.95;
 }
 
-/* Szene-Icon in Textfarbe (SVG als Maske) */
-#left > h3{
-  color: var(--muted); /* oder deine Wunschfarbe */
-}
-
-#left > h3::before{
-  content: "";
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  margin-right: 8px;
-  flex: 0 0 16px;
-
-  background-color: currentColor;                   /* <- übernimmt Textfarbe */
-  -webkit-mask: url("icons/layer_icon.svg") no-repeat center / contain;
-          mask: url("icons/layer_icon.svg") no-repeat center / contain;
+/* Moderne Variante: SVG als Maske in Textfarbe */
+@supports (-webkit-mask: url("")) or (mask: url("")){
+  #left > h3::before{
+    /* GANZ WICHTIG: altes PNG-Bild abschalten */
+    background: none !important;          /* killt background-image vom Fallback */
+    background-color: currentColor;       /* Icon nimmt Textfarbe an */
+    -webkit-mask: url("icons/layer_icon.svg") no-repeat center / contain;
+            mask: url("icons/layer_icon.svg") no-repeat center / contain;
+  }
 }
 
 
