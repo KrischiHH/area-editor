@@ -2148,6 +2148,31 @@ async function exportSceneGLB(){
   });
 }
 
+/* === Audio-Helper: erstes Audioobjekt in der Szene finden === */
+function findFirstAudio(){
+  for (const rec of state.objects){
+    const m = rec?.media;
+    if (m && m.kind === 'audio'){
+      // Wenn über "Medien import" als Datei geladen wurde, steckt die File im rec.file
+      const fromFile = (rec.file && (
+        /^audio\//.test(rec.file.type) || /\.(mp3|wav|ogg|m4a)$/i.test(rec.file.name)
+      )) ? rec.file : null;
+
+      // Quelle aus dem Media-Record (kann data: oder blob: sein)
+      const src = (m.src || '').trim();
+      const fromDataUrl = (!fromFile && src.startsWith('data:')) ? src : null;
+      const fromBlobUrl = (!fromFile && src.startsWith('blob:')) ? src : null;
+
+      return {
+        loop: !!m.loop,
+        fromFile,       // File | null
+        fromDataUrl,    // string | null (data:)
+        fromBlobUrl     // string | null (blob:)
+      };
+    }
+  }
+  return null;
+}
 
 
 function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
@@ -2342,12 +2367,21 @@ async function publish(){
 
     // Optionales Audio (RELATIV im Viewer!)
     const a = findFirstAudio();
-    if (a){
-      const audioBlob = a.fromFile ? a.fromFile : (a.fromDataUrl ? await dataUrlToBlob(a.fromDataUrl) : null);
-      if (audioBlob){
-        form.append('file', new File([audioBlob], 'audio.mp3', { type:(audioBlob.type||'audio/mpeg') }));
-      }
-    }
+if (a){
+  let audioBlob = null;
+  if (a.fromFile){
+    audioBlob = a.fromFile; // File direkt
+  } else if (a.fromDataUrl){
+    audioBlob = await dataUrlToBlob(a.fromDataUrl); // data: → Blob
+  } else if (a.fromBlobUrl){
+    // blob: → Blob (z. B. frisch importierte Datei)
+    audioBlob = await (await fetch(a.fromBlobUrl)).blob();
+  }
+  if (audioBlob){
+    form.append('file', new File([audioBlob], 'audio.mp3', { type:(audioBlob.type||'audio/mpeg') }));
+  }
+}
+
 
     toast('Lade hoch…');
 
@@ -2476,12 +2510,21 @@ async function publish(){
 
     // Optionales Audio relativ beilegen
     const a = findFirstAudio();
-    if (a){
-      const audioBlob = a.fromFile ? a.fromFile : (a.fromDataUrl ? await dataUrlToBlob(a.fromDataUrl) : null);
-      if (audioBlob){
-        form.append('file', new File([audioBlob], 'audio.mp3', { type:(audioBlob.type||'audio/mpeg') }));
-      }
-    }
+if (a){
+  let audioBlob = null;
+  if (a.fromFile){
+    audioBlob = a.fromFile; // File direkt
+  } else if (a.fromDataUrl){
+    audioBlob = await dataUrlToBlob(a.fromDataUrl); // data: → Blob
+  } else if (a.fromBlobUrl){
+    // blob: → Blob (z. B. frisch importierte Datei)
+    audioBlob = await (await fetch(a.fromBlobUrl)).blob();
+  }
+  if (audioBlob){
+    form.append('file', new File([audioBlob], 'audio.mp3', { type:(audioBlob.type||'audio/mpeg') }));
+  }
+}
+
 
     // 4) Draft-Flag mitsenden (Worker darf es ignorieren – ist nur ein Hint)
     form.append('draft', '1');
