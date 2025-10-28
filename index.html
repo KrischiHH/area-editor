@@ -659,7 +659,6 @@ html, body { font-family: var(--ui-font); }
 
 
 
-
     
   </style>
 
@@ -672,7 +671,6 @@ html, body { font-family: var(--ui-font); }
     VIEWER_BASE: "https://area-viewer.pages.dev"
   };
 </script>
-
 
 
 
@@ -874,6 +872,14 @@ html, body { font-family: var(--ui-font); }
             <input id="nativeUsdzUrl" class="input" placeholder="iOS USDZ – https://…/model.usdz">
           </div>
         </div>
+        <!-- ▼▼▼ NEU: USDZ Upload (optional, wird als scene.usdz veröffentlicht) -->
+        <div id="usdzUploadRow" class="kv" style="display:none">
+          <div>USDZ Upload</div>
+          <div style="display:grid;grid-template-columns:1fr;gap:6px">
+            <input id="fileUsdz" type="file" accept=".usdz,model/vnd.usdz+zip">
+            <div class="muted" style="font-size:12px">Optional – wenn gesetzt, wird <code>scene.usdz</code> mit veröffentlicht.</div>
+          </div>
+        </div>
         <!-- Scene Viewer: Willkommensblock -->
 <div id="svBlock">
   <!-- Poster Dropzone -->
@@ -1003,7 +1009,19 @@ html, body { font-family: var(--ui-font); }
 </details>
 <!-- ▲▲▲ /Media-Section ▲▲▲ -->
 
-     
+<div class="toolbar">
+  <button id="btn-del" class="btn">Löschen (Entf)</button>
+</div>
+
+
+   
+    <div class="toolbar">
+      <button id="btn-del" class="btn">Löschen (Entf)</button>
+    </div>
+  </div>
+</div>
+
+      
 
    
   </div><!-- /.wrap --> 
@@ -1680,7 +1698,7 @@ async function blobToBase64(blob){
       const dir=camera.position.clone().sub(controls.target).normalize(); const pos=c.clone().add(dir.multiplyScalar(dist));
       goCamera([pos.x,pos.y,pos.z],[c.x,c.y,c.z]);
     });
-    $('#btn-clear').addEventListener('click', ()=>{ if(!confirm('Szene leeren?')) return; state.objects.forEach(o=>{ if(o.group){ disposeObject3DTree(o.group); contentRoot.remove(o.group); }}); state.objects=[]; clearSelection(); rebuildList(); updateGroupButtons(); updateOutlineSelection(); });
+    $('#btn-clear').addEventListener('click', ()=>{ if(!confirm('Szene leeren?')) return; state.objects.forEach(o=>{ if(o.group){ disposeObject3DTree(o.group); contentRoot.remove(o.group); }}); state.objects=[]; clearSelection(); rebuildList(); updateGroupButtons(); updateOutlineSelection(); updateMaterialLook(); toast('Szene geleert'); });
 
     // Animation UI
     function populateAnimUI(rec){
@@ -1895,8 +1913,7 @@ async function blobToBase64(blob){
     }
 
     async function importProjectData(data){
-      state.objects.forEach(o=>{ if(o.group){ disposeObject3DTree(o.group); contentRoot.remove(o.group);} });
-      state.objects=[]; clearSelection();
+      state.objects.forEach(o=>{ if(o.group){ disposeObject3DTree(o.group); contentRoot.remove(o.group);} }); state.objects=[]; clearSelection();
 
       if (data.meta?.projectName) setProjectName(data.meta.projectName);
       if (data.settings?.anchorMode){
@@ -1976,8 +1993,10 @@ updateAnchorUI();
   // rechte Panel-Optionen weiter bedienen:
   const imgRow = document.getElementById('imageTargetRow');
   const natRow = document.getElementById('nativeRow');
+  const usdzRow = document.getElementById('usdzUploadRow'); // NEU
   if (imgRow) imgRow.style.display = (mode==='image')  ? 'grid' : 'none';
   if (natRow) natRow.style.display = (mode==='native') ? 'grid' : 'none';
+  if (usdzRow) usdzRow.style.display = (mode==='native') ? 'grid' : 'none';
 
   updateSVBlockVisible();
 }
@@ -2339,13 +2358,25 @@ async function publish(){
       form.append('file', new File([JSON.stringify(sceneJsonSV, null, 2)], 'scene.json', { type:'application/json' }));
 
     } else {
+      // --- NEU: USDZ-Upload (optional) einlesen
+      const usdzFile = document.getElementById('fileUsdz')?.files?.[0] || null;
+      if (usdzFile){
+        form.append('file', new File([usdzFile], 'scene.usdz', { type:'model/vnd.usdz+zip' }));
+      }
+
       // scene.json (WebXR / Image / Native)
-      const glbUrl  = (mode === 'native' && (document.getElementById('nativeGlbUrl')?.value||'').trim())
-                        ? document.getElementById('nativeGlbUrl').value.trim()
+      const nativeGlb = val('nativeGlbUrl');
+      const nativeUsd = val('nativeUsdzUrl');
+
+      const glbUrl  = (mode === 'native' && nativeGlb)
+                        ? nativeGlb
                         : `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.glb`;
-      const usdzUrl = (mode === 'native' && (document.getElementById('nativeUsdzUrl')?.value||'').trim())
-                        ? document.getElementById('nativeUsdzUrl').value.trim()
-                        : null;
+
+      // Wenn ein USDZ-File hochgeladen wurde → relative URL setzen, sonst Eingabefeld nutzen
+      const usdzUrl = (mode === 'native' && usdzFile)
+                        ? `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.usdz`
+                        : (mode === 'native' && nativeUsd ? nativeUsd : null);
+
       const targetUrl = (mode === 'image' && (document.getElementById('imageTargetUrl')?.value||'').trim())
                         ? document.getElementById('imageTargetUrl').value.trim()
                         : null;
@@ -2482,13 +2513,24 @@ if (a){
       const sceneJsonSV = buildSceneViewerJSON_CF();
       form.append('file', new File([JSON.stringify(sceneJsonSV, null, 2)], 'scene.json', { type:'application/json' }));
     } else {
+      // --- NEU: USDZ-Upload (optional) einlesen
+      const usdzFile = document.getElementById('fileUsdz')?.files?.[0] || null;
+      if (usdzFile){
+        form.append('file', new File([usdzFile], 'scene.usdz', { type:'model/vnd.usdz+zip' }));
+      }
+
       // WebXR / Image / Native JSON
-      const glbUrl  = (mode === 'native' && (document.getElementById('nativeGlbUrl')?.value||'').trim())
-                        ? document.getElementById('nativeGlbUrl').value.trim()
+      const nativeGlb = val('nativeGlbUrl');
+      const nativeUsd = val('nativeUsdzUrl');
+
+      const glbUrl  = (mode === 'native' && nativeGlb)
+                        ? nativeGlb
                         : `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.glb`;
-      const usdzUrl = (mode === 'native' && (document.getElementById('nativeUsdzUrl')?.value||'').trim())
-                        ? document.getElementById('nativeUsdzUrl').value.trim()
-                        : null;
+
+      const usdzUrl = (mode === 'native' && usdzFile)
+                        ? `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.usdz`
+                        : (mode === 'native' && nativeUsd ? nativeUsd : null);
+
       const targetUrl = (mode === 'image' && (document.getElementById('imageTargetUrl')?.value||'').trim())
                         ? document.getElementById('imageTargetUrl').value.trim()
                         : null;
@@ -2588,9 +2630,7 @@ document.getElementById('btn-preview-draft')?.addEventListener('click', ()=>{
 
 
 
-
 // (duplicate autoscale/exportSceneGLB removed – unified version is defined above)   
-
 
 
     // Hint FAB + Projektmenü
