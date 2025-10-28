@@ -630,7 +630,7 @@ html, body { font-family: var(--ui-font); }
 .input, .select, .panel h3 { font-family: var(--ui-font); }
 
     /* === Icon vor "Szene" im linken Panel ===================== */
-/* Fallback: PNG-Icon */
+/* Icon vor "Szene" – PNG-Fallback */
 #left > h3{
   display:flex; align-items:center; gap:8px;
   color: var(--muted);
@@ -639,20 +639,24 @@ html, body { font-family: var(--ui-font); }
   content:"";
   display:inline-block;
   width:16px; height:16px; flex:0 0 16px;
-  background: url("icons/layer_icon.png") center / contain no-repeat;
+  background: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer_icon.png")
+              center / contain no-repeat;
   opacity:.95;
 }
 
-/* Moderne Variante: SVG als Maske in Textfarbe */
+/* Moderne Variante: farbige SVG-Maske (nimmt currentColor) */
 @supports (-webkit-mask: url("")) or (mask: url("")){
   #left > h3::before{
-    /* GANZ WICHTIG: altes PNG-Bild abschalten */
-    background: none !important;          /* killt background-image vom Fallback */
-    background-color: currentColor;       /* Icon nimmt Textfarbe an */
-    -webkit-mask: url("icons/layer_icon.svg") no-repeat center / contain;
-            mask: url("icons/layer_icon.svg") no-repeat center / contain;
+    /* WICHTIG: PNG-Fallback NICHT killen – wir überschreiben nur die Darstellung */
+    background-color: currentColor;
+    -webkit-mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer_icon.svg")
+                  no-repeat center / contain;
+            mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer_icon.svg")
+                  no-repeat center / contain;
+    /* Kein background: none;  → lässt Fallback intakt, falls Maske nicht lädt */
   }
 }
+
 
 
 
