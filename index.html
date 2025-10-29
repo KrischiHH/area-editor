@@ -2244,14 +2244,14 @@ function buildSceneViewerJSON_CF() {
 
   const audioInfo = findFirstAudio(); // dein Helper
 
-  return {
+   return {
     ui: {
       showGround: true,
       autocenter: true,
       welcome: {
         eyebrow, title, desc, cta: "OK",
-        // WICHTIG: NUR RELATIV!
-        poster: "poster.jpg"
+        poster: "poster.jpg",
+        nativeCta: "ios-only"   // <- NEU: niemals auf Android zeigen
       },
       controls: { showPlay, showMute }
     },
