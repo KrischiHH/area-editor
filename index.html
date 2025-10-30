@@ -2325,7 +2325,7 @@ async function publish(){
     toast('Exportiere Szene…');
 
     const mode = getAnchorSel();
-    const isAR = (mode === 'surface-webxr' || mode === 'image' || mode === 'native');
+    const isAR = (mode === 'surface-webxr' || mode === 'image' || mode === 'native' || mode === 'surface-area-viewer');
     const glbBlob = await exportSceneGLB({ targetSizeMeters: isAR ? 1.0 : null });
 
     // Magic-Bytes prüfen ("glTF")
@@ -2429,7 +2429,8 @@ if (a){
       'native':        '/surface-ar/index.html',
       'image':         '/image-ar/viewer.html',
       'scene-viewer':  '/scene-viewer/index.html',
-      'surface-guided':'/surface-ar/guided.html'
+      'surface-guided':'/surface-ar/guided.html',
+      'surface-area-viewer':'/surface-ar/area-viewer.html'
     };
     const entryDefault = entryByMode[mode] || '/surface-ar/webxr.html';
 
