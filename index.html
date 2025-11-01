@@ -1929,8 +1929,8 @@ async function blobToBase64(blob){
       }
       for(const rec of state.objects) await pushRec(rec);
       return {
-        version:'2.2.9',
-        meta:{ app:'WebAR Editor', projectName, savedAt:new Date().toISOString() },
+        version:'3.0',
+        meta:{ app:'ARea Editor', projectName, savedAt:new Date().toISOString() },
         settings:{
           roomSize: parseFloat($('#roomSize').value)||24,
           gridVisible: $('#gridVisible').checked,
