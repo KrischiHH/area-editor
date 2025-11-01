@@ -1206,6 +1206,64 @@ document.getElementById('headlight')?.addEventListener('change', (e)=>{
       o.renderOrder = 9999;
     });
 
+    // --- Proportionales (uniformes) Skalieren erzwingen ---
+let __scaleStart = null;
+let __scaleAxis  = null;
+
+tcontrols.addEventListener('dragging-changed', (ev)=>{
+  // Start des Dragvorgangs: Ausgangsskala und Achse merken
+  if (ev.value && tcontrols.getMode?.() === 'scale' && tcontrols.object){
+    __scaleStart = tcontrols.object.scale.clone();
+    __scaleAxis  = tcontrols.axis || 'XYZ';
+  } else if (!ev.value){
+    __scaleStart = null;
+    __scaleAxis  = null;
+  }
+});
+
+tcontrols.addEventListener('objectChange', ()=>{
+  // Nur im Scale-Modus und während Dragging eingreifen
+  if (tcontrols.getMode?.() !== 'scale' || !tcontrols.dragging) return;
+  const obj = tcontrols.object;
+  if (!obj || !__scaleStart) return;
+
+  // Uniform-Faktor aus der geänderten Achse ableiten
+  const sx0 = __scaleStart.x || 1;
+  const sy0 = __scaleStart.y || 1;
+  const sz0 = __scaleStart.z || 1;
+
+  const ax  = (__scaleAxis || tcontrols.axis || 'XYZ');
+  let f = 1;
+  if (ax.includes('X') && sx0 !== 0)      f = obj.scale.x / sx0;
+  else if (ax.includes('Y') && sy0 !== 0) f = obj.scale.y / sy0;
+  else if (ax.includes('Z') && sz0 !== 0) f = obj.scale.z / sz0;
+  else {
+    // Fallback: nimm X, sonst Y, sonst Z
+    f = (sx0 !== 0 ? obj.scale.x / sx0 :
+        (sy0 !== 0 ? obj.scale.y / sy0 :
+        (sz0 !== 0 ? obj.scale.z / sz0 : 1)));
+  }
+
+  // Grenzen (optional anpassen)
+  const MIN = 0.01;
+  const MAX = 100;
+  // clamp, bezogen auf den größten/kleinsten Startwert
+  const maxStart = Math.max(sx0, sy0, sz0);
+  const minStart = Math.min(sx0, sy0, sz0);
+  if (maxStart > 0) f = Math.min(f, MAX / maxStart);
+  if (minStart > 0) f = Math.max(f, MIN / minStart);
+
+  const nx = sx0 * f;
+  const ny = sy0 * f;
+  const nz = sz0 * f;
+
+  // Uniform auf alle Achsen anwenden
+  obj.scale.set(nx, ny, nz);
+
+  // UI/Outline aktualisieren (falls vorhanden)
+  try { syncPropFromSel?.(); } catch {}
+});
+
     // Postprocessing (Outline)
     let composer, renderPass, outlinePass;
     function initPost(){
