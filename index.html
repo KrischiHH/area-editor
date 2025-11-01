@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WebAR Editor v3.0</title>
+  <title>ARea Editor v3.0</title>
   <script>
 (function(){
   try{
@@ -1044,7 +1044,7 @@ html, body { font-family: var(--ui-font); }
 
     // --- State ---
     let projectName = 'Unbenanntes Projekt';
-    function setProjectName(n){ projectName = (n||'').trim()||'Unbenanntes Projekt'; $('#projNamePill').textContent = projectName; document.title = 'WebAR Editor v2.2.9 — '+projectName; }
+    function setProjectName(n){ projectName = (n||'').trim()||'Unbenanntes Projekt'; $('#projNamePill').textContent = projectName; document.title = 'ARea Editor v3.0 — '+projectName; }
     function promptNewName(){ const v = prompt('Projektname:', projectName==='Unbenanntes Projekt'?'Mein AR-Projekt':projectName); if(v!=null) setProjectName(v); }
     $('#projNamePill').addEventListener('dblclick', promptNewName);
 
