@@ -1010,20 +1010,6 @@ html, body { font-family: var(--ui-font); }
 </details>
 <!-- ▲▲▲ /Media-Section ▲▲▲ -->
 
-<div class="toolbar">
-  <button id="btn-del" class="btn">Löschen (Entf)</button>
-</div>
-
-
-   
-    <div class="toolbar">
-      <button id="btn-del" class="btn">Löschen (Entf)</button>
-    </div>
-  </div>
-</div>
-
-      
-
    
   </div><!-- /.wrap --> 
   
@@ -1368,14 +1354,36 @@ const opFar  = nebula ? (0.10 + 0.24*gi) : (0.06 + 0.20*gi);
         if(rec){ if(e.shiftKey) toggleSelect(rec.id); else selectOnly(rec.id); }
       }
     }, {passive:true});
-    window.addEventListener('keydown', e=>{ if(e.key==='Escape') clearSelection(); });
-    renderer.domElement.addEventListener('dblclick', e=>{
-      if(isOrbiting||tcontrols?.dragging) return;
-      const rect=renderer.domElement.getBoundingClientRect(); mouse.x=((e.clientX-rect.left)/rect.width)*2-1; mouse.y=-((e.clientY-rect.top)/rect.height)*2+1; raycaster.setFromCamera(mouse,camera);
-      const targets=state.objects.filter(o=>!o.hidden && !o.locked).map(o=>o.group);
-      const hits = raycaster.intersectObjects(targets,true);
-      if(hits.length===0) clearSelection();
-    }, {passive:true});
+// Globale Tastenkürzel
+window.addEventListener('keydown', (e)=>{
+  // Escape: Auswahl aufheben
+  if (e.key === 'Escape') { clearSelection(); return; }
+
+  // Nicht auslösen, wenn der Fokus in einem Eingabefeld liegt
+  const el = document.activeElement;
+  const tag = (el?.tagName || '').toLowerCase();
+  const isTyping = el?.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select';
+  if (isTyping) return;
+
+  // Entf / Backspace: ausgewählte Objekte löschen
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (state?.selection && state.selection.size) {
+      e.preventDefault(); // verhindert z. B. Browser-"Zurück" auf Backspace
+      deleteIds([...state.selection]);
+    }
+  }
+});
+
+renderer.domElement.addEventListener('dblclick', e=>{
+  if(isOrbiting||tcontrols?.dragging) return;
+  const rect=renderer.domElement.getBoundingClientRect();
+  mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  const targets=state.objects.filter(o=>!o.hidden && !o.locked).map(o=>o.group);
+  const hits = raycaster.intersectObjects(targets,true);
+  if(hits.length===0) clearSelection();
+}, {passive:true});
 
     // Import 3D
     async function createFromGLTF(url,name){
