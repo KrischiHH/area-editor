@@ -695,11 +695,12 @@ html, body { font-family: var(--ui-font); }
       // Check if this is a POST to /publish with FormData and we have __origGlb
       const isPost = init && (init.method || 'GET').toUpperCase() === 'POST';
       // More specific check: match actual PUBLISH_ENDPOINT or any URL ending with /publish
+      const publishEndpoint = window.__AREA?.PUBLISH_ENDPOINT;
       const isPublish = typeof url === 'string' && (
-        url === window.__AREA?.PUBLISH_ENDPOINT || 
+        (publishEndpoint && url === publishEndpoint) || 
         url.endsWith('/publish')
       );
-      const hasOrigGlb = window.__AREA && window.__AREA.__origGlb;
+      const hasOrigGlb = window.__AREA?.__origGlb;
       const isFormData = init && init.body instanceof FormData;
 
       if (isPost && isPublish && hasOrigGlb && isFormData) {
@@ -719,10 +720,10 @@ html, body { font-family: var(--ui-font); }
           newForm.append(key, value);
         }
         
-        // Inject the original GLB as scene.glb
-        const origBlob = new Blob([window.__AREA.__origGlb], { type: 'model/gltf-binary' });
-        newForm.append('file', new File([origBlob], 'scene.glb', { type: 'model/gltf-binary' }));
-        console.log('Injected original GLB:', origBlob.size, 'bytes');
+        // Inject the original GLB as scene.glb (directly from ArrayBuffer)
+        const origFile = new File([window.__AREA.__origGlb], 'scene.glb', { type: 'model/gltf-binary' });
+        newForm.append('file', origFile);
+        console.log('Injected original GLB:', origFile.size, 'bytes');
         
         // Replace the body with our modified FormData
         const newInit = { ...init, body: newForm };
@@ -2105,10 +2106,18 @@ updateAnchorUI();
             // Buffer original GLB when loading from project (data URL)
             if (url.startsWith('data:')) {
               try {
-                const response = await fetch(url);
-                const buffer = await response.arrayBuffer();
-                window.__AREA.__origGlb = buffer;
-                console.log('Original GLB buffered from project:', buffer.byteLength, 'bytes');
+                // Extract binary data directly from data URL (more efficient than fetch)
+                const base64Data = url.split(',')[1];
+                if (base64Data) {
+                  const binaryString = atob(base64Data);
+                  const buffer = new ArrayBuffer(binaryString.length);
+                  const bytes = new Uint8Array(buffer);
+                  for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                  }
+                  window.__AREA.__origGlb = buffer;
+                  console.log('Original GLB buffered from project:', buffer.byteLength, 'bytes');
+                }
               } catch (err) {
                 console.warn('Could not buffer original GLB from project:', err);
               }
