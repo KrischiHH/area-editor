@@ -694,7 +694,11 @@ html, body { font-family: var(--ui-font); }
     window.fetch = function(url, init) {
       // Check if this is a POST to /publish with FormData and we have __origGlb
       const isPost = init && (init.method || 'GET').toUpperCase() === 'POST';
-      const isPublish = typeof url === 'string' && url.includes('/publish');
+      // More specific check: match actual PUBLISH_ENDPOINT or any URL ending with /publish
+      const isPublish = typeof url === 'string' && (
+        url === window.__AREA?.PUBLISH_ENDPOINT || 
+        url.endsWith('/publish')
+      );
       const hasOrigGlb = window.__AREA && window.__AREA.__origGlb;
       const isFormData = init && init.body instanceof FormData;
 
@@ -1551,8 +1555,8 @@ async function blobToBase64(blob){
           ({group,root,clips} = await createFromFBX(url,name));
         } else {
           ({group,root,clips} = await createFromGLTF(url,name));
-          // Buffer original GLB for publish (only for GLB/GLTF, not FBX)
-          if (/\.(glb|gltf)$/i.test(file.name)) {
+          // Buffer original GLB for publish (only GLB binary format, not GLTF JSON)
+          if (/\.glb$/i.test(file.name)) {
             try {
               const buffer = await file.arrayBuffer();
               window.__AREA.__origGlb = buffer;
