@@ -711,6 +711,7 @@ html, body { font-family: var(--ui-font); }
         const oldForm = init.body;
         
         // Copy all entries except 'file' entries named 'scene.glb'
+        // Note: entries() iterates over ALL entries, including duplicates with the same key
         for (const [key, value] of oldForm.entries()) {
           if (key === 'file' && value instanceof File && value.name === 'scene.glb') {
             // Skip the re-exported scene.glb - we'll add the original instead
@@ -1560,8 +1561,12 @@ async function blobToBase64(blob){
     // Helper to extract ArrayBuffer from data URL
     function dataUrlToArrayBuffer(dataUrl) {
       // Check if it's a GLB data URL (model/gltf-binary or application/octet-stream)
-      if (!dataUrl.startsWith('data:')) return null;
-      const header = dataUrl.substring(0, dataUrl.indexOf(','));
+      if (!dataUrl || !dataUrl.startsWith('data:')) return null;
+      
+      const commaIndex = dataUrl.indexOf(',');
+      if (commaIndex === -1) return null; // Invalid data URL format
+      
+      const header = dataUrl.substring(0, commaIndex);
       const isGlbMime = header.includes('model/gltf-binary') || 
                         header.includes('application/octet-stream');
       if (!isGlbMime) {
@@ -1569,13 +1574,18 @@ async function blobToBase64(blob){
         return null;
       }
       
-      const base64Data = dataUrl.split(',')[1];
-      if (!base64Data) return null;
+      const base64Data = dataUrl.substring(commaIndex + 1);
+      if (!base64Data || base64Data.trim() === '') return null;
       
-      // Efficient base64 decode using Uint8Array.from
-      const binaryString = atob(base64Data);
-      const bytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
-      return bytes.buffer;
+      try {
+        // Efficient base64 decode using Uint8Array.from
+        const binaryString = atob(base64Data);
+        const bytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
+        return bytes.buffer;
+      } catch (err) {
+        console.warn('Failed to decode base64 data:', err);
+        return null;
+      }
     }
 
     
