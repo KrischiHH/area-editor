@@ -888,7 +888,7 @@ html, body { font-family: var(--ui-font); }
 
   
 <script>
-/* Welcome/Audio-UI abhängig vom Anchor anzeigen (robust, mit trim/aliases) */
+/* Welcome/Audio-UI abhängig vom Anchor anzeigen (robust, mit trim/aliases + Debug) */
 (function(){
   function byId(id){ return document.getElementById(id); }
   const sel     = byId('anchorMode');
@@ -896,38 +896,79 @@ html, body { font-family: var(--ui-font); }
   const usdzRow = byId('usdzUploadRow');
   const avAudio = byId('avAudioRow');
 
-  function norm(v){
-    return String(v || '').trim().toLowerCase();
+  function norm(v){ return String(v || '').trim().toLowerCase(); }
+
+  function show(el, disp){
+    if (!el) return;
+    el.hidden = false;
+    el.style.display = disp; // 'block' | '' | 'grid'
   }
-  function apply(){
+  function hide(el){
+    if (!el) return;
+    el.style.display = 'none';
+  }
+
+  function computeModes(){
     const v = norm(sel?.value);
-    // Tolerante Erkennung
-    const isSceneViewer = v === 'scene-viewer';
-    const isAreaViewer  =
+    const txt = norm(sel?.options?.[sel.selectedIndex]?.textContent);
+    const both = v + ' ' + txt; // z. B. "surface-area-viewer surface (area viewer)"
+
+    const isSceneViewer =
+      v === 'scene-viewer' ||
+      txt.includes('szene viewer') || txt.includes('scene viewer');
+
+    const isAreaViewer =
       v === 'surface-area-viewer' ||
       v === 'area-viewer' ||
-      v === 'surface-area' ||       // evtl. alter/verkürzter Wert
-      v.includes('area-viewer');    // Fallback bei leichten Abweichungen
+      v === 'surface-area' ||
+      both.includes('area-viewer') ||
+      both.includes('area viewer'); // tolerant auf Text
 
-    // Welcome-Block (Poster/Texte) für Scene Viewer UND Area Viewer
-    if (svBlock) svBlock.style.display = (isSceneViewer || isAreaViewer) ? 'block' : 'none';
+    const isGuided =
+      v === 'surface-guided' || txt.includes('guided');
+
+    return { isSceneViewer, isAreaViewer, isGuided, raw:v, label:txt };
+  }
+
+  function apply(reason=''){
+    const { isSceneViewer, isAreaViewer, isGuided, raw, label } = computeModes();
+    // Debug in Console
+    try {
+      console.log('[anchorMode]', { value: raw, label, isSceneViewer, isAreaViewer, isGuided, reason });
+    } catch {}
+
+    // Poster/Welcome-Block: für Scene Viewer ODER Area Viewer
+    if (svBlock) (isSceneViewer || isAreaViewer) ? show(svBlock, 'block') : hide(svBlock);
+
     // USDZ nur für Scene Viewer
-    if (usdzRow) usdzRow.style.display = isSceneViewer ? '' : 'none';
-    // Audio-UI nur für Area Viewer
-    if (avAudio) avAudio.style.display = isAreaViewer ? 'grid' : 'none';
+    if (usdzRow) isSceneViewer ? show(usdzRow, '') : hide(usdzRow);
+
+    // Audio nur für Area Viewer (wenn auch für Szene-Viewer gewünscht → || isSceneViewer)
+    if (avAudio) isAreaViewer ? show(avAudio, 'grid') : hide(avAudio);
   }
 
-  // Event-Bindings + „letzter gewinnt“
+  // Event-Bindings
   if (sel){
-    sel.addEventListener('change', apply);
-    sel.addEventListener('input',  apply);
+    sel.addEventListener('change', ()=>apply('change'));
+    sel.addEventListener('input',  ()=>apply('input'));
   }
-  // Beim Laden einmal, und dann nochmal „spät“ (falls andere Handler aufräumen)
+
+  // Beim Laden ausführen und „spät“ nochmal (falls andere Handler danach togglen)
   if (document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', ()=>{ apply(); setTimeout(apply, 0); });
+    document.addEventListener('DOMContentLoaded', ()=>{
+      apply('DOMContentLoaded');
+      setTimeout(()=>apply('post-timeout-0'), 0);
+    });
   } else {
-    apply(); setTimeout(apply, 0);
+    apply('immediate');
+    setTimeout(()=>apply('post-timeout-0'), 0);
   }
+
+  // Optional: beobachten, falls UI-Framework DOM später ändert
+  try {
+    const mo = new MutationObserver(()=>apply('mutation'));
+    if (sel?.parentNode) mo.observe(sel.parentNode, { childList:true, subtree:true, attributes:true });
+  } catch {}
 })();
 </script>
   
