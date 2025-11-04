@@ -2233,6 +2233,7 @@ async function blobToBase64(blob){
       if (data.meta?.projectName) setProjectName(data.meta.projectName);
       if (data.settings?.anchorMode){
   setAnchorSel(data.settings.anchorMode);
+        // Backward compatibility: animStartMode renamed to animStart
         (document.getElementById('animStart')||{}).value = data.settings?.animStart || data.settings?.animStartMode || 'onPlace';
 
 }
