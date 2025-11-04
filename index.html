@@ -748,6 +748,143 @@ html, body { font-family: var(--ui-font); }
   } catch(_) {}
 })();
 </script>
+
+  <script>
+/* Editor: scene.json-Export + Publish nach \"Aero/Spark-Style\" Schema */
+(function(){
+  const AREA = (window.__AREA = window.__AREA || {});
+  AREA.scene = AREA.scene || {};
+
+  function val(sel, def=''){ const el=document.querySelector(sel); return (el && 'value' in el) ? (el.value ?? def) : def; }
+  function chk(sel, def=false){ const el=document.querySelector(sel); return (el && 'checked' in el) ? !!el.checked : def; }
+  function num(sel, def){ const v = parseFloat(val(sel, String(def))); return Number.isFinite(v) ? v : def; }
+  function file(sel){ return (document.querySelector(sel)?.files?.[0]) || null; }
+
+  // OPTIONAL: Wenn dein Stage/Lader Clips kennt, kannst du die Länge hier abfragen
+  function knownClipsCount(){
+    try {
+      if (Array.isArray(AREA.currentClips)) return AREA.currentClips.length;
+      if (Array.isArray(AREA.scene?.clips)) return AREA.scene.clips.length;
+    } catch {}
+    return undefined;
+  }
+
+  window.buildSceneJson = function buildSceneJson(){
+    const s  = (AREA.scene = AREA.scene || {});
+    const a  = (s.animation = s.animation || {});
+    const au = (s.audio = s.audio || {});
+    const ui = (s.ui = s.ui || {});
+    const wl = (ui.welcome = ui.welcome || {});
+
+    // Animation (UI -> State)
+    a.clipName   = (val('#animClip', '*') || '*').trim();
+    a.start      = (val('#animStart', 'onPlace') || 'onPlace');
+    a.loop       = (document.querySelector('#animLoop') ? chk('#animLoop', true) : true);
+    a.iterations = Math.max(1, num('#animIterations', 9999));
+
+    // Wenn bekannt ist, dass keine Clips existieren, Clip erzwingen
+    const kcc = knownClipsCount();
+    if (kcc === 0) a.clipName = 'none';
+
+    // Audio (UI -> State)
+    au.autoplay  = val('#audioAutoplay', 'withAnimation') || 'withAnimation';
+    au.loop      = (document.querySelector('#audioLoop') ? chk('#audioLoop', true) : true);
+    au.volume    = Math.max(0, Math.min(1, document.querySelector('#audioVolume') ? num('#audioVolume', 0.85) : 0.85));
+
+    // Welcome/Poster
+    wl.eyebrow   = val('#svEyebrow', '');
+    wl.title     = val('#svTitle',  (s.meta?.title || 'ARea Scene'));
+    wl.desc      = val('#svDesc',   'Tippe auf OK und platziere das 3D‑Objekt.');
+    wl.nativeCta = val('#nativeCta', 'ios-only') || 'ios-only';
+
+    // Dateien (nur Namen in JSON, die Files selbst kommen im Publish)
+    const posterF = file('#file-poster');
+    const audioF  = file('#file-audio');   // Nur Audio für diesen Patch
+    const usdzF   = file('#fileUsdz');
+
+    s.meta = s.meta || {};
+    s.meta.title = wl.title;
+    s.meta.description = wl.desc;
+    s.meta.mode = 'area-viewer';
+
+    s.model = s.model || {};
+    s.model.url = 'scene.glb';
+    if (usdzF) s.model.usdzUrl = 'model.usdz';
+    s.model.scale = (typeof s.model.scale === 'number') ? s.model.scale : 1.0;
+
+    if (posterF) wl.poster = posterF.name;   // poster.jpg|png|webp
+    if (audioF)  au.url    = audioF.name;    // audio.mp3|wav|ogg|m4a|webm
+
+    s.animation = a;
+    s.audio = au;
+    s.ui = ui;
+
+    return JSON.parse(JSON.stringify(s)); // saubere Kopie
+  };
+
+  window.publishScene = async function publishScene(){
+    try{
+      // Bevorzugt: vom Exporter (GLTFExporter) befüllter Blob
+      let glbBlob = AREA?.files?.glb || null;
+      // Fallback: Original-Passthrough aus __origGlb (ArrayBuffer → Blob)
+      if (!glbBlob && AREA.__origGlb) {
+        glbBlob = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
+        console.log('[editor] Publish: Fallback auf Original-GLB (Passthrough).');
+      }
+      if (!glbBlob) {
+        alert('Kein GLB exportiert/importiert. Bitte ein GLB laden oder exportieren.');
+        return;
+      }
+
+      const usdzF   = file('#fileUsdz');
+      const posterF = file('#file-poster');
+      const audioF  = file('#file-audio');
+
+      const sceneJson = buildSceneJson();
+      const sceneText = JSON.stringify(sceneJson);
+
+      const fd = new FormData();
+      const sceneId = (AREA?.sceneId || 'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').slice(0,64) || 'scene';
+      fd.append('sceneId', sceneId);
+      fd.append('file', new Blob([sceneText], {type:'application/json'}), 'scene.json');
+      fd.append('file', glbBlob, 'scene.glb');
+      if (usdzF)   fd.append('file', usdzF,   'model.usdz');
+      if (posterF) fd.append('file', posterF, posterF.name);
+      if (audioF)  fd.append('file', audioF,  audioF.name);
+
+      const PUBLISH_URL = AREA?.publishUrl || (AREA?.PUBLISH_ENDPOINT) || 'https://area-publish-proxy.area-webar.workers.dev/publish';
+      const PUBLISH_KEY = AREA?.publishKey || AREA?.PUBLISH_KEY || '';
+
+      const res = await fetch(PUBLISH_URL, {
+        method:'POST',
+        headers:{ 'X-AREA-Key': PUBLISH_KEY },
+        body: fd
+      });
+      if (!res.ok){
+        const t = await res.text().catch(()=>String(res.status));
+        alert('Publish fehlgeschlagen: ' + t);
+        return;
+      }
+      const j = await res.json().catch(()=>null);
+      if (j?.viewerUrl) {
+        window.open(j.viewerUrl, '_blank', 'noopener');
+      } else {
+        alert('Publish ok, aber keine viewerUrl erhalten.');
+      }
+    }catch(e){
+      console.warn(e);
+      alert('Publish-Fehler: ' + (e?.message || String(e)));
+    }
+  };
+
+  // Button „Veröffentlichen“ verbinden (falls vorhanden)
+  try {
+    const btn = document.getElementById('btn-publish');
+    btn && btn.addEventListener('click', (ev)=>{ ev.preventDefault(); window.publishScene(); });
+  } catch(_){}
+
+})();
+</script>
   
 </head>
 <body>
