@@ -1112,6 +1112,31 @@ html, body { font-family: var(--ui-font); }
   <div class="kv"><div>Titel</div><input  id="svTitle"   class="input" maxlength="60" placeholder="Titel der Szene"></div>
   <div class="kv"><div>Textzeile</div><input id="svDesc"    class="input" maxlength="90" placeholder="Kurzbeschreibung …"></div>
 
+  <!-- Audio (nur für area-viewer & optional auch scene-viewer) -->
+<div id="avAudioRow" class="kv" style="display:none">
+  <div>Audio</div>
+  <div style="display:grid;gap:6px">
+    <input id="file-audio" type="file" accept="audio/*">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
+        <span>Autoplay</span>
+        <select id="audioAutoplay" class="select">
+          <option value="withAnimation" selected>Mit Animation</option>
+          <option value="onStart">Beim Start</option>
+          <option value="never">Nie</option>
+        </select>
+      </label>
+      <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
+        <input id="audioLoop" type="checkbox" checked> <span>Loop</span>
+      </label>
+    </div>
+    <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
+      <span>Lautstärke</span>
+      <input id="audioVolume" type="range" min="0" max="1" step="0.05" value="0.85">
+    </label>
+  </div>
+</div>
+
   <!-- Scene-Viewer: Controls (neu) -->
   <div class="kv">
     <div>Controls</div>
