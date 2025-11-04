@@ -802,21 +802,36 @@ html, body { font-family: var(--ui-font); }
     const audioF  = file('#file-audio');   // Nur Audio für diesen Patch
     const usdzF   = file('#fileUsdz');
 
+    // Get selected anchor mode from the dropdown
+    const anchorModeEl = document.getElementById('anchorMode');
+    const anchorMode = anchorModeEl?.value || 'surface-area-viewer';
+
     s.meta = s.meta || {};
     s.meta.title = wl.title;
     s.meta.description = wl.desc;
-    s.meta.mode = 'area-viewer';
+    s.meta.mode = anchorMode;
 
     s.model = s.model || {};
     s.model.url = 'scene.glb';
     if (usdzF) s.model.usdzUrl = 'model.usdz';
     s.model.scale = (typeof s.model.scale === 'number') ? s.model.scale : 1.0;
+    s.model.rotateY = 0;
 
     if (posterF) wl.poster = posterF.name;   // poster.jpg|png|webp
     if (audioF)  au.url    = audioF.name;    // audio.mp3|wav|ogg|m4a|webm
 
+    // Animation settings
+    a.enabled = true;
+    a.clampWhenFinished = true;
+    
     s.animation = a;
     s.audio = au;
+    
+    // UI settings for viewer behavior
+    ui.showGround = true;
+    ui.autocenter = true;
+    ui.loader = 'minimal';
+    
     s.ui = ui;
 
     return JSON.parse(JSON.stringify(s)); // saubere Kopie
@@ -1112,6 +1127,16 @@ html, body { font-family: var(--ui-font); }
   <div class="kv"><div>Titel</div><input  id="svTitle"   class="input" maxlength="60" placeholder="Titel der Szene"></div>
   <div class="kv"><div>Textzeile</div><input id="svDesc"    class="input" maxlength="90" placeholder="Kurzbeschreibung …"></div>
 
+  <!-- Native CTA -->
+  <div class="kv">
+    <div>Native CTA</div>
+    <select id="nativeCta" class="select">
+      <option value="ios-only" selected>Nur iOS</option>
+      <option value="never">Nie</option>
+      <option value="always">Immer</option>
+    </select>
+  </div>
+
   <!-- Scene-Viewer: Controls (neu) -->
   <div class="kv">
     <div>Controls</div>
@@ -1155,20 +1180,21 @@ html, body { font-family: var(--ui-font); }
       </summary>
       <div class="body">
         <div class="kv"><div>Clip</div><select id="animClip" class="select"></select></div>
-        <div class="kv"><div>Loop</div>
-          <select id="animLoop" class="select">
-            <option value="off">aus</option>
-            <option value="once">einmal</option>
-            <option value="repeat" selected>wiederholen</option>
-          </select>
+        <div class="kv">
+          <div>Loop</div>
+          <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
+            <input id="animLoop" type="checkbox" checked>
+            <span>Animation wiederholen</span>
+          </label>
         </div>
-        <div class="kv"><div>Repeats</div><input id="animRepeats" class="input" type="number" step="1" min="1" value="9999"></div>
+        <div class="kv"><div>Wiederholungen</div><input id="animIterations" class="input" type="number" step="1" min="1" value="9999"></div>
 
         <div class="kv">
   <div>Startverhalten</div>
-  <select id="animStartMode" class="select">
-    <option value="onStart" selected>Autostart</option>
-    <option value="onClick">Per Klick (Play-Button)</option>
+  <select id="animStart" class="select">
+    <option value="onPlace" selected>Nach Platzierung</option>
+    <option value="onStart">Sofort</option>
+    <option value="manual">Manuell</option>
   </select>
 </div>        
 
@@ -1177,6 +1203,42 @@ html, body { font-family: var(--ui-font); }
           <button id="animPlay" class="toolbtn">Play</button>
           <button id="animStop" class="toolbtn">Stop</button>
           <button id="animPause" class="toolbtn">Pause</button>
+        </div>
+      </div>
+    </details>
+
+    <!-- Audio Section -->
+    <details id="sec-audio" class="section">
+      <summary>
+        <span class="sum-title">Audio</span>
+        <span class="sum-icons">
+          <span class="ico-mask ico--media" aria-hidden="true"></span>
+          <span class="ico-mask ico--chev" aria-hidden="true"></span>
+        </span>
+      </summary>
+      <div class="body">
+        <div class="kv">
+          <div>Audio-Datei</div>
+          <input id="file-audio" type="file" accept="audio/*">
+        </div>
+        <div class="kv">
+          <div>Autoplay</div>
+          <select id="audioAutoplay" class="select">
+            <option value="withAnimation" selected>Mit Animation</option>
+            <option value="onStart">Beim Start</option>
+            <option value="never">Nie</option>
+          </select>
+        </div>
+        <div class="kv">
+          <div>Loop</div>
+          <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
+            <input id="audioLoop" type="checkbox" checked>
+            <span>Audio wiederholen</span>
+          </label>
+        </div>
+        <div class="kv">
+          <div>Lautstärke</div>
+          <input id="audioVolume" type="range" min="0" max="1" step="0.05" value="0.85" class="input">
         </div>
       </div>
     </details>
@@ -1981,8 +2043,8 @@ async function blobToBase64(blob){
       if(!rec || rec.type!=='object' || !rec.clips?.length) return;
       const idx=parseInt($('#animClip').value||'0',10)||0; const clip=rec.clips[idx]; const mixer=ensureMixer(rec);
       mixer.stopAllAction(); const act=mixer.clipAction(clip); rec.actions[idx]=act;
-      const loop=$('#animLoop').value; const reps=parseInt($('#animRepeats').value||'9999',10)||9999;
-      if(loop==='off'||loop==='once'){ act.setLoop(THREE.LoopOnce,0); act.clampWhenFinished=true; } else { act.setLoop(THREE.LoopRepeat,reps); }
+      const loop=$('#animLoop').checked; const reps=parseInt($('#animIterations').value||'9999',10)||9999;
+      if(!loop){ act.setLoop(THREE.LoopOnce,0); act.clampWhenFinished=true; } else { act.setLoop(THREE.LoopRepeat,reps); }
       act.reset().play();
     });
     $('#animStop').addEventListener('click', ()=>{ if(state.selection.size!==1) return; const rec=findRec(state.selectedId); if(rec && rec.type==='object') stopAnim(rec); $('#animPause').textContent='Pause'; });
@@ -2137,7 +2199,7 @@ async function blobToBase64(blob){
           roomSize: parseFloat($('#roomSize').value)||24,
           gridVisible: $('#gridVisible').checked,
           anchorMode: getAnchorSel(),
-          animStartMode: document.getElementById('animStartMode')?.value || 'onStart',
+          animStart: document.getElementById('animStart')?.value || 'onPlace',
           sceneViewer: {
             eyebrow: $('#svEyebrow')?.value||'',
             title:   $('#svTitle')?.value||'',
@@ -2186,7 +2248,8 @@ async function blobToBase64(blob){
       if (data.meta?.projectName) setProjectName(data.meta.projectName);
       if (data.settings?.anchorMode){
   setAnchorSel(data.settings.anchorMode);
-        (document.getElementById('animStartMode')||{}).value = data.settings?.animStartMode || 'onStart';
+        // Backward compatibility: animStartMode renamed to animStart
+        (document.getElementById('animStart')||{}).value = data.settings?.animStart || data.settings?.animStartMode || 'onPlace';
 
 }
 if (data.settings?.sceneViewer){
@@ -2473,9 +2536,9 @@ function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
     animation: {
       enabled: true,
       clipName,
-      start: (document.getElementById('animStartMode')?.value || 'onStart'),
-      loop:  (document.getElementById('animLoop')?.value || 'repeat') === 'repeat',
-      iterations: parseInt(document.getElementById('animRepeats')?.value || '9999', 10) || 9999,
+      start: (document.getElementById('animStart')?.value || 'onPlace'),
+      loop:  !!(document.getElementById('animLoop')?.checked),
+      iterations: parseInt(document.getElementById('animIterations')?.value || '9999', 10) || 9999,
       clampWhenFinished: true
     },
     ui: { showGround: true, autocenter: true, loader: "minimal" }
@@ -2528,9 +2591,9 @@ function buildSceneViewerJSON_CF() {
     animation: {
       enabled: true,
       clipName,
-      start: (document.getElementById('animStartMode')?.value || 'onStart'),
-      loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
-      iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
+      start: (document.getElementById('animStart')?.value || 'onPlace'),
+      loop:  !!(document.getElementById('animLoop')?.checked),
+      iterations: parseInt(document.getElementById('animIterations')?.value||'9999',10)||9999,
       clampWhenFinished: true,
       crossfade: 0.25,
       timeScale: 1
@@ -2927,7 +2990,7 @@ document.getElementById('btn-preview-draft')?.addEventListener('click', ()=>{
       $('#btn-save-as').addEventListener('click', ()=>{ close(); saveProject({saveAs:true}); });
       $('#file-project').addEventListener('change', e=>{ close(); const f=e.target.files?.[0]; if(!f){ e.target.value=''; return;} importProjectFile(f); e.target.value=''; });
       $('#btn-preview').addEventListener('click', ()=>{ close(); previewModules(); });
-      $('#btn-publish').addEventListener('click', ()=>{ close(); publish(); });
+      $('#btn-publish').addEventListener('click', ()=>{ close(); window.publishScene(); });
     })();
 
     // Render
