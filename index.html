@@ -885,6 +885,31 @@ html, body { font-family: var(--ui-font); }
 
 })();
 </script>
+
+  <script>
+/* Welcome/Audio-UI abhängig vom Anchor anzeigen */
+(function(){
+  const sel    = document.getElementById('anchorMode');
+  const svBlock= document.getElementById('svBlock');
+  const usdzRow= document.getElementById('usdzUploadRow');
+  const avAudio= document.getElementById('avAudioRow');
+
+  function apply(){
+    const v = (sel?.value || '').toLowerCase();
+    const isSceneViewer = v==='scene-viewer';
+    const isAreaViewer  = v==='surface-area-viewer' || v==='area-viewer' || v==='surface-guided';
+
+    // Welcome-Block für beide Modi (scene-viewer UND area-viewer)
+    if (svBlock) svBlock.style.display = (isSceneViewer || isAreaViewer) ? 'block' : 'none';
+    // USDZ nur für Scene Viewer
+    if (usdzRow) usdzRow.style.display = isSceneViewer ? '' : 'none';
+    // Audio-UI nur für area-viewer
+    if (avAudio) avAudio.style.display = isAreaViewer ? 'grid' : 'none';
+  }
+  sel && sel.addEventListener('change', apply);
+  apply();
+})();
+</script>
   
 </head>
 <body>
