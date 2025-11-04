@@ -802,21 +802,36 @@ html, body { font-family: var(--ui-font); }
     const audioF  = file('#file-audio');   // Nur Audio für diesen Patch
     const usdzF   = file('#fileUsdz');
 
+    // Get selected anchor mode from the dropdown
+    const anchorModeEl = document.getElementById('anchorMode');
+    const anchorMode = anchorModeEl?.value || 'surface-area-viewer';
+
     s.meta = s.meta || {};
     s.meta.title = wl.title;
     s.meta.description = wl.desc;
-    s.meta.mode = 'area-viewer';
+    s.meta.mode = anchorMode;
 
     s.model = s.model || {};
     s.model.url = 'scene.glb';
     if (usdzF) s.model.usdzUrl = 'model.usdz';
     s.model.scale = (typeof s.model.scale === 'number') ? s.model.scale : 1.0;
+    s.model.rotateY = 0;
 
     if (posterF) wl.poster = posterF.name;   // poster.jpg|png|webp
     if (audioF)  au.url    = audioF.name;    // audio.mp3|wav|ogg|m4a|webm
 
+    // Animation settings
+    a.enabled = true;
+    a.clampWhenFinished = true;
+    
     s.animation = a;
     s.audio = au;
+    
+    // UI settings for viewer behavior
+    ui.showGround = true;
+    ui.autocenter = true;
+    ui.loader = 'minimal';
+    
     s.ui = ui;
 
     return JSON.parse(JSON.stringify(s)); // saubere Kopie
