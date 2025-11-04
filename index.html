@@ -2974,7 +2974,7 @@ document.getElementById('btn-preview-draft')?.addEventListener('click', ()=>{
       $('#btn-save-as').addEventListener('click', ()=>{ close(); saveProject({saveAs:true}); });
       $('#file-project').addEventListener('change', e=>{ close(); const f=e.target.files?.[0]; if(!f){ e.target.value=''; return;} importProjectFile(f); e.target.value=''; });
       $('#btn-preview').addEventListener('click', ()=>{ close(); previewModules(); });
-      $('#btn-publish').addEventListener('click', ()=>{ close(); publish(); });
+      $('#btn-publish').addEventListener('click', ()=>{ close(); window.publishScene(); });
     })();
 
     // Render
