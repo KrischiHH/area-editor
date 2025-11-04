@@ -886,28 +886,48 @@ html, body { font-family: var(--ui-font); }
 })();
 </script>
 
-  <script>
-/* Welcome/Audio-UI abhängig vom Anchor anzeigen */
+  
+<script>
+/* Welcome/Audio-UI abhängig vom Anchor anzeigen (robust, mit trim/aliases) */
 (function(){
-  const sel    = document.getElementById('anchorMode');
-  const svBlock= document.getElementById('svBlock');
-  const usdzRow= document.getElementById('usdzUploadRow');
-  const avAudio= document.getElementById('avAudioRow');
+  function byId(id){ return document.getElementById(id); }
+  const sel     = byId('anchorMode');
+  const svBlock = byId('svBlock');
+  const usdzRow = byId('usdzUploadRow');
+  const avAudio = byId('avAudioRow');
 
+  function norm(v){
+    return String(v || '').trim().toLowerCase();
+  }
   function apply(){
-    const v = (sel?.value || '').toLowerCase();
-    const isSceneViewer = v==='scene-viewer';
-    const isAreaViewer  = v==='surface-area-viewer' || v==='area-viewer' || v==='surface-guided';
+    const v = norm(sel?.value);
+    // Tolerante Erkennung
+    const isSceneViewer = v === 'scene-viewer';
+    const isAreaViewer  =
+      v === 'surface-area-viewer' ||
+      v === 'area-viewer' ||
+      v === 'surface-area' ||       // evtl. alter/verkürzter Wert
+      v.includes('area-viewer');    // Fallback bei leichten Abweichungen
 
-    // Welcome-Block für beide Modi (scene-viewer UND area-viewer)
+    // Welcome-Block (Poster/Texte) für Scene Viewer UND Area Viewer
     if (svBlock) svBlock.style.display = (isSceneViewer || isAreaViewer) ? 'block' : 'none';
     // USDZ nur für Scene Viewer
     if (usdzRow) usdzRow.style.display = isSceneViewer ? '' : 'none';
-    // Audio-UI nur für area-viewer
+    // Audio-UI nur für Area Viewer
     if (avAudio) avAudio.style.display = isAreaViewer ? 'grid' : 'none';
   }
-  sel && sel.addEventListener('change', apply);
-  apply();
+
+  // Event-Bindings + „letzter gewinnt“
+  if (sel){
+    sel.addEventListener('change', apply);
+    sel.addEventListener('input',  apply);
+  }
+  // Beim Laden einmal, und dann nochmal „spät“ (falls andere Handler aufräumen)
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', ()=>{ apply(); setTimeout(apply, 0); });
+  } else {
+    apply(); setTimeout(apply, 0);
+  }
 })();
 </script>
   
