@@ -693,10 +693,14 @@ html, body { font-family: var(--ui-font); }
 
   // Helper: detect if GLB blob contains animations[]
   window.hasAnimationsInGlbBlob = async function hasAnimationsInGlbBlob(blob){
+    // Check first 400KB of GLB for animations (covers JSON chunk in most files)
+    const BUFFER_SIZE = 400000;
+    const ANIMATIONS_PATTERN = /"animations"\s*:\s*\[/;
+    
     try{
       const ab = await blob.arrayBuffer();
-      const text = new TextDecoder().decode(new Uint8Array(ab).slice(0, 400000));
-      return /"animations"\s*:\s*\[/.test(text);
+      const text = new TextDecoder().decode(new Uint8Array(ab).slice(0, BUFFER_SIZE));
+      return ANIMATIONS_PATTERN.test(text);
     }catch(e){
       console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
       return false;
