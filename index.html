@@ -822,27 +822,55 @@ html, body { font-family: var(--ui-font); }
     return JSON.parse(JSON.stringify(s)); // saubere Kopie
   };
 
+  // Prüft heuristisch, ob ein GLB eine animations[]-Sektion enthält
+  async function hasAnimationsInGlbBlob(blob){
+    try{
+      const ab = await blob.arrayBuffer();
+      const text = new TextDecoder().decode(new Uint8Array(ab).slice(0, 400000));
+      return /"animations"\s*:\s*\[/.test(text);
+    }catch(e){
+      console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
+      return false;
+    }
+  }
+
   window.publishScene = async function publishScene(){
     try{
-      // Bevorzugt: vom Exporter (GLTFExporter) befüllter Blob
+      // 1) Prefer GLTFExporter output
       let glbBlob = AREA?.files?.glb || null;
-      // Fallback: Original-Passthrough aus __origGlb (ArrayBuffer → Blob)
-      if (!glbBlob && AREA.__origGlb) {
-        glbBlob = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
-        console.log('[editor] Publish: Fallback auf Original-GLB (Passthrough).');
+
+      // 2) If original GLB exists, ensure exported one actually contains animations
+      if (AREA.__origGlb){
+        let mustFallback = false;
+        if (glbBlob){
+          const hasAnim = await hasAnimationsInGlbBlob(glbBlob);
+          if (!hasAnim){
+            console.warn('[editor] Exportiertes GLB ohne animations[] – fallback auf Original-GLB.');
+            mustFallback = true;
+          }
+        } else {
+          mustFallback = true;
+        }
+        if (mustFallback){
+          glbBlob = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
+        }
       }
-      if (!glbBlob) {
+
+      if (!glbBlob){
         alert('Kein GLB exportiert/importiert. Bitte ein GLB laden oder exportieren.');
         return;
       }
 
+      // 3) Gather optional files
       const usdzF   = file('#fileUsdz');
       const posterF = file('#file-poster');
       const audioF  = file('#file-audio');
 
+      // 4) Build scene.json (existing function)
       const sceneJson = buildSceneJson();
       const sceneText = JSON.stringify(sceneJson);
 
+      // 5) Build form data
       const fd = new FormData();
       const sceneId = (AREA?.sceneId || 'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').slice(0,64) || 'scene';
       fd.append('sceneId', sceneId);
@@ -852,7 +880,8 @@ html, body { font-family: var(--ui-font); }
       if (posterF) fd.append('file', posterF, posterF.name);
       if (audioF)  fd.append('file', audioF,  audioF.name);
 
-      const PUBLISH_URL = AREA?.publishUrl || (AREA?.PUBLISH_ENDPOINT) || 'https://area-publish-proxy.area-webar.workers.dev/publish';
+      // 6) POST to proxy (no key required, proxy injects upstream key)
+      const PUBLISH_URL = (AREA?.publishUrl || AREA?.PUBLISH_ENDPOINT || 'https://area-publish-proxy.area-webar.workers.dev/publish');
       const PUBLISH_KEY = AREA?.publishKey || AREA?.PUBLISH_KEY || '';
 
       const res = await fetch(PUBLISH_URL, {
@@ -866,11 +895,8 @@ html, body { font-family: var(--ui-font); }
         return;
       }
       const j = await res.json().catch(()=>null);
-      if (j?.viewerUrl) {
-        window.open(j.viewerUrl, '_blank', 'noopener');
-      } else {
-        alert('Publish ok, aber keine viewerUrl erhalten.');
-      }
+      if (j?.viewerUrl) window.open(j.viewerUrl, '_blank', 'noopener');
+      else alert('Publish ok, aber keine viewerUrl erhalten.');
     }catch(e){
       console.warn(e);
       alert('Publish-Fehler: ' + (e?.message || String(e)));
