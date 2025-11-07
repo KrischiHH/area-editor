@@ -792,19 +792,9 @@ html, body { font-family: var(--ui-font); }
       const jsonBytes = new Uint8Array(arrayBuffer, 20, jsonChunkLength);
       const jsonString = new TextDecoder().decode(jsonBytes);
       
-      // Check if the JSON contains an "animations" array with at least one element
-      // Using regex to match: "animations"\s*:\s*\[
-      const animationsPattern = /"animations"\s*:\s*\[/;
-      if (!animationsPattern.test(jsonString)) return false;
-      
-      // Additional check: ensure the array is not empty
-      // Match "animations":[...] and check if there's content between brackets
-      const animationsArrayMatch = jsonString.match(/"animations"\s*:\s*\[([^\]]*)\]/);
-      if (!animationsArrayMatch) return false;
-      
-      // Check if there's actual content (not just whitespace) in the array
-      const arrayContent = animationsArrayMatch[1].trim();
-      return arrayContent.length > 0;
+      // Parse JSON and check for animations array
+      const gltf = JSON.parse(jsonString);
+      return gltf.animations && Array.isArray(gltf.animations) && gltf.animations.length > 0;
       
     } catch (e) {
       console.warn('[hasAnimationsInGlbBlob] Error checking animations:', e);
