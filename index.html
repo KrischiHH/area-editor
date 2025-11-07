@@ -691,6 +691,22 @@ html, body { font-family: var(--ui-font); }
   const AREA = (window.__AREA = window.__AREA || {});
   AREA.__origGlb = null;
 
+  // Helper: detect if GLB blob contains animations[]
+  window.hasAnimationsInGlbBlob = async function hasAnimationsInGlbBlob(blob){
+    // Check first 400KB of GLB for animations (covers JSON chunk in most files)
+    const BUFFER_SIZE = 400 * 1024; // 400KB
+    const ANIMATIONS_PATTERN = /"animations"\s*:\s*\[/;
+    
+    try{
+      const ab = await blob.arrayBuffer();
+      const text = new TextDecoder().decode(new Uint8Array(ab).slice(0, BUFFER_SIZE));
+      return ANIMATIONS_PATTERN.test(text);
+    }catch(e){
+      console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
+      return false;
+    }
+  };
+
   // 1) Dateiimport (#file-glb) → Original-GLB puffern
   const fileGlbInput = document.getElementById('file-glb');
   if (fileGlbInput) {
@@ -715,25 +731,56 @@ html, body { font-family: var(--ui-font); }
     }catch(e){ console.warn('[editor] GLB-URL Puffer fehlgeschlagen:', e); }
   };
 
-  // 3) Fetch-Wrapper: POST /publish → Original-GLB einschleusen
+  // 3) Fetch-Wrapper: POST /publish → conditionally replace scene.glb based on animations check
   const _origFetch = window.fetch.bind(window);
   window.fetch = async (input, init = {})=>{
+    const SCENE_GLB_PATTERN = /scene\.glb$/i;
+    
     try{
       const urlObj = new URL(typeof input === 'string' ? input : (input?.url || ''), location.href);
       const method = (init?.method || 'GET').toUpperCase();
       const isPublish = urlObj.pathname === '/publish';
-      if (method === 'POST' && isPublish && init.body instanceof FormData && AREA.__origGlb){
-        // Bestehende FormData übernehmen, aber alle scene.glb-Dateien entfernen
+      if (method === 'POST' && isPublish && init.body instanceof FormData){
         const fdOld = init.body;
-        const fdNew = new FormData();
+        let exporterGlb = null;
+        
+        // Extract exporter scene.glb from FormData if present
         for (const [k,v] of fdOld.entries()){
-          if (k==='file' && v && typeof v.name==='string' && /scene\.glb$/i.test(v.name||'')) continue;
-          fdNew.append(k, v);
+          if (k==='file' && v && typeof v.name==='string' && SCENE_GLB_PATTERN.test(v.name||'')){
+            exporterGlb = v;
+            break;
+          }
         }
-        // Original-GLB als EINZIGES scene.glb anhängen
-        fdNew.append('file', new Blob([AREA.__origGlb], { type:'model/gltf-binary' }), 'scene.glb');
-        init = { ...init, body: fdNew };
-        console.log('[editor] Publish: Original scene.glb angehängt (', AREA.__origGlb.byteLength, 'Bytes )');
+        
+        let shouldReplace = false;
+        
+        if (!exporterGlb && AREA.__origGlb){
+          // No exporter GLB → use original if available
+          shouldReplace = true;
+          console.log('[editor] No exporter GLB found – using original');
+        } else if (exporterGlb && AREA.__origGlb){
+          // Check if exporter GLB has animations
+          const hasAnim = await window.hasAnimationsInGlbBlob(exporterGlb);
+          if (!hasAnim){
+            // Exporter GLB lacks animations → replace with original
+            shouldReplace = true;
+            console.log('[editor] Exporter GLB lacks animations[] – replacing with original');
+          } else {
+            console.log('[editor] Exporter GLB has animations – keeping it');
+          }
+        }
+        
+        if (shouldReplace){
+          // Build new FormData, replacing scene.glb with original
+          const fdNew = new FormData();
+          for (const [k,v] of fdOld.entries()){
+            if (k==='file' && v && typeof v.name==='string' && SCENE_GLB_PATTERN.test(v.name||'')) continue;
+            fdNew.append(k, v);
+          }
+          fdNew.append('file', new Blob([AREA.__origGlb], { type:'model/gltf-binary' }), 'scene.glb');
+          init = { ...init, body: fdNew };
+          console.log('[editor] Publish: Replaced scene.glb with original (', AREA.__origGlb.byteLength, 'Bytes )');
+        }
       }
     }catch(e){ console.warn('[editor] fetch wrapper warn:', e); }
     return _origFetch(input, init);
@@ -2846,17 +2893,6 @@ if (a){
   }
 }
 
-  async function hasAnimationsInGlbBlob(blob){
-  try{
-    const ab = await blob.arrayBuffer();
-    const text = new TextDecoder().decode(new Uint8Array(ab).slice(0, 400000));
-    return /"animations"\s*:\s*\[/.test(text);
-  }catch(e){
-    console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
-    return false;
-  }
-}
-
 // Override der bestehenden publishScene, damit der Fallback immer greift
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
@@ -2873,7 +2909,7 @@ if (a){
       if (AREA.__origGlb){
         let mustFallback = false;
         if (glbBlob){
-          const hasAnim = await hasAnimationsInGlbBlob(glbBlob);
+          const hasAnim = await window.hasAnimationsInGlbBlob(glbBlob);
           if (!hasAnim){
             console.warn('[editor] Exportiertes GLB ohne animations[] – fallback auf Original-GLB.');
             mustFallback = true;
