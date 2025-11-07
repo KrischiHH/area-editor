@@ -769,6 +769,49 @@ html, body { font-family: var(--ui-font); }
     return undefined;
   }
 
+  // Helper function to check if a GLB blob contains animations
+  window.hasAnimationsInGlbBlob = async function hasAnimationsInGlbBlob(blob){
+    try {
+      // Read the first chunk of the GLB to extract the JSON
+      const arrayBuffer = await blob.arrayBuffer();
+      const dataView = new DataView(arrayBuffer);
+      
+      // Check GLB header magic bytes ("glTF")
+      const magic = dataView.getUint32(0, true);
+      if (magic !== 0x46546C67) return false; // Not a valid GLB
+      
+      // Skip version (4 bytes) and length (4 bytes)
+      // JSON chunk starts at byte 12
+      const jsonChunkLength = dataView.getUint32(12, true);
+      const jsonChunkType = dataView.getUint32(16, true);
+      
+      // Verify this is a JSON chunk (0x4E4F534A = "JSON")
+      if (jsonChunkType !== 0x4E4F534A) return false;
+      
+      // Extract JSON string from the chunk
+      const jsonBytes = new Uint8Array(arrayBuffer, 20, jsonChunkLength);
+      const jsonString = new TextDecoder().decode(jsonBytes);
+      
+      // Check if the JSON contains an "animations" array with at least one element
+      // Using regex to match: "animations"\s*:\s*\[
+      const animationsPattern = /"animations"\s*:\s*\[/;
+      if (!animationsPattern.test(jsonString)) return false;
+      
+      // Additional check: ensure the array is not empty
+      // Match "animations":[...] and check if there's content between brackets
+      const animationsArrayMatch = jsonString.match(/"animations"\s*:\s*\[([^\]]*)\]/);
+      if (!animationsArrayMatch) return false;
+      
+      // Check if there's actual content (not just whitespace) in the array
+      const arrayContent = animationsArrayMatch[1].trim();
+      return arrayContent.length > 0;
+      
+    } catch (e) {
+      console.warn('[hasAnimationsInGlbBlob] Error checking animations:', e);
+      return false;
+    }
+  };
+
   window.buildSceneJson = function buildSceneJson(){
     const s  = (AREA.scene = AREA.scene || {});
     const a  = (s.animation = s.animation || {});
@@ -824,13 +867,25 @@ html, body { font-family: var(--ui-font); }
 
   window.publishScene = async function publishScene(){
     try{
-      // Bevorzugt: vom Exporter (GLTFExporter) befüllter Blob
+      // Prefer exported GLB from GLTFExporter (AREA.files.glb)
       let glbBlob = AREA?.files?.glb || null;
-      // Fallback: Original-Passthrough aus __origGlb (ArrayBuffer → Blob)
-      if (!glbBlob && AREA.__origGlb) {
+      
+      // Check if we need to fallback to original GLB
+      if (glbBlob && AREA.__origGlb) {
+        // Check if exported GLB contains animations
+        const hasAnimations = await window.hasAnimationsInGlbBlob(glbBlob);
+        
+        if (!hasAnimations) {
+          // Exported GLB has no animations, use original GLB as fallback
+          console.warn('[publishScene] Exported GLB does not contain animations. Using original GLB as fallback.');
+          glbBlob = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
+        }
+      } else if (!glbBlob && AREA.__origGlb) {
+        // No exported GLB available, use original GLB
+        console.warn('[publishScene] No exported GLB available. Using original GLB as fallback.');
         glbBlob = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
-        console.log('[editor] Publish: Fallback auf Original-GLB (Passthrough).');
       }
+      
       if (!glbBlob) {
         alert('Kein GLB exportiert/importiert. Bitte ein GLB laden oder exportieren.');
         return;
