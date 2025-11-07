@@ -2789,10 +2789,15 @@ if (a){
     <!-- Fallback: Nutze Original‑GLB, wenn das exportierte GLB keine animations[] enthält -->
 <script>
 // Prüft heuristisch, ob ein GLB eine animations[]-Sektion enthält
+// Hinweis: Diese Heuristik liest die ersten 400KB als Text und sucht nach dem
+// "animations": [...] Muster. Dies ist nicht 100% zuverlässig für alle GLB-Varianten,
+// funktioniert aber für die meisten Fälle, da der JSON-Chunk typischerweise am Anfang liegt.
+// 400KB ist groß genug für typische GLB-Header und kleine Modelle.
 async function hasAnimationsInGlbBlob(blob){
+  const MAX_SCAN_BYTES = 400000; // 400KB: ausreichend für GLB-Header + JSON-Chunk
   try{
     const ab = await blob.arrayBuffer();
-    const text = new TextDecoder().decode(new Uint8Array(ab).slice(0, 400000));
+    const text = new TextDecoder().decode(new Uint8Array(ab).slice(0, MAX_SCAN_BYTES));
     return /"animations"\s*:\s*\[/.test(text);
   }catch(e){
     console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
