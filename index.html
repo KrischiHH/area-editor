@@ -822,66 +822,6 @@ html, body { font-family: var(--ui-font); }
     return JSON.parse(JSON.stringify(s)); // saubere Kopie
   };
 
-  window.publishScene = async function publishScene(){
-    try{
-      // Bevorzugt: vom Exporter (GLTFExporter) befüllter Blob
-      let glbBlob = AREA?.files?.glb || null;
-      // Fallback: Original-Passthrough aus __origGlb (ArrayBuffer → Blob)
-      if (!glbBlob && AREA.__origGlb) {
-        glbBlob = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
-        console.log('[editor] Publish: Fallback auf Original-GLB (Passthrough).');
-      }
-      if (!glbBlob) {
-        alert('Kein GLB exportiert/importiert. Bitte ein GLB laden oder exportieren.');
-        return;
-      }
-
-      const usdzF   = file('#fileUsdz');
-      const posterF = file('#file-poster');
-      const audioF  = file('#file-audio');
-
-      const sceneJson = buildSceneJson();
-      const sceneText = JSON.stringify(sceneJson);
-
-      const fd = new FormData();
-      const sceneId = (AREA?.sceneId || 'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').slice(0,64) || 'scene';
-      fd.append('sceneId', sceneId);
-      fd.append('file', new Blob([sceneText], {type:'application/json'}), 'scene.json');
-      fd.append('file', glbBlob, 'scene.glb');
-      if (usdzF)   fd.append('file', usdzF,   'model.usdz');
-      if (posterF) fd.append('file', posterF, posterF.name);
-      if (audioF)  fd.append('file', audioF,  audioF.name);
-
-      const PUBLISH_URL = AREA?.publishUrl || (AREA?.PUBLISH_ENDPOINT) || 'https://area-publish-proxy.area-webar.workers.dev/publish';
-      const PUBLISH_KEY = AREA?.publishKey || AREA?.PUBLISH_KEY || '';
-
-      const res = await fetch(PUBLISH_URL, {
-        method:'POST',
-        headers:{ 'X-AREA-Key': PUBLISH_KEY },
-        body: fd
-      });
-      if (!res.ok){
-        const t = await res.text().catch(()=>String(res.status));
-        alert('Publish fehlgeschlagen: ' + t);
-        return;
-      }
-      const j = await res.json().catch(()=>null);
-      if (j?.viewerUrl) {
-        window.open(j.viewerUrl, '_blank', 'noopener');
-      } else {
-        alert('Publish ok, aber keine viewerUrl erhalten.');
-      }
-    }catch(e){
-      console.warn(e);
-      alert('Publish-Fehler: ' + (e?.message || String(e)));
-    }
-  };
-
-  // Button „Veröffentlichen“ verbinden (falls vorhanden)
-  try {
-    const btn = document.getElementById('btn-publish');
-    btn && btn.addEventListener('click', (ev)=>{ ev.preventDefault(); window.publishScene(); });
-  } catch(_){}
 
 })();
 </script>
@@ -2849,10 +2789,15 @@ if (a){
     <!-- Fallback: Nutze Original‑GLB, wenn das exportierte GLB keine animations[] enthält -->
 <script>
 // Prüft heuristisch, ob ein GLB eine animations[]-Sektion enthält
+// Hinweis: Diese Heuristik liest die ersten 400KB als Text und sucht nach dem
+// "animations": [...] Muster. Dies ist nicht 100% zuverlässig für alle GLB-Varianten,
+// funktioniert aber für die meisten Fälle, da der JSON-Chunk typischerweise am Anfang liegt.
+// 400KB ist groß genug für typische GLB-Header und kleine Modelle.
 async function hasAnimationsInGlbBlob(blob){
+  const MAX_SCAN_BYTES = 400000; // 400KB: ausreichend für GLB-Header + JSON-Chunk
   try{
     const ab = await blob.arrayBuffer();
-    const text = new TextDecoder().decode(new Uint8Array(ab).slice(0, 400000));
+    const text = new TextDecoder().decode(new Uint8Array(ab).slice(0, MAX_SCAN_BYTES));
     return /"animations"\s*:\s*\[/.test(text);
   }catch(e){
     console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
@@ -2860,7 +2805,7 @@ async function hasAnimationsInGlbBlob(blob){
   }
 }
 
-// Override der bestehenden publishScene, damit der Fallback immer greift
+// publishScene: Animation-aware publish mit Fallback auf Original-GLB
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
   const file = (sel)=> (document.querySelector(sel)?.files?.[0]) || null;
@@ -2938,6 +2883,13 @@ async function hasAnimationsInGlbBlob(blob){
       alert('Publish-Fehler: ' + (e?.message || String(e)));
     }
   };
+
+  // Button „Veröffentlichen" verbinden (falls vorhanden)
+  try {
+    const btn = document.getElementById('btn-publish');
+    btn && btn.addEventListener('click', (ev)=>{ ev.preventDefault(); window.publishScene(); });
+  } catch(_){}
+
 })();
 </script>
 
