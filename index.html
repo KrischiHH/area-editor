@@ -805,7 +805,7 @@ html, body { font-family: var(--ui-font); }
       
       // Parse JSON and check for animations array
       const gltf = JSON.parse(jsonString);
-      return !!(gltf.animations && Array.isArray(gltf.animations) && gltf.animations.length > 0);
+      return !!(Array.isArray(gltf.animations) && gltf.animations.length > 0);
       
     } catch (e) {
       console.warn('[hasAnimationsInGlbBlob] Error checking animations:', e);
