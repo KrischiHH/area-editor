@@ -2579,7 +2579,40 @@ function getSelectedClipNameForExport(){
   return "*";
 }
 
+// === Remap AnimationClips for cloned export tree ===
+function remapAnimationClipsForExport(allClips, clonedRoot){
+  // Build a fast name → nodes map in cloned tree
+  const byName = new Map();
+  clonedRoot.traverse(n=>{ if (!n || !n.name) return; const arr = byName.get(n.name) || []; arr.push(n); byName.set(n.name, arr); });
 
+  function findClonedForTrack(trackName){
+    // trackName like 'Armature/Bone.quaternion' or 'Bone.position' or 'node.uuid.property'
+    const dot = trackName.indexOf('.');
+    const target = dot >= 0 ? trackName.slice(0, dot) : trackName; // path or name or uuid
+    // If looks like a UUID (8-4-4-4-12), we can't map back; try the last segment as a name
+    const parts = target.split(/[\\\/]/); // support both separators
+    const last = parts[parts.length-1];
+    const cand = (last && byName.get(last)) || null;
+    return cand ? cand[0] : null; // heuristic: first match
+  }
+
+  const remapped = [];
+  for (const clip of (allClips||[])){
+    if (!clip || !Array.isArray(clip.tracks) || !clip.tracks.length) continue;
+    const newTracks = [];
+    for (const tr of clip.tracks){
+      const targetNode = findClonedForTrack(tr.name);
+      if (!targetNode) continue; // drop tracks we can't map
+      const dot = tr.name.indexOf('.');
+      const suffix = dot >= 0 ? tr.name.slice(dot+1) : '';
+      const t = tr.clone();
+      t.name = targetNode.uuid + (suffix ? ('.'+suffix) : ''); // bind by UUID for robustness
+      newTracks.push(t);
+    }
+    if (newTracks.length){ remapped.push(new THREE.AnimationClip(clip.name, clip.duration, newTracks)); }
+  }
+  return remapped;
+}
 
 async function exportSceneGLB(){
   const exporter = new GLTFExporter();
@@ -2587,20 +2620,29 @@ async function exportSceneGLB(){
   const allClips = [];
   state.objects.forEach(r => { if (r?.clips?.length) r.clips.forEach(c => allClips.push(c)); });
 
+  // Remap animation clips to cloned nodes
+  const remappedClips = remapAnimationClipsForExport(allClips, exportRoot);
+  console.log('[exportSceneGLB] Original clips:', allClips.length, 'Remapped clips:', remappedClips.length);
+
   return new Promise((resolve, reject)=>{
     exporter.parse(
       exportRoot,
-      (result)=>{
+      async (result)=>{
         try{
+          let glbBlob;
           if (result instanceof ArrayBuffer || ArrayBuffer.isView(result)){
             const ab = (result instanceof ArrayBuffer) ? result : result.buffer;
-            return resolve(new Blob([ab], { type:'model/gltf-binary' }));
+            glbBlob = new Blob([ab], { type:'model/gltf-binary' });
+          } else {
+            glbBlob = makeGLBFromJSON(result);
           }
-          const glbBlob = makeGLBFromJSON(result);
+          // Check if animations are present in the exported GLB
+          const hasAnim = await window.hasAnimationsInGlbBlob(glbBlob);
+          console.log('[exportSceneGLB] Exported GLB has animations:', hasAnim);
           resolve(glbBlob);
         }catch(e){ reject(e); }
       },
-      { binary:true, onlyVisible:true, embedImages:true, animations: allClips }
+      { binary:true, onlyVisible:true, embedImages:true, animations: remappedClips }
     );
   });
 }
