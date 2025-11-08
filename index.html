@@ -717,15 +717,32 @@ html, body { font-family: var(--ui-font); }
 
   // 3) Helper: Check if GLB contains animations[] in JSON chunk (global for reuse)
   window.hasAnimationsInGlbBlob = async function hasAnimationsInGlbBlob(blob){
-    try{
-      const ab = await blob.arrayBuffer();
-      const text = new TextDecoder().decode(new Uint8Array(ab).slice(0, 400000));
-      return /"animations"\s*:\s*\[/.test(text);
-    }catch(e){
-      console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
-      return false;
+  try{
+    const ab = await blob.arrayBuffer();
+    const dv = new DataView(ab);
+    // 'glTF'
+    if (dv.getUint32(0, true) !== 0x46546c67) return false;
+    // version (>=2)
+    if (dv.getUint32(4, true) < 2) return false;
+
+    // erstes Chunk: JSON
+    const jsonLength = dv.getUint32(12, true);
+    const jsonType   = dv.getUint32(16, true);
+    if (jsonType !== 0x4E4F534A) return false; // 'JSON'
+
+    const jsonStr = new TextDecoder().decode(new Uint8Array(ab, 20, jsonLength));
+    try {
+      const j = JSON.parse(jsonStr);
+      return Array.isArray(j.animations) && j.animations.length > 0;
+    } catch {
+      return /"animations"\s*:\s*\[/.test(jsonStr);
     }
-  };
+  } catch(e){
+    console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
+    return false;
+  }
+};
+
 
   // 4) Fetch-Wrapper: POST /publish → intelligent GLB fallback (defensive version)
   const _origFetch = window.fetch.bind(window);
@@ -926,10 +943,64 @@ function buildRobustViewerUrl({ mode, sceneId, workerOrigin, viewerBase }){
 
       const usdzF   = file('#fileUsdz');
       const posterF = file('#file-poster');
+      let posterAdded = false;
+if (posterF) {
+  fd.append('file', posterF, posterF.name);
+  posterAdded = true;
+} else {
+  try {
+    const snap = await capturePosterBlob(0.78);
+    if (snap) {
+      fd.append('file', snap, 'poster.jpg');
+      posterAdded = true;
+      console.log('[editor] Poster: Canvas-Snapshot angehängt');
+    }
+  } catch (e) { console.warn('Poster-Snapshot fehlgeschlagen:', e); }
+}
       const audioF  = file('#file-audio');
+
+      // nach const audioF  = file('#file-audio');
+if (audioF) {
+  fd.append('file', audioF, 'audio.mp3'); // Name egal, JSON referenziert "audio.mp3"
+} else {
+  const ai = findFirstAudio();
+  if (ai?.fromFile) {
+    fd.append('file', ai.fromFile, 'audio.mp3');
+    console.log('[editor] Audio: aus Media-Objekt (File) hinzugefügt');
+  } else if (ai?.fromDataUrl) {
+    const b = await dataUrlToBlob(ai.fromDataUrl);
+    fd.append('file', new File([b], 'audio.mp3', { type: b.type || 'audio/mpeg' }), 'audio.mp3');
+    console.log('[editor] Audio: aus data:URL hinzugefügt');
+  }
+}
+
 
       const sceneJson = buildSceneJson();
       const sceneText = JSON.stringify(sceneJson);
+
+      
+
+      const AREA = (window.__AREA = window.__AREA || {});
+let glbBlob = null;
+
+try {
+  glbBlob = await exportSceneGLB();           // ← HIER wirklich exportieren
+  AREA.files = AREA.files || {};
+  AREA.files.glb = glbBlob;                   // optional für spätere Re-Publishes
+  console.log('[editor] Export: GLB erzeugt');
+} catch (e) {
+  console.warn('[editor] Export fehlgeschlagen, versuche Fallback:', e);
+}
+
+// Fallback-Reihenfolge: Export → Original-GLB → Abbruch
+if (!glbBlob && AREA.__origGlb) {
+  glbBlob = new Blob([AREA.__origGlb], { type: 'model/gltf-binary' });
+  console.log('[editor] Publish: Fallback auf Original-GLB (Passthrough).');
+}
+if (!glbBlob) {
+  alert('Kein GLB verfügbar. Bitte ein GLB laden oder exportieren.');
+  return;
+}
 
       const fd = new FormData();
       const sceneId = (AREA?.sceneId || 'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').slice(0,64) || 'scene';
@@ -2613,23 +2684,33 @@ function splitPath(raw){
 
 // === Helper: walk cloned tree by name segments ===
 function resolvePathInClone(root, segments){
-  if (!segments || !segments.length) return null;
-  let current = root;
-  for (const seg of segments){
-    if (!current) return null;
-    // Find child with matching name
-    let found = null;
-    for (let i = 0; i < current.children.length; i++){
-      if (current.children[i].name === seg){
-        found = current.children[i];
-        break;
+  if (!segments?.length) return null;
+
+  const first = segments[0];
+  const candidates = [];
+  root.traverse(n => { if (n?.name === first) candidates.push(n); });
+
+  const walk = (node, fromIdx) => {
+    let cur = node;
+    for (let i = fromIdx; i < segments.length; i++){
+      const seg = segments[i];
+      let next = null;
+      for (let k = 0; k < cur.children.length; k++){
+        if (cur.children[k].name === seg){ next = cur.children[k]; break; }
       }
+      if (!next) return null;
+      cur = next;
     }
-    if (!found) return null;
-    current = found;
+    return cur;
+  };
+
+  for (const cand of candidates){
+    const found = walk(cand, 1);
+    if (found) return found;
   }
-  return current;
+  return null;
 }
+
 
 // === Remap AnimationClips for cloned export tree ===
 function remapAnimationClipsForExport(allClips, clonedRoot){
@@ -2995,6 +3076,18 @@ const url = buildRobustViewerUrl({ mode, sceneId, workerOrigin, viewerBase });
 showSharePanel(url);
 try { await navigator.clipboard.writeText(url); } catch {}
 toast('Veröffentlicht');
+
+    const j = await res.json().catch(()=>null);
+if (j?.viewerUrl) {
+  window.open(j.viewerUrl, '_blank', 'noopener');
+} else {
+  const viewerBase   = (AREA?.VIEWER_BASE) || 'https://area-viewer.pages.dev';
+  const workerOrigin = (AREA?.FILE_BASE)   || (new URL(PUBLISH_URL).origin);
+  const mode         = getAnchorSel();
+  const fallbackUrl  = buildRobustViewerUrl({ mode, sceneId, workerOrigin, viewerBase });
+  console.warn('Publish ok, aber keine viewerUrl – benutze Fallback:', fallbackUrl);
+  window.open(fallbackUrl, '_blank', 'noopener');
+}
 
 
     // Fallback-URL (robust)
