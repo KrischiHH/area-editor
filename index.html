@@ -727,50 +727,62 @@ html, body { font-family: var(--ui-font); }
     }
   };
 
-  // 4) Fetch-Wrapper: POST /publish → intelligent GLB fallback
+  // 4) Fetch-Wrapper: POST /publish → intelligent GLB fallback (defensive version)
   const _origFetch = window.fetch.bind(window);
   window.fetch = async (input, init = {})=>{
+    // Early returns: only engage for POST /publish with FormData and __origGlb
+    const method = (init?.method || 'GET').toUpperCase();
+    if (method !== 'POST') return _origFetch(input, init);
+    
+    if (!(init.body instanceof FormData)) return _origFetch(input, init);
+    
+    if (!AREA.__origGlb) return _origFetch(input, init);
+    
+    // Now safe to parse URL (only for POST + FormData + __origGlb)
     try{
       const urlObj = new URL(typeof input === 'string' ? input : (input?.url || ''), location.href);
-      const method = (init?.method || 'GET').toUpperCase();
       const isPublish = urlObj.pathname === '/publish';
-      if (method === 'POST' && isPublish && init.body instanceof FormData && AREA.__origGlb){
-        // a) Iterate FormData, extract exporter scene.glb while preserving other entries
-        const fdOld = init.body;
-        const fdNew = new FormData();
-        let exporterSceneGlb = null;
-        
-        for (const [k,v] of fdOld.entries()){
-          if (k==='file' && v && typeof v.name==='string' && /scene\.glb$/i.test(v.name||'')){
-            exporterSceneGlb = v;
-            continue; // don't append yet
-          }
-          fdNew.append(k, v);
+      if (!isPublish) return _origFetch(input, init);
+      
+      // All checks passed: perform intelligent GLB fallback
+      // a) Iterate FormData, extract exporter scene.glb while preserving other entries
+      const fdOld = init.body;
+      const fdNew = new FormData();
+      let exporterSceneGlb = null;
+      
+      for (const [k,v] of fdOld.entries()){
+        if (k==='file' && v && typeof v.name==='string' && /scene\.glb$/i.test(v.name||'')){
+          exporterSceneGlb = v;
+          continue; // don't append yet
         }
-        
-        // b) Decide which GLB to use
-        let chosenGlb = null;
-        if (!exporterSceneGlb){
-          // b) No exporter GLB → use original
-          chosenGlb = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
-          console.log('[editor] Publish: Original scene.glb angehängt (', AREA.__origGlb.byteLength, 'Bytes )');
-        } else {
-          // c) Exporter GLB exists → check for animations
-          const hasAnim = await window.hasAnimationsInGlbBlob(exporterSceneGlb);
-          if (hasAnim){
-            chosenGlb = exporterSceneGlb;
-            console.log('[editor] Publish: Exporter-GLB mit animations[] verwendet.');
-          } else {
-            chosenGlb = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
-            console.log('[editor] Exportiertes GLB ohne animations[] – fallback auf Original-GLB.');
-          }
-        }
-        
-        // d) Rebuild FormData with chosen scene.glb
-        fdNew.append('file', chosenGlb, 'scene.glb');
-        init = { ...init, body: fdNew };
+        fdNew.append(k, v);
       }
-    }catch(e){ console.warn('[editor] fetch wrapper warn:', e); }
+      
+      // b) Decide which GLB to use
+      let chosenGlb = null;
+      if (!exporterSceneGlb){
+        // b) No exporter GLB → use original
+        chosenGlb = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
+        console.log('[editor] Publish: Original scene.glb angehängt (', AREA.__origGlb.byteLength, 'Bytes )');
+      } else {
+        // c) Exporter GLB exists → check for animations
+        const hasAnim = await window.hasAnimationsInGlbBlob(exporterSceneGlb);
+        if (hasAnim){
+          chosenGlb = exporterSceneGlb;
+          console.log('[editor] Publish: Exporter-GLB mit animations[] verwendet.');
+        } else {
+          chosenGlb = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
+          console.log('[editor] Exportiertes GLB ohne animations[] – fallback auf Original-GLB.');
+        }
+      }
+      
+      // d) Rebuild FormData with chosen scene.glb
+      fdNew.append('file', chosenGlb, 'scene.glb');
+      init = { ...init, body: fdNew };
+    }catch(e){ 
+      console.warn('[editor] fetch wrapper warn:', e); 
+      return _origFetch(input, init);
+    }
     return _origFetch(input, init);
   };
 
