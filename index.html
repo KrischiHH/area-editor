@@ -821,13 +821,16 @@ html, body { font-family: var(--ui-font); }
   function val(sel, def=''){ const el=document.querySelector(sel); return (el && 'value' in el) ? (el.value ?? def) : def; }
   function chk(sel, def=false){ const el=document.querySelector(sel); return (el && 'checked' in el) ? !!el.checked : def; }
   function num(sel, def){ const v = parseFloat(val(sel, String(def))); return Number.isFinite(v) ? v : def; }
-  function file(sel){ return (document.querySelector(sel)?.files?.[0]) || null; }
+  function file(sel){ 
+    const el = document.querySelector(sel);
+    return (el && el.files && el.files[0]) || null;
+  }
 
   // OPTIONAL: Wenn dein Stage/Lader Clips kennt, kannst du die Länge hier abfragen
   function knownClipsCount(){
     try {
       if (Array.isArray(AREA.currentClips)) return AREA.currentClips.length;
-      if (Array.isArray(AREA.scene?.clips)) return AREA.scene.clips.length;
+      if (AREA.scene && Array.isArray(AREA.scene.clips)) return AREA.scene.clips.length;
     } catch {}
     return undefined;
   }
@@ -856,7 +859,7 @@ html, body { font-family: var(--ui-font); }
 
     // Welcome/Poster
     wl.eyebrow   = val('#svEyebrow', '');
-    wl.title     = val('#svTitle',  (s.meta?.title || 'ARea Scene'));
+    wl.title     = val('#svTitle',  ((s.meta && s.meta.title) || 'ARea Scene'));
     wl.desc      = val('#svDesc',   'Tippe auf OK und platziere das 3D‑Objekt.');
     wl.nativeCta = val('#nativeCta', 'ios-only') || 'ios-only';
 
@@ -888,7 +891,7 @@ html, body { font-family: var(--ui-font); }
   window.publishScene = async function publishScene(){
     try{
       // Bevorzugt: vom Exporter (GLTFExporter) befüllter Blob
-      let glbBlob = AREA?.files?.glb || null;
+      let glbBlob = (AREA && AREA.files && AREA.files.glb) || null;
       // Fallback: Original-Passthrough aus __origGlb (ArrayBuffer → Blob)
       if (!glbBlob && AREA.__origGlb) {
         glbBlob = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
@@ -907,7 +910,7 @@ html, body { font-family: var(--ui-font); }
       const sceneText = JSON.stringify(sceneJson);
 
       const fd = new FormData();
-      const sceneId = (AREA?.sceneId || 'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').slice(0,64) || 'scene';
+      const sceneId = ((AREA && AREA.sceneId) || 'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').slice(0,64) || 'scene';
       fd.append('sceneId', sceneId);
       fd.append('file', new Blob([sceneText], {type:'application/json'}), 'scene.json');
       fd.append('file', glbBlob, 'scene.glb');
@@ -915,8 +918,8 @@ html, body { font-family: var(--ui-font); }
       if (posterF) fd.append('file', posterF, posterF.name);
       if (audioF)  fd.append('file', audioF,  audioF.name);
 
-      const PUBLISH_URL = AREA?.publishUrl || (AREA?.PUBLISH_ENDPOINT) || 'https://area-publish-proxy.area-webar.workers.dev/publish';
-      const PUBLISH_KEY = AREA?.publishKey || AREA?.PUBLISH_KEY || '';
+      const PUBLISH_URL = (AREA && AREA.publishUrl) || (AREA && AREA.PUBLISH_ENDPOINT) || 'https://area-publish-proxy.area-webar.workers.dev/publish';
+      const PUBLISH_KEY = (AREA && AREA.publishKey) || (AREA && AREA.PUBLISH_KEY) || '';
 
       const res = await fetch(PUBLISH_URL, {
         method:'POST',
@@ -929,14 +932,14 @@ html, body { font-family: var(--ui-font); }
         return;
       }
       const j = await res.json().catch(()=>null);
-      if (j?.viewerUrl) {
+      if (j && j.viewerUrl) {
         window.open(j.viewerUrl, '_blank', 'noopener');
       } else {
         alert('Publish ok, aber keine viewerUrl erhalten.');
       }
     }catch(e){
       console.warn(e);
-      alert('Publish-Fehler: ' + (e?.message || String(e)));
+      alert('Publish-Fehler: ' + ((e && e.message) ? e.message : String(e)));
     }
   };
 
@@ -972,8 +975,8 @@ html, body { font-family: var(--ui-font); }
   }
 
   function computeModes(){
-    const v = norm(sel?.value);
-    const txt = norm(sel?.options?.[sel.selectedIndex]?.textContent);
+    const v = norm(sel && sel.value);
+    const txt = norm(sel && sel.options && sel.options[sel.selectedIndex] && sel.options[sel.selectedIndex].textContent);
     const both = v + ' ' + txt; // z. B. "surface-area-viewer surface (area viewer)"
 
     const isSceneViewer =
@@ -1030,7 +1033,7 @@ html, body { font-family: var(--ui-font); }
   // Optional: beobachten, falls UI-Framework DOM später ändert
   try {
     const mo = new MutationObserver(()=>apply('mutation'));
-    if (sel?.parentNode) mo.observe(sel.parentNode, { childList:true, subtree:true, attributes:true });
+    if (sel && sel.parentNode) mo.observe(sel.parentNode, { childList:true, subtree:true, attributes:true });
   } catch {}
 })();
 </script>
@@ -2912,14 +2915,17 @@ if (a){
 // Override der bestehenden publishScene, damit der Fallback immer greift
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
-  const file = (sel)=> (document.querySelector(sel)?.files?.[0]) || null;
+  const file = (sel)=> {
+    const el = document.querySelector(sel);
+    return (el && el.files && el.files[0]) || null;
+  };
 
   const buildSceneJson = window.buildSceneJson;
 
   window.publishScene = async function publishScene(){
     try{
       // 1) Bevorzugt: vom Exporter erzeugtes GLB
-      let glbBlob = AREA?.files?.glb || null;
+      let glbBlob = (AREA && AREA.files && AREA.files.glb) || null;
 
       // 2) Fallback: wenn Original vorhanden und exportiertes GLB keine animations[] enthält → Original nutzen
       if (AREA.__origGlb){
@@ -2954,7 +2960,7 @@ if (a){
 
       // 5) FormData aufbauen
       const fd = new FormData();
-      const sceneId = (AREA?.sceneId || 'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').slice(0,64) || 'scene';
+      const sceneId = ((AREA && AREA.sceneId) || 'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').slice(0,64) || 'scene';
       fd.append('sceneId', sceneId);
       fd.append('file', new Blob([sceneText], {type:'application/json'}), 'scene.json');
       fd.append('file', glbBlob, 'scene.glb');
@@ -2963,8 +2969,8 @@ if (a){
       if (audioF)  fd.append('file', audioF,  audioF.name);
 
       // 6) Publish (Proxy hängt Upstream-Key intern an; Header kann leer bleiben)
-      const PUBLISH_URL = AREA?.publishUrl || AREA?.PUBLISH_ENDPOINT || 'https://area-publish-proxy.area-webar.workers.dev/publish';
-      const PUBLISH_KEY = AREA?.publishKey || AREA?.PUBLISH_KEY || '';
+      const PUBLISH_URL = (AREA && AREA.publishUrl) || (AREA && AREA.PUBLISH_ENDPOINT) || 'https://area-publish-proxy.area-webar.workers.dev/publish';
+      const PUBLISH_KEY = (AREA && AREA.publishKey) || (AREA && AREA.PUBLISH_KEY) || '';
 
       const res = await fetch(PUBLISH_URL, {
         method:'POST',
@@ -2977,17 +2983,19 @@ if (a){
         return;
       }
       const j = await res.json().catch(()=>null);
-      if (j?.viewerUrl) {
+      if (j && j.viewerUrl) {
         window.open(j.viewerUrl, '_blank', 'noopener');
       } else {
         alert('Publish ok, aber keine viewerUrl erhalten.');
       }
     }catch(e){
       console.warn(e);
-      alert('Publish-Fehler: ' + (e?.message || String(e)));
+      alert('Publish-Fehler: ' + ((e && e.message) ? e.message : String(e)));
     }
- 
-    async function previewDraft(){
+  };
+})();
+
+async function previewDraft(){
   const cfg = window.__AREA || {};
   const EP  = (cfg.PUBLISH_ENDPOINT || '').trim();
   const KEY = (cfg.PUBLISH_KEY || '').trim(); // beim Proxy i. d. R. leer
