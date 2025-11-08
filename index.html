@@ -2619,7 +2619,7 @@ function remapAnimationClipsForExport(allClips, clonedRoot){
 
   function findClonedForTrack(trackName){
     // trackName like 'Armature/Bone.quaternion' or 'Armature|mixamo.com|Layer0/Bone.position'
-    const dot = trackName.indexOf('.');
+    const dot = trackName.lastIndexOf('.');
     const targetPath = dot >= 0 ? trackName.slice(0, dot) : trackName;
     
     // Split path into segments (handles '/', '\\', and '|' for Mixamo)
@@ -2649,7 +2649,7 @@ function remapAnimationClipsForExport(allClips, clonedRoot){
         console.warn('[remapAnimationClipsForExport] Could not resolve track:', tr.name);
         continue; // drop tracks we can't map
       }
-      const dot = tr.name.indexOf('.');
+      const dot = tr.name.lastIndexOf('.');
       const suffix = dot >= 0 ? tr.name.slice(dot+1) : '';
       const t = tr.clone();
       t.name = targetNode.uuid + (suffix ? ('.'+suffix) : ''); // bind by UUID for robustness
