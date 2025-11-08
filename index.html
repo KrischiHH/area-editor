@@ -729,18 +729,34 @@ html, body { font-family: var(--ui-font); }
 
   // 4) Fetch-Wrapper: POST /publish → intelligent GLB fallback (defensive version)
   const _origFetch = window.fetch.bind(window);
-  window.fetch = async (input, init = {})=>{
-    // Early returns: only engage for POST /publish with FormData and __origGlb
-    const method = (init?.method || 'GET').toUpperCase();
+  window.fetch = async (input, init)=>{
+    // Defensive: ensure init exists
+    if (!init) init = {};
+    
+    // Early return: only engage for POST
+    const method = init.method ? String(init.method).toUpperCase() : 'GET';
     if (method !== 'POST') return _origFetch(input, init);
     
+    // Early return: only engage if body is FormData
     if (!(init.body instanceof FormData)) return _origFetch(input, init);
     
+    // Early return: only engage if __origGlb is present
     if (!AREA.__origGlb) return _origFetch(input, init);
     
     // Now safe to parse URL (only for POST + FormData + __origGlb)
     try{
-      const urlObj = new URL(typeof input === 'string' ? input : (input?.url || ''), location.href);
+      // Parse URL without optional chaining
+      let urlString = '';
+      if (typeof input === 'string') {
+        urlString = input;
+      } else if (input && typeof input.url === 'string') {
+        urlString = input.url;
+      } else {
+        // Cannot determine URL, pass through
+        return _origFetch(input, init);
+      }
+      
+      const urlObj = new URL(urlString, location.href);
       const isPublish = urlObj.pathname === '/publish';
       if (!isPublish) return _origFetch(input, init);
       
@@ -751,7 +767,7 @@ html, body { font-family: var(--ui-font); }
       let exporterSceneGlb = null;
       
       for (const [k,v] of fdOld.entries()){
-        if (k==='file' && v && typeof v.name==='string' && /scene\.glb$/i.test(v.name||'')){
+        if (k === 'file' && v && typeof v.name === 'string' && /scene\.glb$/i.test(v.name || '')){
           exporterSceneGlb = v;
           continue; // don't append yet
         }
