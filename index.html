@@ -649,9 +649,9 @@ html, body { font-family: var(--ui-font); }
   #left > h3::before{
     /* WICHTIG: PNG-Fallback NICHT killen – wir überschreiben nur die Darstellung */
     background-color: currentColor;
-    -webkit-mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer_icon.svg")
+    -webkit-mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer%20icon.svg")
                   no-repeat center / contain;
-            mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer_icon.svg")
+            mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer%20icon.svg")
                   no-repeat center / contain;
     /* Kein background: none;  → lässt Fallback intakt, falls Maske nicht lädt */
   }
@@ -927,116 +927,10 @@ function buildRobustViewerUrl({ mode, sceneId, workerOrigin, viewerBase }){
 }
 
 
-  window.publishScene = async function publishScene(){
-    try{
-      // Bevorzugt: vom Exporter (GLTFExporter) befüllter Blob
-      let glbBlob = AREA?.files?.glb || null;
-      // Fallback: Original-Passthrough aus __origGlb (ArrayBuffer → Blob)
-      if (!glbBlob && AREA.__origGlb) {
-        glbBlob = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
-        console.log('[editor] Publish: Fallback auf Original-GLB (Passthrough).');
-      }
-      if (!glbBlob) {
-        alert('Kein GLB exportiert/importiert. Bitte ein GLB laden oder exportieren.');
-        return;
-      }
+  // publishScene will be defined later with proper implementation
+  // (removed broken first implementation that had fd.append before fd declaration)
 
-      const usdzF   = file('#fileUsdz');
-      const posterF = file('#file-poster');
-      let posterAdded = false;
-if (posterF) {
-  fd.append('file', posterF, posterF.name);
-  posterAdded = true;
-} else {
-  try {
-    const snap = await capturePosterBlob(0.78);
-    if (snap) {
-      fd.append('file', snap, 'poster.jpg');
-      posterAdded = true;
-      console.log('[editor] Poster: Canvas-Snapshot angehängt');
-    }
-  } catch (e) { console.warn('Poster-Snapshot fehlgeschlagen:', e); }
-}
-      const audioF  = file('#file-audio');
-
-      // nach const audioF  = file('#file-audio');
-if (audioF) {
-  fd.append('file', audioF, 'audio.mp3'); // Name egal, JSON referenziert "audio.mp3"
-} else {
-  const ai = findFirstAudio();
-  if (ai?.fromFile) {
-    fd.append('file', ai.fromFile, 'audio.mp3');
-    console.log('[editor] Audio: aus Media-Objekt (File) hinzugefügt');
-  } else if (ai?.fromDataUrl) {
-    const b = await dataUrlToBlob(ai.fromDataUrl);
-    fd.append('file', new File([b], 'audio.mp3', { type: b.type || 'audio/mpeg' }), 'audio.mp3');
-    console.log('[editor] Audio: aus data:URL hinzugefügt');
-  }
-}
-
-
-      const sceneJson = buildSceneJson();
-      const sceneText = JSON.stringify(sceneJson);
-
-      
-
-      const AREA = (window.__AREA = window.__AREA || {});
-let glbBlob = null;
-
-try {
-  glbBlob = await exportSceneGLB();           // ← HIER wirklich exportieren
-  AREA.files = AREA.files || {};
-  AREA.files.glb = glbBlob;                   // optional für spätere Re-Publishes
-  console.log('[editor] Export: GLB erzeugt');
-} catch (e) {
-  console.warn('[editor] Export fehlgeschlagen, versuche Fallback:', e);
-}
-
-// Fallback-Reihenfolge: Export → Original-GLB → Abbruch
-if (!glbBlob && AREA.__origGlb) {
-  glbBlob = new Blob([AREA.__origGlb], { type: 'model/gltf-binary' });
-  console.log('[editor] Publish: Fallback auf Original-GLB (Passthrough).');
-}
-if (!glbBlob) {
-  alert('Kein GLB verfügbar. Bitte ein GLB laden oder exportieren.');
-  return;
-}
-
-      const fd = new FormData();
-      const sceneId = (AREA?.sceneId || 'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').slice(0,64) || 'scene';
-      fd.append('sceneId', sceneId);
-      fd.append('file', new Blob([sceneText], {type:'application/json'}), 'scene.json');
-      fd.append('file', glbBlob, 'scene.glb');
-      if (usdzF)   fd.append('file', usdzF,   'model.usdz');
-      if (posterF) fd.append('file', posterF, posterF.name);
-      if (audioF)  fd.append('file', audioF,  audioF.name);
-
-      const PUBLISH_URL = AREA?.publishUrl || (AREA?.PUBLISH_ENDPOINT) || 'https://area-publish-proxy.area-webar.workers.dev/publish';
-      const PUBLISH_KEY = AREA?.publishKey || AREA?.PUBLISH_KEY || '';
-
-      const res = await fetch(PUBLISH_URL, {
-        method:'POST',
-        headers:{ 'X-AREA-Key': PUBLISH_KEY },
-        body: fd
-      });
-      if (!res.ok){
-        const t = await res.text().catch(()=>String(res.status));
-        alert('Publish fehlgeschlagen: ' + t);
-        return;
-      }
-      const j = await res.json().catch(()=>null);
-      if (j?.viewerUrl) {
-        window.open(j.viewerUrl, '_blank', 'noopener');
-      } else {
-        alert('Publish ok, aber keine viewerUrl erhalten.');
-      }
-    }catch(e){
-      console.warn(e);
-      alert('Publish-Fehler: ' + (e?.message || String(e)));
-    }
-  };
-
-  // Button „Veröffentlichen“ verbinden (falls vorhanden)
+  // Button „Veröffentlichen" verbinden (falls vorhanden)
   try {
     const btn = document.getElementById('btn-publish');
     btn && btn.addEventListener('click', (ev)=>{ ev.preventDefault(); window.publishScene(); });
@@ -3070,52 +2964,21 @@ if (a){
     }
     const json = await res.json().catch(()=> ({}));
 
-   const viewerBase  = (cfg.VIEWER_BASE || 'https://area-viewer.pages.dev');
-const workerOrigin = (window.__AREA?.FILE_BASE || new URL(EP).origin);
-const url = buildRobustViewerUrl({ mode, sceneId, workerOrigin, viewerBase });
-showSharePanel(url);
-try { await navigator.clipboard.writeText(url); } catch {}
-toast('Veröffentlicht');
-
-    const j = await res.json().catch(()=>null);
-if (j?.viewerUrl) {
-  window.open(j.viewerUrl, '_blank', 'noopener');
-} else {
-  const viewerBase   = (AREA?.VIEWER_BASE) || 'https://area-viewer.pages.dev';
-  const workerOrigin = (AREA?.FILE_BASE)   || (new URL(PUBLISH_URL).origin);
-  const mode         = getAnchorSel();
-  const fallbackUrl  = buildRobustViewerUrl({ mode, sceneId, workerOrigin, viewerBase });
-  console.warn('Publish ok, aber keine viewerUrl – benutze Fallback:', fallbackUrl);
-  window.open(fallbackUrl, '_blank', 'noopener');
-}
-
-
-    // Fallback-URL (robust)
-    let url = `${viewerBase}${entryDefault}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
-    if (mode === 'native') url += '&force=native';
-
-    // Worker-URL verwenden, wenn vorhanden – und ggf. korrigieren
-    const raw = (json.viewerUrl || '').trim();
-    if (raw) {
-      try {
-        const u = new URL(raw, viewerBase);
-        const want = entryByMode[mode];
-        if (want && u.pathname !== want) {
-          if (u.pathname === '/' || u.pathname.endsWith('/index.html') || u.pathname === '/webxr.html' || u.pathname === '/surface-ar/') {
-            u.pathname = want;
-          }
-        }
-        const b = (u.searchParams.get('base') || '').trim();
-        if (!b || b.startsWith('http://internal') || b.startsWith('https://internal')) {
-          u.searchParams.set('base', workerOrigin);
-        }
-        if (mode === 'native') u.searchParams.set('force', 'native');
-        url = u.toString();
-      } catch {}
-    }
-
+    // Compute robust viewer URL
+    const viewerBase   = (cfg.VIEWER_BASE || 'https://area-viewer.pages.dev');
+    const workerOrigin = (window.__AREA?.FILE_BASE || new URL(EP).origin);
+    const url = buildRobustViewerUrl({ mode, sceneId, workerOrigin, viewerBase });
+    
     showSharePanel(url);
     try { await navigator.clipboard.writeText(url); } catch {}
+    
+    // Open worker's viewerUrl if present, otherwise open robust URL
+    if (json?.viewerUrl) {
+      window.open(json.viewerUrl, '_blank', 'noopener');
+    } else {
+      window.open(url, '_blank', 'noopener');
+    }
+    
     toast('Veröffentlicht');
 
   } catch (err) {
@@ -3124,7 +2987,7 @@ if (j?.viewerUrl) {
   }
 }
 
-// Override der bestehenden publishScene, damit der Fallback immer greift
+// Canonical publishScene implementation (robust, handles export, fallbacks, FormData, upload, robust viewer URL)
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
   const file = (sel)=> (document.querySelector(sel)?.files?.[0]) || null;
@@ -3133,10 +2996,24 @@ if (j?.viewerUrl) {
 
   window.publishScene = async function publishScene(){
     try{
-      // 1) Bevorzugt: vom Exporter erzeugtes GLB
-      let glbBlob = AREA?.files?.glb || null;
+      // 1) Determine sceneId from projNamePill or fallback
+      const projNamePill = document.getElementById('projNamePill');
+      const projectName = projNamePill?.textContent?.trim() || 'Unbenanntes Projekt';
+      const sanitizeId = (s) => (s||'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').replace(/^-+|-+$/g,'').slice(0,64)||'scene';
+      const sceneId = sanitizeId(AREA?.sceneId || projectName);
 
-      // 2) Fallback: wenn Original vorhanden und exportiertes GLB keine animations[] enthält → Original nutzen
+      // 2) Export GLB via exportSceneGLB; if null and __origGlb present, fallback to original GLB
+      let glbBlob = null;
+      try {
+        glbBlob = await exportSceneGLB();
+        AREA.files = AREA.files || {};
+        AREA.files.glb = glbBlob;
+        console.log('[editor] Export: GLB erzeugt');
+      } catch (e) {
+        console.warn('[editor] Export fehlgeschlagen, versuche Fallback:', e);
+      }
+
+      // Fallback: wenn Original vorhanden und exportiertes GLB keine animations[] enthält → Original nutzen
       if (AREA.__origGlb){
         let mustFallback = false;
         if (glbBlob){
@@ -3150,6 +3027,7 @@ if (j?.viewerUrl) {
         }
         if (mustFallback){
           glbBlob = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
+          console.log('[editor] Publish: Fallback auf Original-GLB (Passthrough).');
         }
       }
 
@@ -3158,32 +3036,57 @@ if (j?.viewerUrl) {
         return;
       }
 
-      // 3) Weitere Dateien aus der UI
-      const usdzF   = file('#fileUsdz');
-      const posterF = file('#file-poster');
-      const audioF  = file('#file-audio');
-
-      // 4) scene.json bauen (bestehende Logik)
+      // 3) Build scene.json (existing logic)
       const sceneJson = buildSceneJson();
       const sceneText = JSON.stringify(sceneJson);
 
-      // 5) FormData aufbauen
+      // 4) Build FormData AFTER creation
       const fd = new FormData();
-      const sceneId = (AREA?.sceneId || 'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').slice(0,64) || 'scene';
       fd.append('sceneId', sceneId);
       fd.append('file', new Blob([sceneText], {type:'application/json'}), 'scene.json');
       fd.append('file', glbBlob, 'scene.glb');
-      if (usdzF)   fd.append('file', usdzF,   'model.usdz');
-      if (posterF) fd.append('file', posterF, posterF.name);
-      if (audioF)  fd.append('file', audioF,  audioF.name);
 
-      // 6) Publish (Proxy hängt Upstream-Key intern an; Header kann leer bleiben)
+      // 5) Optional assets: USDZ, poster, audio
+      const usdzF   = file('#fileUsdz');
+      if (usdzF) fd.append('file', usdzF, 'model.usdz');
+
+      const posterF = file('#file-poster');
+      if (posterF) {
+        fd.append('file', posterF, posterF.name);
+      } else {
+        // Try capturing poster from canvas if not provided
+        try {
+          const snap = await capturePosterBlob(0.78);
+          if (snap) {
+            fd.append('file', snap, 'poster.jpg');
+            console.log('[editor] Poster: Canvas-Snapshot angehängt');
+          }
+        } catch (e) { console.warn('Poster-Snapshot fehlgeschlagen:', e); }
+      }
+
+      const audioF  = file('#file-audio');
+      if (audioF) {
+        fd.append('file', audioF, 'audio.mp3');
+      } else {
+        // Try finding audio from scene objects
+        const ai = findFirstAudio();
+        if (ai?.fromFile) {
+          fd.append('file', ai.fromFile, 'audio.mp3');
+          console.log('[editor] Audio: aus Media-Objekt (File) hinzugefügt');
+        } else if (ai?.fromDataUrl) {
+          const b = await dataUrlToBlob(ai.fromDataUrl);
+          fd.append('file', new File([b], 'audio.mp3', { type: b.type || 'audio/mpeg' }), 'audio.mp3');
+          console.log('[editor] Audio: aus data:URL hinzugefügt');
+        }
+      }
+
+      // 6) Publish to endpoint
       const PUBLISH_URL = AREA?.publishUrl || AREA?.PUBLISH_ENDPOINT || 'https://area-publish-proxy.area-webar.workers.dev/publish';
       const PUBLISH_KEY = AREA?.publishKey || AREA?.PUBLISH_KEY || '';
 
       const res = await fetch(PUBLISH_URL, {
         method:'POST',
-        headers:{ 'X-AREA-Key': PUBLISH_KEY }, // falls leer, ignoriert der Proxy es; kein Geheimnis nötig
+        headers:{ 'X-AREA-Key': PUBLISH_KEY },
         body: fd
       });
       if (!res.ok){
@@ -3191,12 +3094,31 @@ if (j?.viewerUrl) {
         alert('Publish fehlgeschlagen: ' + t);
         return;
       }
-      const j = await res.json().catch(()=>null);
-      if (j?.viewerUrl) {
-        window.open(j.viewerUrl, '_blank', 'noopener');
+
+      // 7) Compute robust viewer URL
+      const json = await res.json().catch(()=>null);
+      const viewerBase   = AREA?.VIEWER_BASE || 'https://area-viewer.pages.dev';
+      const workerOrigin = AREA?.FILE_BASE || (new URL(PUBLISH_URL).origin);
+      const mode = (function getAnchorSel(){
+        const sel = document.getElementById('anchorMode');
+        return sel?.value || 'surface-webxr';
+      })();
+
+      const robustUrl = buildRobustViewerUrl({ mode, sceneId, workerOrigin, viewerBase });
+
+      // Copy to clipboard
+      try { await navigator.clipboard.writeText(robustUrl); } catch {}
+
+      // Open viewer URL - prefer worker's viewerUrl if present, otherwise use robustUrl
+      if (json?.viewerUrl) {
+        window.open(json.viewerUrl, '_blank', 'noopener');
+        // Also open our robust URL as backup
+        window.open(robustUrl, '_blank', 'noopener');
       } else {
-        alert('Publish ok, aber keine viewerUrl erhalten.');
+        window.open(robustUrl, '_blank', 'noopener');
       }
+
+      console.log('[editor] Publish successful, viewer URL:', robustUrl);
     }catch(e){
       console.warn(e);
       alert('Publish-Fehler: ' + (e?.message || String(e)));
