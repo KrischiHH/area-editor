@@ -2874,11 +2874,17 @@ async function publish(){
 
   window.publishScene = async function publishScene(){
     try{
-      // 1) Determine sceneId from projNamePill or fallback
+      // 1) Determine sceneId from projNamePill or fallback, with user prompt
       const projNamePill = document.getElementById('projNamePill');
       const projectName = projNamePill?.textContent?.trim() || 'Unbenanntes Projekt';
       const sanitizeId = (s) => (s||'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').replace(/^-+|-+$/g,'').slice(0,64)||'scene';
-      const sceneId = sanitizeId(AREA?.sceneId || projectName);
+      const defaultSceneId = sanitizeId(AREA?.sceneId || projectName);
+      const userSceneId = prompt('Scene ID:', defaultSceneId);
+      if (!userSceneId) {
+        // User cancelled
+        return;
+      }
+      const sceneId = sanitizeId(userSceneId);
 
       // 2) Export GLB via exportSceneGLB; if null and __origGlb present, fallback to original GLB
       let glbBlob = null;
