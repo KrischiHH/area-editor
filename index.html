@@ -2579,21 +2579,64 @@ function getSelectedClipNameForExport(){
   return "*";
 }
 
+// === Helper: split path on '/', '\\', or '|' (for Mixamo) ===
+function splitPath(raw){
+  if (!raw) return [];
+  // Split on forward slash, backslash, or pipe
+  return raw.split(/[\/\\|]/).filter(Boolean);
+}
+
+// === Helper: walk cloned tree by name segments ===
+function resolvePathInClone(root, segments){
+  if (!segments || !segments.length) return null;
+  let current = root;
+  for (const seg of segments){
+    if (!current) return null;
+    // Find child with matching name
+    let found = null;
+    for (let i = 0; i < current.children.length; i++){
+      if (current.children[i].name === seg){
+        found = current.children[i];
+        break;
+      }
+    }
+    if (!found) return null;
+    current = found;
+  }
+  return current;
+}
+
 // === Remap AnimationClips for cloned export tree ===
 function remapAnimationClipsForExport(allClips, clonedRoot){
-  // Build a fast name → nodes map in cloned tree
+  // Build a fast name → nodes map in cloned tree for fallback lookup
   const byName = new Map();
-  clonedRoot.traverse(n=>{ if (!n || !n.name) return; const arr = byName.get(n.name) || []; arr.push(n); byName.set(n.name, arr); });
+  clonedRoot.traverse(n=>{ 
+    if (!n || !n.name) return; 
+    const arr = byName.get(n.name) || []; 
+    arr.push(n); 
+    byName.set(n.name, arr); 
+  });
 
   function findClonedForTrack(trackName){
-    // trackName like 'Armature/Bone.quaternion' or 'Bone.position' or 'node.uuid.property'
+    // trackName like 'Armature/Bone.quaternion' or 'Armature|mixamo.com|Layer0/Bone.position'
     const dot = trackName.indexOf('.');
-    const target = dot >= 0 ? trackName.slice(0, dot) : trackName; // path or name or uuid
-    // If looks like a UUID (8-4-4-4-12), we can't map back; try the last segment as a name
-    const parts = target.split(/[\\\/]/); // support both separators
-    const last = parts[parts.length-1];
-    const cand = (last && byName.get(last)) || null;
-    return cand ? cand[0] : null; // heuristic: first match
+    const targetPath = dot >= 0 ? trackName.slice(0, dot) : trackName;
+    
+    // Split path into segments (handles '/', '\\', and '|' for Mixamo)
+    const segments = splitPath(targetPath);
+    if (!segments.length) return null;
+    
+    // Try to resolve full path in cloned tree
+    let targetNode = resolvePathInClone(clonedRoot, segments);
+    
+    // Fallback: if full path fails, try just the last segment by name
+    if (!targetNode){
+      const lastName = segments[segments.length - 1];
+      const cand = lastName && byName.get(lastName);
+      targetNode = cand ? cand[0] : null;
+    }
+    
+    return targetNode;
   }
 
   const remapped = [];
@@ -2602,14 +2645,21 @@ function remapAnimationClipsForExport(allClips, clonedRoot){
     const newTracks = [];
     for (const tr of clip.tracks){
       const targetNode = findClonedForTrack(tr.name);
-      if (!targetNode) continue; // drop tracks we can't map
+      if (!targetNode){
+        console.warn('[remapAnimationClipsForExport] Could not resolve track:', tr.name);
+        continue; // drop tracks we can't map
+      }
       const dot = tr.name.indexOf('.');
       const suffix = dot >= 0 ? tr.name.slice(dot+1) : '';
       const t = tr.clone();
       t.name = targetNode.uuid + (suffix ? ('.'+suffix) : ''); // bind by UUID for robustness
       newTracks.push(t);
     }
-    if (newTracks.length){ remapped.push(new THREE.AnimationClip(clip.name, clip.duration, newTracks)); }
+    if (newTracks.length){ 
+      remapped.push(new THREE.AnimationClip(clip.name, clip.duration, newTracks)); 
+    } else {
+      console.warn('[remapAnimationClipsForExport] Clip dropped (no tracks mapped):', clip.name);
+    }
   }
   return remapped;
 }
@@ -2623,6 +2673,14 @@ async function exportSceneGLB(){
   // Remap animation clips to cloned nodes
   const remappedClips = remapAnimationClipsForExport(allClips, exportRoot);
   console.log('[exportSceneGLB] Original clips:', allClips.length, 'Remapped clips:', remappedClips.length);
+  
+  // Debug: log first track names for comparison
+  if (allClips.length > 0 && allClips[0]?.tracks?.length > 0){
+    console.log('[exportSceneGLB] Original first track:', allClips[0].tracks[0].name);
+  }
+  if (remappedClips.length > 0 && remappedClips[0]?.tracks?.length > 0){
+    console.log('[exportSceneGLB] Remapped first track:', remappedClips[0].tracks[0].name);
+  }
 
   return new Promise((resolve, reject)=>{
     exporter.parse(
