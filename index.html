@@ -885,6 +885,31 @@ html, body { font-family: var(--ui-font); }
     return JSON.parse(JSON.stringify(s)); // saubere Kopie
   };
 
+  function buildViewerEntryForMode(mode){
+  const map = {
+    'surface-webxr':      '/surface-ar/webxr.html',
+    'native':             '/surface-ar/index.html',
+    'image':              '/image-ar/viewer.html',
+    'scene-viewer':       '/scene-viewer/index.html',
+    'surface-guided':     '/surface-ar/guided.html',
+    'surface-area-viewer':'/surface-ar/area-viewer.html'
+  };
+  return map[mode] || '/surface-ar/area-viewer.html';
+}
+
+function buildRobustViewerUrl({ mode, sceneId, workerOrigin, viewerBase }){
+  const entry = buildViewerEntryForMode(mode);
+  const u = new URL(entry, viewerBase);
+  const glbUrl = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.glb`;
+  // immer glb + scene + base setzen
+  u.searchParams.set('glb', glbUrl);
+  u.searchParams.set('scene', sceneId);
+  u.searchParams.set('base', workerOrigin);
+  if (mode === 'native') u.searchParams.set('force', 'native');
+  return u.toString();
+}
+
+
   window.publishScene = async function publishScene(){
     try{
       // Bevorzugt: vom Exporter (GLTFExporter) befüllter Blob
@@ -2964,16 +2989,13 @@ if (a){
     }
     const json = await res.json().catch(()=> ({}));
 
-    const viewerBase  = (cfg.VIEWER_BASE || 'https://area-viewer.pages.dev');
-    const entryByMode = {
-      'surface-webxr': '/surface-ar/webxr.html',
-      'native':        '/surface-ar/index.html',
-      'image':         '/image-ar/viewer.html',
-      'scene-viewer':  '/scene-viewer/index.html',
-      'surface-guided':'/surface-ar/guided.html',
-      'surface-area-viewer':'/surface-ar/area-viewer.html'
-    };
-    const entryDefault = entryByMode[mode] || '/surface-ar/webxr.html';
+   const viewerBase  = (cfg.VIEWER_BASE || 'https://area-viewer.pages.dev');
+const workerOrigin = (window.__AREA?.FILE_BASE || new URL(EP).origin);
+const url = buildRobustViewerUrl({ mode, sceneId, workerOrigin, viewerBase });
+showSharePanel(url);
+try { await navigator.clipboard.writeText(url); } catch {}
+toast('Veröffentlicht');
+
 
     // Fallback-URL (robust)
     let url = `${viewerBase}${entryDefault}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}`;
