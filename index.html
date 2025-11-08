@@ -2986,8 +2986,10 @@ if (a){
       console.warn(e);
       alert('Publish-Fehler: ' + (e?.message || String(e)));
     }
- 
-    async function previewDraft(){
+  };
+})();
+
+async function previewDraft(){
   const cfg = window.__AREA || {};
   const EP  = (cfg.PUBLISH_ENDPOINT || '').trim();
   const KEY = (cfg.PUBLISH_KEY || '').trim(); // beim Proxy i. d. R. leer
