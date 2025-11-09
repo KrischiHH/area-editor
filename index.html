@@ -2888,13 +2888,15 @@ async function publish(){
 
       // 2) Export GLB via exportSceneGLB; if null and __origGlb present, fallback to original GLB
       let glbBlob = null;
+      let glbSource = 'none';
       try {
         glbBlob = await exportSceneGLB();
         AREA.files = AREA.files || {};
         AREA.files.glb = glbBlob;
-        console.log('[editor] Export: GLB erzeugt');
+        glbSource = 'export';
+        console.log('[publish] Export: GLB erzeugt via exportSceneGLB');
       } catch (e) {
-        console.warn('[editor] Export fehlgeschlagen, versuche Fallback:', e);
+        console.warn('[publish] Export fehlgeschlagen, versuche Fallback:', e);
       }
 
       // Fallback: wenn Original vorhanden und exportiertes GLB keine animations[] enthält → Original nutzen
@@ -2903,7 +2905,7 @@ async function publish(){
         if (glbBlob){
           const hasAnim = await window.hasAnimationsInGlbBlob(glbBlob);
           if (!hasAnim){
-            console.warn('[editor] Exportiertes GLB ohne animations[] – fallback auf Original-GLB.');
+            console.warn('[publish] Exportiertes GLB ohne animations[] – fallback auf Original-GLB.');
             mustFallback = true;
           }
         } else {
@@ -2911,8 +2913,13 @@ async function publish(){
         }
         if (mustFallback){
           glbBlob = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
-          console.log('[editor] Publish: Fallback auf Original-GLB (Passthrough).');
+          glbSource = 'fallback';
+          console.log('[publish] GLB source: fallback to original GLB (Passthrough), size:', AREA.__origGlb.byteLength, 'bytes');
         }
+      }
+
+      if (glbSource === 'export'){
+        console.log('[publish] GLB source: export (via exportSceneGLB)');
       }
 
       if (!glbBlob){
@@ -2981,6 +2988,8 @@ async function publish(){
 
       // 7) Compute robust viewer URL
       const json = await res.json().catch(()=>null);
+      console.log('[publish] POST result:', json);
+      
       const viewerBase   = AREA?.VIEWER_BASE || 'https://area-viewer.pages.dev';
       const workerOrigin = AREA?.FILE_BASE || (new URL(PUBLISH_URL).origin);
       const mode = (function getAnchorSel(){
@@ -2989,20 +2998,26 @@ async function publish(){
       })();
 
       const robustUrl = buildRobustViewerUrl({ mode, sceneId, workerOrigin, viewerBase });
+      console.log('[publish] Final viewer URL:', robustUrl);
 
-      // Copy to clipboard
-      try { await navigator.clipboard.writeText(robustUrl); } catch {}
+      // Show share panel with QR code and link
+      showSharePanel(robustUrl);
 
-      // Open viewer URL - prefer worker's viewerUrl if present, otherwise use robustUrl
-      if (json?.viewerUrl) {
-        window.open(json.viewerUrl, '_blank', 'noopener');
-        // Also open our robust URL as backup
-        window.open(robustUrl, '_blank', 'noopener');
-      } else {
-        window.open(robustUrl, '_blank', 'noopener');
+      // Copy to clipboard (best-effort)
+      try { 
+        await navigator.clipboard.writeText(robustUrl); 
+        console.log('[publish] URL copied to clipboard');
+      } catch (e) { 
+        console.warn('[publish] Could not copy to clipboard:', e);
       }
 
-      console.log('[editor] Publish successful, viewer URL:', robustUrl);
+      // Open viewer URL (best-effort)
+      try {
+        window.open(robustUrl, '_blank', 'noopener');
+        console.log('[publish] Opened viewer URL in new tab');
+      } catch (e) {
+        console.warn('[publish] Could not open new tab:', e);
+      }
     }catch(e){
       console.warn(e);
       alert('Publish-Fehler: ' + (e?.message || String(e)));
