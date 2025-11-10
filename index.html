@@ -2620,6 +2620,171 @@ updateAnchorUI();
       return root;
     }
 
+    // === COMPLETE buildSceneViewerJSON_CF (fixes the truncated function) ===
+function buildSceneViewerJSON_CF() {
+  const clipName = getSelectedClipNameForExport() || "*";
+  const showPlay = !!document.getElementById('svShowPlayBtn')?.checked;
+  const showMute = !!document.getElementById('svShowMuteBtn')?.checked;
+
+  const eyebrow = document.getElementById('svEyebrow')?.value || "ARea – Szene";
+  const title   = document.getElementById('svTitle')?.value   || projectName || "Scene";
+  const desc    = document.getElementById('svDesc')?.value    || "Tippe auf OK, um zu starten.";
+
+  const json = {
+    ui: {
+      showGround: true,
+      autocenter: true,
+      welcome: {
+        eyebrow, title, desc, cta: "OK",
+        poster: "poster.jpg",
+        nativeCta: "ios-only"
+      },
+      controls: { showPlay, showMute }
+    },
+    camera: { fov: 50, start:[2.2,1.6,3.0], lookAt:[0,1.1,0] },
+    model:  { url: "scene.glb", scale: 1, rotateY: 0 },
+    animation: {
+      enabled: true,
+      clipName,
+      start: (document.getElementById('animStartMode')?.value || 'onStart'),
+      loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
+      iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
+      clampWhenFinished: true
+    }
+  };
+
+  // Optionales Audio – Viewer sucht dann "audio.mp3"
+  const audioInfo = findFirstAudio();
+  if (audioInfo) {
+    json.audio = { url: "audio.mp3", autoplay: "withAnimation", loop: audioInfo.loop, volume: 0.85 };
+  }
+
+  return json;
+}
+
+    // === PUBLISH: builds GLB+scene.json+poster(+audio) and uploads to Worker
+window.publishScene = async function publishScene(){
+  try{
+    const AREA = (window.__AREA || {});
+    const endpoint     = (AREA.PUBLISH_ENDPOINT || '').trim();
+    const workerOrigin = (AREA.FILE_BASE || '').trim() || new URL(endpoint, location.href).origin;
+    const viewerBase   = (AREA.VIEWER_BASE || '').trim() || 'https://area-viewer.pages.dev';
+    const key          = (AREA.PUBLISH_KEY || '').trim();
+
+    if (!endpoint){ toast('PUBLISH_ENDPOINT fehlt'); return; }
+
+    // SceneId aus Projektname bilden
+    const sceneId = sanitizeId(projectName || ('scene-'+Date.now()));
+
+    // 1) GLB exportieren (Animation-preserving Exporter)
+    const glbBlob = await exportSceneGLB();
+
+    // 2) Poster (Upload bevorzugt, sonst Canvas-Snapshot)
+    const posterBlob = customPosterBlob || await capturePosterBlob(0.82);
+
+    // 3) USDZ optional (nur wenn hochgeladen)
+    const usdzFile = document.getElementById('fileUsdz')?.files?.[0] || null;
+
+    // 4) Audio optional (Upload > erstes Audio-Objekt > data:/blob:)
+    let audioBlob = null;
+    const fileAudio = document.getElementById('file-audio')?.files?.[0] || null;
+    if (fileAudio){
+      audioBlob = fileAudio;
+    } else {
+      const ai = findFirstAudio();
+      if (ai?.fromFile)       audioBlob = ai.fromFile;
+      else if (ai?.fromDataUrl) audioBlob = await dataUrlToBlob(ai.fromDataUrl);
+      else if (ai?.fromBlobUrl) audioBlob = await (await fetch(ai.fromBlobUrl)).blob();
+    }
+
+    // 5) scene.json passend zum Modus
+    const mode = getAnchorSel();
+    const sceneJson = (mode === 'scene-viewer' || mode === 'surface-area-viewer' || mode === 'surface-guided')
+      ? buildSceneViewerJSON_CF()
+      : buildSceneJSON({
+          sceneId,
+          title: projectName || sceneId,
+          mode,
+          glbUrl: 'scene.glb',
+          usdzUrl: usdzFile ? 'scene.usdz' : null,
+          targetUrl: document.getElementById('imageTargetUrl')?.value || ''
+        });
+    const sceneBlob = new Blob([JSON.stringify(sceneJson,null,2)], { type:'application/json' });
+
+    // 6) FormData -> Worker
+    const fd = new FormData();
+    fd.append('sceneId', sceneId);
+    fd.append('file', sceneBlob,  'scene.json');
+    fd.append('file', glbBlob,    'scene.glb');
+    fd.append('file', posterBlob, 'poster.jpg');
+    if (usdzFile)  fd.append('file', usdzFile, 'scene.usdz');
+    if (audioBlob) fd.append('file', audioBlob, 'audio.mp3');
+
+    // 7) Upload (Fetch-Wrapper übernimmt ggf. GLB-Fallback mit __origGlb)
+    const res = await fetch(endpoint, {
+      method:'POST',
+      headers: key ? { 'X-AREA-Key': key } : undefined,
+      body: fd
+    });
+    if (!res.ok){
+      const txt = await res.text().catch(()=>String(res.status));
+      throw new Error('Upload fehlgeschlagen: '+res.status+' '+txt);
+    }
+    const data = await res.json().catch(()=>({}));
+    const autoUrl = data?.viewerUrl ? String(data.viewerUrl) : null;
+
+    const viewerUrl = autoUrl || buildRobustViewerUrl({
+      mode, sceneId, workerOrigin, viewerBase
+    });
+
+    window.open(viewerUrl, '_blank', 'noopener');
+    toast('Veröffentlicht ✔︎');
+    console.log('[publish] viewerUrl:', viewerUrl);
+
+  }catch(err){
+    console.error(err);
+    toast('Fehler beim Veröffentlichen (Konsole)');
+    alert(String(err?.message || err));
+  }
+};
+
+    // === Projekt-Menü toggle + Button-Actions ===
+(function(){
+  const menu = document.getElementById('projectMenu');
+  const btn  = document.getElementById('btn-project-menu');
+
+  function toggle(open){
+    menu.classList.toggle('open', open ?? !menu.classList.contains('open'));
+    btn?.setAttribute('aria-expanded', menu.classList.contains('open') ? 'true' : 'false');
+  }
+  btn?.addEventListener('click', (e)=>{ e.stopPropagation(); toggle(); });
+  document.addEventListener('click', (e)=>{ if(!menu.contains(e.target)) toggle(false); });
+
+  // Aktionen
+  document.getElementById('btn-new')?.addEventListener('click', async ()=>{
+    toggle(false);
+    if (!confirm('Neues Projekt? Nicht gespeicherte Änderungen gehen verloren.')) return;
+    document.getElementById('btn-clear')?.click();
+    setProjectName('Unbenanntes Projekt');
+  });
+
+  document.getElementById('btn-save')?.addEventListener('click', async ()=>{ toggle(false); await saveProject({saveAs:false}); });
+  document.getElementById('btn-save-as')?.addEventListener('click', async ()=>{ toggle(false); await saveProject({saveAs:true}); });
+
+  document.getElementById('btn-preview')?.addEventListener('click', ()=>{ toggle(false); previewModules(); });
+  document.getElementById('btn-preview-draft')?.addEventListener('click', ()=>{ toggle(false); previewModules(); });
+
+  document.getElementById('btn-publish')?.addEventListener('click', (ev)=>{ ev.preventDefault(); toggle(false); window.publishScene?.(); });
+
+  // Projekt öffnen
+  document.getElementById('file-project')?.addEventListener('change', async (e)=>{
+    const f = e.target.files?.[0]; e.target.value=''; if(!f) return;
+    toggle(false);
+    await importProjectFile(f);
+  });
+})();
+
+
     function makeGLBFromJSON(jsonLike){
       const jsonStr = (typeof jsonLike === 'string') ? jsonLike : JSON.stringify(jsonLike);
       const enc = new TextEncoder();
