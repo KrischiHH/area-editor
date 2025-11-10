@@ -2965,46 +2965,107 @@ function safeRemap(clips, exportRoot){
   return out;
 }
 
+    /* ======= PATCH: missing helpers + export implementation ======= */
+
+// 1) Safe wrapper so calls to buildSceneJSON keep working with your earlier buildSceneJson()
+function buildSceneJSON(opts = {}) {
+  try {
+    // reuse your UI-driven scene JSON
+    const s = (typeof window.buildSceneJson === 'function')
+      ? window.buildSceneJson()
+      : {};
+
+    s.meta = s.meta || {};
+    if (opts.sceneId) s.meta.id = opts.sceneId;
+    if (opts.title)   s.meta.title = opts.title;
+    if (opts.mode)    s.meta.mode = opts.mode;
+
+    s.model = s.model || {};
+    if (opts.glbUrl)  s.model.url = opts.glbUrl;
+    if (opts.usdzUrl) s.model.usdzUrl = opts.usdzUrl;
+
+    if (opts.mode === 'image' && opts.targetUrl) {
+      s.image = { targetUrl: opts.targetUrl };
+    }
+    return s;
+  } catch (e) {
+    console.warn('[buildSceneJSON] fallback used:', e);
+    return {
+      meta: { id: opts.sceneId || 'scene', title: opts.title || 'ARea Scene', mode: opts.mode || 'surface-area-viewer' },
+      model: { url: opts.glbUrl || 'scene.glb', ...(opts.usdzUrl ? { usdzUrl: opts.usdzUrl } : {}) }
+    };
+  }
+}
+
+// 2) Find first audio in scene for publishing (prefers original file if available)
+function findFirstAudio() {
+  for (const rec of state.objects) {
+    if (rec?.media?.kind === 'audio') {
+      const info = { loop: !!rec.media.loop };
+      // original import from file
+      if (rec.file && /^audio\//i.test(rec.file.type)) { info.fromFile = rec.file; return info; }
+      // data URL from saved project
+      if (rec.media.src && rec.media.src.startsWith('data:')) { info.fromDataUrl = rec.media.src; return info; }
+      // blob/file URL (runtime)
+      if (rec.media.src) { info.fromBlobUrl = rec.media.src; return info; }
+      return info;
+    }
+  }
+  return null;
+}
+
+// 3) Export GLB with ALL clips preserved (safeRemap already defined above)
+async function exportSceneGLB() {
+  const exportRoot = cloneForExport();
+
+  // collect all clips from non-media objects
+  const allClips = [];
+  state.objects.forEach(rec => {
+    if (rec?.clips?.length) allClips.push(...rec.clips);
+  });
+
+  // remap (never drop tracks)
+  const remapped = safeRemap(allClips, exportRoot);
+
+  const exporter = new GLTFExporter();
+  const options = {
+    binary: true,
+    onlyVisible: true,
+    trs: false,
+    // keep extensions/custom extras
+    includeCustomExtensions: true,
+    animations: remapped
+  };
+
+  const glb = await new Promise((resolve, reject) => {
+    exporter.parse(
+      exportRoot,
+      (result) => resolve(result),
+      (err) => reject(err),
+      options
+    );
+  });
+
+  // GLTFExporter returns ArrayBuffer for binary export; ensure Blob
+  if (glb instanceof ArrayBuffer) {
+    return new Blob([glb], { type: 'model/gltf-binary' });
+  }
+  if (glb instanceof Blob) return glb;
+
+  // (very unlikely) fallback – package JSON into GLB container
+  return makeGLBFromJSON(glb);
+}
+
+/* ======= /PATCH ======= */
+
 
      
       // === Legacy remapAnimationClipsForExport (kept for reference, not used) ===
 function remapAnimationClipsForExport_LEGACY(allClips, clonedRoot){
-  // This function is DEPRECATED - it drops tracks and uses UUID-based naming
-  // which breaks name-based binding. Use safeRemap() instead.
-  const byName = new Map();
-  clonedRoot.traverse(n=>{ 
-    if (!n || !n.name) return; 
-    const arr = byName.get(n.name) || []; 
-    arr.push(n); 
-    byName.set(n.name, arr); 
-  });
+  // deprecated: keep original clips as-is
+  return (allClips || []);
+}
 
-  function findClonedForTrack(trackName){
-    const dot = trackName.lastIndexOf('.');
-    const targetPath = dot >= 0 ? trackName.slice(0, dot) : trackName;
-    const segments = splitPath(targetPath);
-    if (!segments.length) return null;
-    let targetNode = resolvePathInClone(clonedRoot, segments);
-    if (!targetNode){
-      const lastName = segments[segments.length - 1];
-      const cand = lastName && byName.get(lastName);
-      targetNode = cand ? cand[0] : null;
-    }
-    return targetNode;
-  }
-
-  const remapped = [];
-  for (const clip of (allClips||[])){
-    if (!clip || !Array.isArray(clip.tracks) || !clip.tracks.length) continue;
-    const newTracks = [];
-    for (const tr of clip.tracks){
-      const targetNode = findClonedForTrack(tr.name);
-      if (!targetNode){
-        console.warn('[remapAnimationClipsForExport_LEGACY] Could not resolve track:', tr.name);
-        continue; // drop tracks we can't map
-      }
-      const dot = tr.name.lastIndexOf('.');
-      const suffix = dot >= 0 ? tr.name.slice(dot+1) : '';
       const t = tr.clone();
       t.name = targetNode.uuid + (suffix ? ('.'+suffix) : ''); // bind by UUID for robustness
       newTracks.push(t);
