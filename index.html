@@ -2719,20 +2719,7 @@ window.publishScene = async function publishScene(){
       else if (ai?.fromBlobUrl) audioBlob = await (await fetch(ai.fromBlobUrl)).blob();
     }
 
-    // 5) scene.json passend zum Modus
-    const mode = getAnchorSel();
-    const sceneJson = (mode === 'scene-viewer' || mode === 'surface-area-viewer' || mode === 'surface-guided')
-      ? buildSceneViewerJSON_CF()
-      : buildSceneJSON({
-          sceneId,
-          title: projectName || sceneId,
-          mode,
-          glbUrl: 'scene.glb',
-          usdzUrl: usdzFile ? 'scene.usdz' : null,
-          targetUrl: document.getElementById('imageTargetUrl')?.value || ''
-        });
-    const sceneBlob = new Blob([JSON.stringify(sceneJson,null,2)], { type:'application/json' });
-
+    
     // 6) FormData -> Worker
     const fd = new FormData();
     fd.append('sceneId', sceneId);
