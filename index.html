@@ -4188,6 +4188,255 @@ window.exportSceneGLB = exportSceneGLB;
      if (isTyping) return;
      (Stellt sicher, dass Backspace in Eingabefeldern nicht Objekte löscht.)
   */
+/* === Share-Overlay mit QR =============================================== */
+function showSharePanel(url){
+  const old = document.getElementById('shareOverlay');
+  if (old) old.remove();
+
+  const wrap = document.createElement('div');
+  wrap.id = 'shareOverlay';
+  wrap.style.cssText = [
+    'position:fixed','inset:0','z-index:4000',
+    'background:rgba(0,0,0,.5)','backdrop-filter:blur(4px)',
+    'display:grid','place-items:center','padding:20px'
+  ].join(';');
+
+  const card = document.createElement('div');
+  card.style.cssText = [
+    'background:var(--panel)','border:1px solid var(--border)','color:var(--text)',
+    'border-radius:16px','box-shadow:0 18px 36px rgba(0,0,0,.45)',
+    'width:min(640px,90vw)','padding:16px','display:grid','gap:12px'
+  ].join(';');
+
+  const h = document.createElement('div');
+  h.style.cssText='font-weight:800; font-size:16px';
+  h.textContent = 'Teilen';
+
+  const row = document.createElement('div');
+  row.style.cssText='display:grid;grid-template-columns:1fr auto;gap:8px';
+  const input = document.createElement('input');
+  input.className = 'input';
+  input.value = url; input.readOnly = true;
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'btn'; copyBtn.textContent='Link kopieren';
+  copyBtn.addEventListener('click', async ()=>{
+    try{ await navigator.clipboard.writeText(url); toast('Link kopiert'); }catch{ toast('Konnte nicht kopieren'); }
+  });
+
+  const openBtn = document.createElement('button');
+  openBtn.className = 'btn'; openBtn.textContent='Öffnen';
+  openBtn.addEventListener('click', ()=> window.open(url, '_blank', 'noopener'));
+
+  const qr = document.createElement('canvas');
+  qr.style.cssText='justify-self:center';
+
+  row.append(input, copyBtn);
+  card.append(h, row, openBtn, qr);
+  wrap.append(card);
+  document.body.append(wrap);
+
+  // ESC & Outside
+  wrap.addEventListener('click', (e)=>{ if(e.target===wrap) wrap.remove(); });
+  window.addEventListener('keydown', function onEsc(e){ if(e.key==='Escape'){ wrap.remove(); window.removeEventListener('keydown', onEsc); } });
+
+  // QR rendern
+  try{
+    QRCode.toCanvas(qr, url, { width: 256, margin: 1 });
+  }catch(e){ console.warn('QR fehlgeschlagen', e); }
+}
+
+/* === Projekt-Menü toggle + Buttons ===================================== */
+(function wireProjectMenu(){
+  const menu = document.getElementById('projectMenu');
+  const btn  = document.getElementById('btn-project-menu');
+  const pop  = document.getElementById('projectMenuPop');
+  if (!menu || !btn || !pop) return;
+
+  const setOpen = (o)=>{ menu.classList.toggle('open', o); btn.setAttribute('aria-expanded', o?'true':'false'); };
+  btn.addEventListener('click', (e)=>{ e.stopPropagation(); setOpen(!menu.classList.contains('open')); });
+  document.addEventListener('click', ()=> setOpen(false));
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') setOpen(false); });
+
+  // Datei öffnen
+  document.getElementById('file-project')?.addEventListener('change', (e)=>{
+    const f = e.target.files?.[0]; e.target.value=''; if (f) importProjectFile(f);
+  });
+
+  // Neu
+  document.getElementById('btn-new')?.addEventListener('click', ()=>{
+    if(!confirm('Neues Projekt beginnen? Ungespeicherte Änderungen gehen verloren.')) return;
+    document.getElementById('btn-clear')?.click();
+    setProjectName('Unbenanntes Projekt');
+    try{ window.__fh = null; }catch{}
+  });
+
+  // Speichern
+  document.getElementById('btn-save')?.addEventListener('click', ()=> saveProject());
+  document.getElementById('btn-save-as')?.addEventListener('click', ()=> saveProject({saveAs:true}));
+
+  // Preview
+  document.getElementById('btn-preview')?.addEventListener('click', (e)=>{ e.preventDefault(); previewModules(); });
+  document.getElementById('btn-preview-draft')?.addEventListener('click', (e)=>{ e.preventDefault(); previewModules(); });
+
+  // Publish
+  document.getElementById('btn-publish')?.addEventListener('click', (e)=>{ e.preventDefault(); publishScene(); });
+})();
+
+/* === Hint-FAB =========================================================== */
+(function(){
+  const fab  = document.getElementById('hintFab');
+  const hint = document.querySelector('.hint');
+  if (!fab || !hint) return;
+  fab.addEventListener('click', ()=>{
+    const wasHidden = hint.classList.toggle('hidden');
+    // toggle again to set correct state (class says hidden when true)
+    fab.setAttribute('aria-expanded', wasHidden ? 'false' : 'true');
+  });
+})();
+
+/* === Grid/Room Controls + Initialisierung =============================== */
+(function(){
+  const rs  = document.getElementById('roomSize');
+  const gi  = document.getElementById('gridIntensity');
+  const gv  = document.getElementById('gridVisible');
+
+  const showHide = ()=>{
+    const vis = !!(gv?.checked ?? true);
+    [gridNear,gridFar,axisX,axisZ].forEach(o=>o && (o.visible = vis));
+  };
+
+  rs?.addEventListener('change', ()=> buildRoom(parseFloat(rs.value)||24));
+  gi?.addEventListener('input',  ()=> buildRoom(parseFloat(rs?.value||'24')||24));
+  gv?.addEventListener('change', showHide);
+
+  // initial
+  buildRoom(parseFloat(rs?.value||'24')||24);
+  showHide();
+})();
+
+/* === Render-Loop (Mixer + Composer) ===================================== */
+(function(){
+  const clock = new THREE.Clock();
+  function tick(){
+    const dt = clock.getDelta();
+    // AnimationMixer updaten
+    if (window.state?.objects?.length){
+      window.state.objects.forEach(r=> r?.mixer && r.mixer.update(dt));
+    }
+    // Orbit damping
+    try{ window.controls?.update?.(); }catch{}
+    // Render
+    try{
+      renderer.clear();
+      if (typeof composer!=='undefined' && composer) composer.render(); else renderer.render(scene, camera);
+    }catch(e){}
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+
+/* === Publish-Flow ======================================================= */
+window.publishScene = async function publishScene(){
+  try{
+    const AREA = (window.__AREA = window.__AREA || {});
+    const mode = (document.getElementById('anchorMode')?.value || 'surface-area-viewer');
+    const viewerBase   = AREA.VIEWER_BASE || 'https://area-viewer.pages.dev';
+    const publishUrl   = AREA.PUBLISH_ENDPOINT || '';
+    const workerOrigin = AREA.FILE_BASE || (publishUrl ? new URL(publishUrl, location.href).origin : '');
+
+    // 1) Szene exportieren (GLB)
+    toast('Exportiere GLB …');
+    const glbBlob = await exportSceneGLB(); // Fallback auf Original regelt dein fetch-Wrapper
+
+    // 2) Poster vorbereiten (User-Poster oder Canvas-Snapshot)
+    toast('Erzeuge Poster …');
+    let posterBlob = null;
+    if (window.customPosterBlob) posterBlob = window.customPosterBlob;
+    else posterBlob = await capturePosterBlob(0.78);
+
+    // 3) Audio optional einsammeln
+    let audioBlob = null, audioName = null;
+    const audioInfo = findFirstAudio();
+    if (audioInfo){
+      if (audioInfo.fromFile) {
+        audioBlob = audioInfo.fromFile;
+      } else if (audioInfo.fromDataUrl || audioInfo.fromBlobUrl){
+        const u = audioInfo.fromDataUrl || audioInfo.fromBlobUrl;
+        const r = await fetch(u); audioBlob = await r.blob();
+      }
+      if (audioBlob){
+        // Dateiendung passend setzen
+        const ext = (audioBlob.type||'').includes('mpeg') ? '.mp3'
+                 : (audioBlob.type||'').includes('wav')  ? '.wav'
+                 : (audioBlob.type||'').includes('ogg')  ? '.ogg'
+                 : (audioBlob.type||'').includes('m4a')  ? '.m4a'
+                 : '.bin';
+        audioName = 'audio'+ext;
+      }
+    }
+
+    // 4) USDZ optional
+    const usdzFile = document.getElementById('fileUsdz')?.files?.[0] || null;
+
+    // 5) sceneId bestimmen
+    let sceneId = (window.projectName || '').trim();
+    sceneId = sanitizeId(sceneId || '') || ('scene-'+Date.now().toString(36));
+
+    // 6) scene.json bauen (Area-Viewer/Scene-Viewer vs. andere Modi)
+    let sceneJson;
+    if (mode === 'scene-viewer' || mode === 'surface-guided' || mode === 'surface-area-viewer'){
+      sceneJson = buildSceneViewerJSON_CF();
+      if (audioName && sceneJson?.audio) sceneJson.audio.url = audioName;       // richtige Dateibezeichnung setzen
+      sceneJson.model.url = 'scene.glb';
+      if (usdzFile) sceneJson.model.usdzUrl = 'scene.usdz';
+    } else {
+      const glbUrl = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.glb`;
+      const uszUrl = usdzFile ? `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.usdz` : null;
+      const target = (document.getElementById('imageTargetUrl')?.value || '').trim();
+      sceneJson = buildSceneJSON({
+        sceneId,
+        title: window.projectName || sceneId,
+        mode,
+        glbUrl,
+        usdzUrl: uszUrl,
+        targetUrl: target || null
+      });
+      if (audioName && sceneJson?.audio) sceneJson.audio.url = audioName;
+    }
+
+    // 7) FormData aufbauen
+    const fd = new FormData();
+    fd.append('sceneId', sceneId);
+    fd.append('file', new File([new Blob([JSON.stringify(sceneJson, null, 2)], {type:'application/json'})], 'scene.json', {type:'application/json'}), 'scene.json');
+    fd.append('file', glbBlob, 'scene.glb');
+    if (posterBlob) fd.append('file', new File([posterBlob], 'poster.jpg', {type:'image/jpeg'}), 'poster.jpg');
+    if (audioBlob && audioName) fd.append('file', new File([audioBlob], audioName, {type: audioBlob.type || 'application/octet-stream'}), audioName);
+    if (usdzFile)  fd.append('file', new File([await usdzFile.arrayBuffer()], 'scene.usdz', {type: usdzFile.type || 'model/vnd.usdz+zip'}), 'scene.usdz');
+
+    // 8) POST /publish
+    toast('Lade hoch …');
+    const headers = {};
+    if ((AREA.PUBLISH_KEY||'').trim()) headers['X-AREA-Key'] = AREA.PUBLISH_KEY.trim();
+
+    const res = await fetch(publishUrl, { method:'POST', body: fd, headers });
+    if (!res.ok){ throw new Error('Publish fehlgeschlagen: '+res.status+' '+res.statusText); }
+    const j = await res.json().catch(()=> ({}));
+
+    // 9) Viewer-URL bestimmen
+    const viewerBase = AREA.VIEWER_BASE || 'https://area-viewer.pages.dev';
+    const fallbackUrl = buildRobustViewerUrl({ mode, sceneId, workerOrigin, viewerBase });
+    const viewerUrl = j?.viewerUrl || fallbackUrl;
+
+    toast('Veröffentlicht');
+    showSharePanel(viewerUrl);
+  }catch(e){
+    console.error(e);
+    toast('Fehler beim Veröffentlichen');
+    alert('Publish-Fehler:\n'+(e?.message||e));
+  }
+};
+
+  
 </script>
     
 </body>
