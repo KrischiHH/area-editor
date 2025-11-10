@@ -745,6 +745,10 @@ html, body { font-family: var(--ui-font); }
 
 
   // 4) Fetch-Wrapper: POST /publish → intelligent GLB fallback (defensive version)
+  // TODO: Remove fallback once export reliably contains animations[] (Hotfix #1)
+  // This fallback preserves the original GLB if the exported GLB lacks animations.
+  // With patches #2 and #3 (safeRemap + exportSceneGLB improvements), this should
+  // become unnecessary once we verify that export preserves all animations correctly.
   const _origFetch = window.fetch.bind(window);
   window.fetch = async (input, init)=>{
     // Defensive: ensure init exists
@@ -1705,6 +1709,43 @@ const opFar  = nebula ? (0.10 + 0.24*gi) : (0.06 + 0.20*gi);
     const draco = new DRACOLoader();draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');gltfLoader.setDRACOLoader(draco);
     const fbxLoader = new FBXLoader();
 
+    // === Global helper: listImportedTrackNames (Goal #9) ===
+    // Prints all track names from all imported clips for manual diagnostics
+    window.listImportedTrackNames = function listImportedTrackNames(){
+      console.log('=== All Imported Track Names ===');
+      let totalTracks = 0;
+      state.objects.forEach((rec, objIdx) => {
+        if (rec?.clips && rec.clips.length > 0) {
+          console.log(`Object [${objIdx}] "${rec.name}" has ${rec.clips.length} clip(s):`);
+          rec.clips.forEach((clip, clipIdx) => {
+            console.log(`  Clip [${clipIdx}] "${clip.name}" - ${clip.tracks?.length || 0} track(s):`);
+            if (clip.tracks) {
+              clip.tracks.forEach((track, trackIdx) => {
+                console.log(`    [${trackIdx}] ${track.name}`);
+                totalTracks++;
+              });
+            }
+          });
+        }
+      });
+      
+      // Also show AREA.currentClips if available
+      if (window.AREA?.currentClips && window.AREA.currentClips.length > 0) {
+        console.log('--- AREA.currentClips (most recent import) ---');
+        window.AREA.currentClips.forEach((clip, clipIdx) => {
+          console.log(`  Clip [${clipIdx}] "${clip.name}" - ${clip.tracks?.length || 0} track(s):`);
+          if (clip.tracks) {
+            clip.tracks.forEach((track, trackIdx) => {
+              console.log(`    [${trackIdx}] ${track.name}`);
+            });
+          }
+        });
+      }
+      
+      console.log(`Total tracks across all objects: ${totalTracks}`);
+      console.log('=== End Track Names ===');
+    };
+
     function forEachRec(fn){ function visit(rec){ fn(rec); if(rec.type==='group' && rec.children) rec.children.forEach(visit); } state.objects.forEach(visit); }
 
   function rebuildList(){
@@ -1818,7 +1859,32 @@ renderer.domElement.addEventListener('dblclick', e=>{
       const root = gltf.scene || gltf.scenes?.[0];
       const group = new THREE.Group(); group.name = name || 'Objekt';
       group.add(root);
-      const clips=(gltf.animations||[]).slice();
+      
+      // Import: retain EVERY clip provided by gltf.animations unchanged (Goal #2)
+      // Clone only for safety, never thin/drop tracks
+      const clips = (gltf.animations||[]).map(clip => clip.clone());
+      
+      // === Import Diagnostics (Goal #7) ===
+      console.log('=== Import Diagnostics ===');
+      console.log('[createFromGLTF] Imported clips count:', clips.length);
+      if (clips.length > 0) {
+        const firstClip = clips[0];
+        console.log('[createFromGLTF] First clip name:', firstClip.name, 'tracks:', firstClip.tracks?.length || 0);
+        if (firstClip.tracks && firstClip.tracks.length > 0) {
+          const trackCount = firstClip.tracks.length;
+          const tracksToShow = Math.min(20, trackCount);
+          console.log('[createFromGLTF] First', tracksToShow, 'track names:');
+          for (let i = 0; i < tracksToShow; i++) {
+            console.log('  [' + i + ']', firstClip.tracks[i].name);
+          }
+        }
+      }
+      console.log('=== End Import Diagnostics ===');
+      
+      // Store clips globally for UI/buildSceneJson logic (Goal #5)
+      if (typeof window.AREA === 'undefined') window.AREA = {};
+      window.AREA.currentClips = clips;
+      
       return { group, root, clips };
     }
     async function createFromFBX(url,name){
@@ -2609,18 +2675,21 @@ function resolvePathInClone(root, segments){
 }
 
 
-// === Remap AnimationClips for cloned export tree ===
-function remapAnimationClipsForExport(allClips, clonedRoot){
-  // Build a fast name → nodes map in cloned tree for fallback lookup
+// === safeRemap: Preserve ALL animation clips and tracks (Patch #2) ===
+// This function iterates all tracks of all clips, clones them WITHOUT altering their names,
+// and attempts gentle resolution of target objects by name. If resolution fails, the track
+// is KEPT with its original name and a warning is logged. NO tracks are ever discarded.
+function safeRemap(clips, exportRoot){
+  // Build a fast name → nodes map in cloned tree for gentle resolution
   const byName = new Map();
-  clonedRoot.traverse(n=>{ 
+  exportRoot.traverse(n=>{ 
     if (!n || !n.name) return; 
     const arr = byName.get(n.name) || []; 
     arr.push(n); 
     byName.set(n.name, arr); 
   });
 
-  function findClonedForTrack(trackName){
+  function tryResolveTarget(trackName){
     // trackName like 'Armature/Bone.quaternion' or 'Armature|mixamo.com|Layer0/Bone.position'
     const dot = trackName.lastIndexOf('.');
     const targetPath = dot >= 0 ? trackName.slice(0, dot) : trackName;
@@ -2630,7 +2699,7 @@ function remapAnimationClipsForExport(allClips, clonedRoot){
     if (!segments.length) return null;
     
     // Try to resolve full path in cloned tree
-    let targetNode = resolvePathInClone(clonedRoot, segments);
+    let targetNode = resolvePathInClone(exportRoot, segments);
     
     // Fallback: if full path fails, try just the last segment by name
     if (!targetNode){
@@ -2643,13 +2712,63 @@ function remapAnimationClipsForExport(allClips, clonedRoot){
   }
 
   const remapped = [];
+  for (const clip of (clips||[])){
+    if (!clip || !Array.isArray(clip.tracks) || !clip.tracks.length) continue;
+    const newTracks = [];
+    for (const tr of clip.tracks){
+      // Clone track WITHOUT altering its name (no UUID replacement)
+      const clonedTrack = tr.clone();
+      
+      // Attempt gentle resolution - but NEVER discard the track
+      const targetNode = tryResolveTarget(tr.name);
+      if (!targetNode){
+        console.warn('[safeRemap] Could not resolve track target (keeping original name):', tr.name);
+        // Keep the track with its original name unchanged
+      }
+      // Note: we do NOT change clonedTrack.name - it stays as the original name-based path
+      
+      newTracks.push(clonedTrack);
+    }
+    // Always include the clip, even if we couldn't resolve all targets
+    remapped.push(new THREE.AnimationClip(clip.name, clip.duration, newTracks)); 
+  }
+  return remapped;
+}
+
+// === Legacy remapAnimationClipsForExport (kept for reference, not used) ===
+function remapAnimationClipsForExport_LEGACY(allClips, clonedRoot){
+  // This function is DEPRECATED - it drops tracks and uses UUID-based naming
+  // which breaks name-based binding. Use safeRemap() instead.
+  const byName = new Map();
+  clonedRoot.traverse(n=>{ 
+    if (!n || !n.name) return; 
+    const arr = byName.get(n.name) || []; 
+    arr.push(n); 
+    byName.set(n.name, arr); 
+  });
+
+  function findClonedForTrack(trackName){
+    const dot = trackName.lastIndexOf('.');
+    const targetPath = dot >= 0 ? trackName.slice(0, dot) : trackName;
+    const segments = splitPath(targetPath);
+    if (!segments.length) return null;
+    let targetNode = resolvePathInClone(clonedRoot, segments);
+    if (!targetNode){
+      const lastName = segments[segments.length - 1];
+      const cand = lastName && byName.get(lastName);
+      targetNode = cand ? cand[0] : null;
+    }
+    return targetNode;
+  }
+
+  const remapped = [];
   for (const clip of (allClips||[])){
     if (!clip || !Array.isArray(clip.tracks) || !clip.tracks.length) continue;
     const newTracks = [];
     for (const tr of clip.tracks){
       const targetNode = findClonedForTrack(tr.name);
       if (!targetNode){
-        console.warn('[remapAnimationClipsForExport] Could not resolve track:', tr.name);
+        console.warn('[remapAnimationClipsForExport_LEGACY] Could not resolve track:', tr.name);
         continue; // drop tracks we can't map
       }
       const dot = tr.name.lastIndexOf('.');
@@ -2661,28 +2780,39 @@ function remapAnimationClipsForExport(allClips, clonedRoot){
     if (newTracks.length){ 
       remapped.push(new THREE.AnimationClip(clip.name, clip.duration, newTracks)); 
     } else {
-      console.warn('[remapAnimationClipsForExport] Clip dropped (no tracks mapped):', clip.name);
+      console.warn('[remapAnimationClipsForExport_LEGACY] Clip dropped (no tracks mapped):', clip.name);
     }
   }
   return remapped;
 }
 
+// === exportSceneGLB: Export scene with preserved animations (Patch #3) ===
 async function exportSceneGLB(){
   const exporter = new GLTFExporter();
   const exportRoot = cloneForExport();
+  
+  // Collect ALL animation clips from all objects
   const allClips = [];
-  state.objects.forEach(r => { if (r?.clips?.length) r.clips.forEach(c => allClips.push(c)); });
+  state.objects.forEach(r => { 
+    if (r?.clips?.length) {
+      r.clips.forEach(c => allClips.push(c)); 
+    }
+  });
 
-  // Remap animation clips to cloned nodes
-  const remappedClips = remapAnimationClipsForExport(allClips, exportRoot);
+  // Use safeRemap to preserve ALL tracks with original names (no UUID replacement)
+  const remappedClips = safeRemap(allClips, exportRoot);
+  
+  // === Export Diagnostics (Goal #7) ===
+  console.log('=== Export Diagnostics ===');
+  console.log('[exportSceneGLB] clipCount:', remappedClips.length);
   console.log('[exportSceneGLB] Original clips:', allClips.length, 'Remapped clips:', remappedClips.length);
   
-  // Debug: log first track names for comparison
-  if (allClips.length > 0 && allClips[0]?.tracks?.length > 0){
-    console.log('[exportSceneGLB] Original first track:', allClips[0].tracks[0].name);
-  }
-  if (remappedClips.length > 0 && remappedClips[0]?.tracks?.length > 0){
-    console.log('[exportSceneGLB] Remapped first track:', remappedClips[0].tracks[0].name);
+  if (remappedClips.length > 0) {
+    const firstClip = remappedClips[0];
+    console.log('[exportSceneGLB] First clip name:', firstClip.name, 'tracks:', firstClip.tracks.length);
+    if (firstClip.tracks.length > 0) {
+      console.log('[exportSceneGLB] First track name:', firstClip.tracks[0].name);
+    }
   }
 
   return new Promise((resolve, reject)=>{
@@ -2697,13 +2827,17 @@ async function exportSceneGLB(){
           } else {
             glbBlob = makeGLBFromJSON(result);
           }
+          
           // Check if animations are present in the exported GLB
           const hasAnim = await window.hasAnimationsInGlbBlob(glbBlob);
           console.log('[exportSceneGLB] Exported GLB has animations:', hasAnim);
+          console.log('[exportSceneGLB] animations.length > 0:', remappedClips.length > 0);
+          console.log('=== End Export Diagnostics ===');
+          
           resolve(glbBlob);
         }catch(e){ reject(e); }
       },
-      { binary:true, onlyVisible:true, embedImages:true, animations: remappedClips }
+      { binary:true, onlyVisible:false, embedImages:true, animations: remappedClips, trs:true, includeCustomExtensions:true }
     );
   });
 }
