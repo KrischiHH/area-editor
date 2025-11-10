@@ -468,6 +468,28 @@
 }
 .menu .menuitem input[type="file"]{ display:none; }
 
+    /* Viewport sichtbar machen: Flex-Layout durchreichen */
+.panel { display:flex; flex-direction:column; min-height:0; }
+
+/* Falls .viewport in .content liegt */
+.panel .content{
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Viewport soll den verfügbaren Platz einnehmen (statt height:100%) */
+.panel > .viewport,
+.panel .content > .viewport{
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;      /* ersetzt height:100% zuverlässig */
+}
+
+/* #stage bleibt absolute/full */
+#stage{ position:absolute; inset:0; width:100%; height:100%; }
+
 
 
     /* Icons (Masken) – zentral definiert */
