@@ -2837,7 +2837,7 @@ async function exportSceneGLB(){
           resolve(glbBlob);
         }catch(e){ reject(e); }
       },
-      { binary:true, onlyVisible:true, embedImages:true, animations: remappedClips, trs:true, includeCustomExtensions:true, onlyVisible:false }
+      { binary:true, onlyVisible:false, embedImages:true, animations: remappedClips, trs:true, includeCustomExtensions:true }
     );
   });
 }
