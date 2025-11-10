@@ -1448,6 +1448,8 @@ stage.appendChild(renderer.domElement);
 }
 
 
+    
+
 
     // --- Anchor-Mode nur noch aus dem rechten Select lesen ---
 function getAnchorSel(){
@@ -1475,6 +1477,54 @@ document.getElementById('anchorMode')?.addEventListener('change', ()=>{
 requestAnimationFrame(()=>{
   updateAnchorUI();
 });
+
+    // === Theme Toggle (3-Wege) – Radios ↔ <html class="theme-*> + Persistenz ===
+(function(){
+  const html = document.documentElement;
+  const radios = ['th-slate','th-aurora','th-nebula']
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+
+  function applyTheme(cls){
+    ['theme-slate','theme-aurora','theme-nebula'].forEach(c=>html.classList.remove(c));
+    html.classList.add(cls);
+    try{ localStorage.setItem('theme', cls); }catch{}
+    try{ window.__applyThemeToThree?.(); }catch{}
+  }
+
+  // Initial Radio anhand der Class setzen
+  (function initRadio(){
+    const cur = ['theme-slate','theme-aurora','theme-nebula']
+      .find(c => html.classList.contains(c)) || 'theme-nebula';
+    const map = { 'theme-slate':'th-slate','theme-aurora':'th-aurora','theme-nebula':'th-nebula' };
+    const r = document.getElementById(map[cur]);
+    if (r) r.checked = true;
+  })();
+
+  // Wechsel binden
+  radios.forEach(r=>{
+    r.addEventListener('change', ()=>{
+      if (!r.checked) return;
+      applyTheme(r.value);
+    });
+  });
+
+  // Optional: Keyboard „T“ zum Durchschalten (mit Guard wenn getippt wird)
+  window.addEventListener('keydown', (e)=>{
+    if (e.key.toLowerCase() !== 't') return;
+    const a = document.activeElement;
+    if (a && (a.isContentEditable || /^(input|textarea|select)$/i.test(a.tagName))) return;
+    if (document.getElementById('svBlock')?.contains(a)) return;
+
+    const order = ['theme-slate','theme-aurora','theme-nebula'];
+    const curIdx = order.findIndex(c=>html.classList.contains(c));
+    const next = order[(curIdx+1) % order.length];
+    const map = { 'theme-slate':'th-slate','theme-aurora':'th-aurora','theme-nebula':'th-nebula' };
+    const r = document.getElementById(map[next]); if (r) r.checked = true;
+    applyTheme(next);
+  });
+})();
+
 
 
     
