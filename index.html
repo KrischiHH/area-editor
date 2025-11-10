@@ -3901,5 +3901,294 @@ window.exportSceneGLB = exportSceneGLB;
 
     
   </script>
+
+<script type="module">
+  /************************************************************
+   * Integration: Snippets 1–5, 7–9 (10 nur Kommentar)
+   * Erwartet vorhandene Funktionen/Konstanten:
+   *   exportSceneGLB, buildSceneViewerJSON_CF, buildSceneJSON,
+   *   buildRobustViewerUrl, capturePosterBlob, toast,
+   *   previewModules, saveProject, importProjectFile,
+   *   sanitizeId, getAnchorSel, findFirstAudio
+   * Import Map enthält bereits "qrcode"
+   ************************************************************/
+  import QRCode from 'qrcode';
+  try { window.QRCode = QRCode; } catch {}
+
+  /* === SNIPPET 1: Theme Toggle (Radios) + Persistenz === */
+  (function(){
+    const html = document.documentElement;
+    const radios = ['th-slate','th-aurora','th-nebula']
+      .map(id => document.getElementById(id))
+      .filter(Boolean);
+
+    function applyTheme(cls){
+      ['theme-slate','theme-aurora','theme-nebula'].forEach(c=>html.classList.remove(c));
+      html.classList.add(cls);
+      try{ localStorage.setItem('theme', cls); }catch{}
+      try{ window.__applyThemeToThree?.(); }catch{}
+    }
+
+    (function initRadio(){
+      const cur = ['theme-slate','theme-aurora','theme-nebula']
+        .find(c => html.classList.contains(c)) || 'theme-nebula';
+      const map = { 'theme-slate':'th-slate','theme-aurora':'th-aurora','theme-nebula':'th-nebula' };
+      const r = document.getElementById(map[cur]);
+      if (r) r.checked = true;
+    })();
+
+    radios.forEach(r=>{
+      r.addEventListener('change', ()=>{
+        if (!r.checked) return;
+        applyTheme(r.value);
+      });
+    });
+
+    window.addEventListener('keydown', (e)=>{
+      if (e.key.toLowerCase() !== 't') return;
+      const a = document.activeElement;
+      if (a && (a.isContentEditable || /^(input|textarea|select)$/i.test(a.tagName))) return;
+      if (document.getElementById('svBlock')?.contains(a)) return;
+
+      const order = ['theme-slate','theme-aurora','theme-nebula'];
+      const curIdx = order.findIndex(c=>html.classList.contains(c));
+      const next = order[(curIdx+1) % order.length];
+      const map = { 'theme-slate':'th-slate','theme-aurora':'th-aurora','theme-nebula':'th-nebula' };
+      const r = document.getElementById(map[next]); if (r) r.checked = true;
+      applyTheme(next);
+    });
+  })();
+
+  /* === SNIPPET 2: Projekt-Menü öffnen/schließen + Aktionen === */
+  (function(){
+    const menu      = document.getElementById('projectMenu');
+    const btnToggle = document.getElementById('btn-project-menu');
+    const pop       = document.getElementById('projectMenuPop');
+
+    function closeMenu(){ menu?.classList.remove('open'); btnToggle?.setAttribute('aria-expanded','false'); }
+
+    btnToggle?.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      menu?.classList.toggle('open');
+      btnToggle?.setAttribute('aria-expanded', String(menu?.classList.contains('open')));
+    });
+
+    document.addEventListener('click', (e)=>{
+      if (!menu?.contains(e.target)) closeMenu();
+    });
+
+    document.getElementById('btn-new')?.addEventListener('click', ()=>{
+      closeMenu();
+      document.getElementById('btn-clear')?.click();
+      const pill = document.getElementById('projNamePill');
+      if (pill){
+        pill.textContent = 'Unbenanntes Projekt';
+        document.title = 'ARea Editor v3.0 — Unbenanntes Projekt';
+      }
+    });
+
+    document.getElementById('btn-save')?.addEventListener('click', async ()=>{
+      closeMenu(); await window.saveProject?.({saveAs:false});
+    });
+    document.getElementById('btn-save-as')?.addEventListener('click', async ()=>{
+      closeMenu(); await window.saveProject?.({saveAs:true});
+    });
+
+    document.getElementById('btn-preview')?.addEventListener('click', (e)=>{
+      e.preventDefault(); closeMenu(); try{ window.previewModules?.(); }catch{}
+    });
+
+    document.getElementById('btn-preview-draft')?.addEventListener('click', (e)=>{
+      e.preventDefault(); closeMenu();
+      try{ window.previewModules?.(); }catch{}
+    });
+
+    const openInput = document.getElementById('file-project');
+    openInput?.addEventListener('change', async (ev)=>{
+      const f = ev.target.files?.[0]; if (!f) return;
+      closeMenu(); await window.importProjectFile?.(f); ev.target.value='';
+    });
+  })();
+
+  /* === SNIPPET 3: Hint FAB ein/aus === */
+  (function(){
+    const btn  = document.getElementById('hintFab');
+    const hint = document.querySelector('.hint');
+    if (!btn || !hint) return;
+    const toggle = ()=>{
+      const hidden = hint.classList.toggle('hidden');
+      btn.setAttribute('aria-expanded', String(!hidden));
+    };
+    btn.addEventListener('click', e=>{ e.preventDefault(); toggle(); });
+    window.addEventListener('keydown', e=>{
+      if (e.key === 'Escape' && !hint.classList.contains('hidden')) toggle();
+    });
+  })();
+
+  /* === SNIPPET 4: Room/Grid live steuern === */
+  (function(){
+    const room  = document.getElementById('roomSize');
+    const gridI = document.getElementById('gridIntensity');
+    const gridV = document.getElementById('gridVisible');
+
+    function apply(){
+      const size = parseFloat(room?.value||'24') || 24;
+      if (typeof window.buildRoom === 'function') window.buildRoom(size);
+    }
+    room?.addEventListener('change', apply);
+    gridI?.addEventListener('input', apply);
+    gridV?.addEventListener('change', ()=>{
+      const vis = !!gridV.checked;
+      [window.gridNear, window.gridFar, window.axisX, window.axisZ].forEach(o=>o&&(o.visible=vis));
+    });
+    // initial (kurzer Timeout falls buildRoom später definiert)
+    if (typeof window.buildRoom === 'function') apply();
+    else setTimeout(()=>{ if (typeof window.buildRoom === 'function') apply(); }, 0);
+  })();
+
+  /* === SNIPPET 5: Share-Overlay mit QR === */
+  function showSharePanel(url){
+    document.getElementById('shareOverlay')?.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'shareOverlay';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:3000';
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;max-width:560px;width:92%;color:var(--text);box-shadow:0 10px 30px rgba(0,0,0,.4)';
+
+    const h = document.createElement('div');
+    h.textContent = 'Veröffentlicht – teilen & scannen';
+    h.style.cssText = 'font-weight:800;margin-bottom:8px;color:var(--muted)';
+    const qr = document.createElement('canvas'); qr.style.cssText='display:block;margin:8px auto';
+    const link = document.createElement('div');
+    link.textContent = url;
+    link.style.cssText = 'font-size:12px;word-break:break-all;margin:8px 0;color:#aecdff';
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;margin-top:10px';
+    const bCopy = document.createElement('button'); bCopy.className='btn'; bCopy.textContent='Link kopieren';
+    const bOpen = document.createElement('button'); bOpen.className='btn'; bOpen.textContent='Im neuen Tab öffnen';
+    const bClose= document.createElement('button'); bClose.className='btn'; bClose.textContent='Schließen';
+    row.append(bCopy,bOpen,bClose);
+
+    card.append(h,qr,link,row);
+    wrap.append(card);
+    document.body.append(wrap);
+
+    try{ QRCode.toCanvas(qr, url, { margin:1, width:240 }); }catch{}
+
+    bCopy.addEventListener('click', async ()=>{ try{ await navigator.clipboard.writeText(url); }catch{} });
+    bOpen.addEventListener('click', ()=> window.open(url,'_blank','noopener'));
+    bClose.addEventListener('click', ()=> wrap.remove());
+    wrap.addEventListener('click', e=>{ if(e.target===wrap) wrap.remove(); });
+  }
+
+  /* === SNIPPET 7: Publish (Cloudflare Worker) === */
+  window.publishScene = async function(){
+    try{
+      const AREA = (window.__AREA = window.__AREA || {});
+      const endpoint    = AREA.PUBLISH_ENDPOINT || '';
+      const workerOrigin= AREA.FILE_BASE || (endpoint ? new URL(endpoint, location.href).origin : location.origin);
+      const viewerBase  = AREA.VIEWER_BASE || 'https://area-viewer.pages.dev';
+      const key         = AREA.PUBLISH_KEY || '';
+
+      const pill = document.getElementById('projNamePill');
+      const name = (pill?.textContent || 'scene').trim();
+      const sceneId = (window.sanitizeId ? window.sanitizeId(name) :
+                      (name.toLowerCase().replace(/[^a-z0-9-_]+/g,'-') || 'scene'))
+                      + '-' + (Date.now().toString(36).slice(-4));
+
+      const mode = (window.getAnchorSel ? window.getAnchorSel() : 'surface-webxr');
+
+      const glbBlob = await exportSceneGLB();
+
+      let sceneJson;
+      if (mode === 'surface-area-viewer' || mode === 'scene-viewer' || mode === 'surface-guided'){
+        sceneJson = buildSceneViewerJSON_CF();
+      } else {
+        const glbUrl  = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.glb`;
+        const usdzUrl = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.usdz`;
+        const target  = (document.getElementById('imageTargetUrl')?.value || '').trim() || null;
+        sceneJson = buildSceneJSON({ sceneId, title: name, mode, glbUrl, usdzUrl, targetUrl: target });
+      }
+
+      let posterBlob = null;
+      if (window.customPosterBlob) posterBlob = window.customPosterBlob;
+      else posterBlob = await capturePosterBlob?.(0.78);
+
+      async function resolveAudio(){
+        const f = document.getElementById('file-audio')?.files?.[0];
+        if (f) return f;
+        const info = window.findFirstAudio?.();
+        if (!info) return null;
+        if (info.fromFile) return info.fromFile;
+        const src = info.fromDataUrl || info.fromBlobUrl;
+        if (src){
+          const b = await (await fetch(src)).blob();
+          return new File([b], 'audio.mp3', { type: b.type || 'audio/mpeg' });
+        }
+        return null;
+      }
+      const audioFile = await resolveAudio();
+
+      const usdzFile = document.getElementById('fileUsdz')?.files?.[0] || null;
+
+      const fd = new FormData();
+      fd.append('sceneId', sceneId);
+      fd.append('file', new Blob([JSON.stringify(sceneJson)], {type:'application/json'}), 'scene.json');
+      fd.append('file', glbBlob, 'scene.glb');
+      if (posterBlob) fd.append('file', posterBlob, 'poster.jpg');
+      if (audioFile)  fd.append('file', audioFile, audioFile.name.endsWith('.mp3') ? 'audio.mp3' : (audioFile.name || 'audio.bin'));
+      if (usdzFile)   fd.append('file', usdzFile, 'scene.usdz');
+
+      const headers = key ? { 'X-AREA-Key': key } : {};
+      const res = await fetch(endpoint, { method:'POST', body:fd, headers });
+      if (!res.ok) throw new Error('Upload fehlgeschlagen: '+res.status);
+
+      let data = {};
+      try{ data = await res.json(); }catch{}
+      let viewerUrl = data.viewerUrl;
+      if (!viewerUrl){
+        viewerUrl = buildRobustViewerUrl({
+          mode,
+          sceneId,
+          workerOrigin,
+          viewerBase
+        });
+        if (mode === 'native' && usdzFile){
+          const u = new URL(viewerUrl);
+          u.searchParams.set('usdz', `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.usdz`);
+          viewerUrl = u.toString();
+        }
+      }
+
+      showSharePanel(viewerUrl);
+      toast?.('Veröffentlicht');
+    }catch(e){
+      console.error(e);
+      toast?.('Publish fehlgeschlagen');
+    }
+  };
+
+  /* (Publish-Button ist im vorhandenen Code bereits mit window.publishScene verdrahtet.) */
+
+  /* === SNIPPET 8: Preview-Button (Fallback falls Snippet 2 ihn nicht abdeckt) === */
+  document.getElementById('btn-preview')?.addEventListener('click', (e)=>{
+    e.preventDefault();
+    try{ window.previewModules?.(); }catch{}
+  });
+
+  /* === SNIPPET 9: Status-Pillen initial setzen === */
+  (function(){
+    document.getElementById('vp-pill-space')?.textContent = 'Space: Local';
+    const snapOn = document.getElementById('snapChk')?.checked ? 'An' : 'Aus';
+    document.getElementById('vp-pill-snap')?.textContent = 'Snap: ' + snapOn;
+  })();
+
+  /* === SNIPPET 10: Guard-Hinweis für Delete/Backspace ===
+     Ergänze in deiner bestehenden Keydown-Löschlogik:
+     if (isTyping) return;
+     (Stellt sicher, dass Backspace in Eingabefeldern nicht Objekte löscht.)
+  */
+</script>
+    
 </body>
 </html>
