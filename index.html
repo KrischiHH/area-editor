@@ -778,7 +778,8 @@ html, body { font-family: var(--ui-font); }
       }
       
       const urlObj = new URL(urlString, location.href);
-      const isPublish = urlObj.pathname === '/publish';
+      const isPublish = /\/publish\/?$/.test(urlObj.pathname);
+
       if (!isPublish) return _origFetch(input, init);
       
       // All checks passed: perform intelligent GLB fallback
@@ -863,8 +864,9 @@ html, body { font-family: var(--ui-font); }
     // Animation (UI -> State)
     a.clipName   = (val('#animClip', '*') || '*').trim();
     a.start      = (val('#animStart', 'onPlace') || 'onPlace');
-    a.loop       = (document.querySelector('#animLoop') ? chk('#animLoop', true) : true);
-    a.iterations = Math.max(1, num('#animIterations', 9999));
+    a.loop       = (document.getElementById('animLoop')?.value || 'repeat') === 'repeat';
+    a.iterations = Math.max(1, parseInt(document.getElementById('animRepeats')?.value || '9999', 10));
+
 
     // Note: Do NOT force clipName to 'none' when knownClipsCount()==0
     // Keep '*' (or user selection) to allow viewer to show imported animations
@@ -2488,21 +2490,30 @@ updateAnchorUI();
     function applyExposure(){ const e=parseFloat($('#exposure').value)||1; renderer.toneMappingExposure=e; hemi.intensity=LIGHT_BASE.hemi*e; dir.intensity=LIGHT_BASE.dir*e; amb.intensity=LIGHT_BASE.amb*e; camLight.intensity = 1.6 * e; }
     $('#exposure').addEventListener('input', applyExposure); applyExposure();
 
-    // ===== Anchor-UI toggeln =====
-    function updateAnchorUI(){
-  const mode = getAnchorSel();
-  // rechte Panel-Optionen weiter bedienen:
+   function updateAnchorUI(){
+  const mode   = getAnchorSel();
   const imgRow = document.getElementById('imageTargetRow');
   const natRow = document.getElementById('nativeRow');
-  const usdzRow = document.getElementById('usdzUploadRow'); // NEU
-  if (imgRow) imgRow.style.display = (mode==='image')  ? 'grid' : 'none';
-  if (natRow) natRow.style.display = (mode==='native') ? 'grid' : 'none';
-  if (usdzRow) usdzRow.style.display = (mode==='native') ? 'grid' : 'none';
+  const usdzRow= document.getElementById('usdzUploadRow');
+  const svBlock= document.getElementById('svBlock');
+  const avAudio= document.getElementById('avAudioRow');
+
+  // Sichtbarkeit schalten
+  if (imgRow)  imgRow.style.display   = (mode === 'image')  ? 'grid' : 'none';
+  if (natRow)  natRow.style.display   = (mode === 'native') ? 'grid' : 'none';
+  if (usdzRow) usdzRow.style.display  = (mode === 'native') ? 'grid' : 'none';
+
+  // Welcome/Poster für Scene-Viewer + Guided + Area-Viewer
+  if (svBlock) svBlock.style.display  = (mode === 'scene-viewer' || mode === 'surface-guided' || mode === 'surface-area-viewer') ? 'block' : 'none';
+
+  // Audio-UI nur für Area-Viewer
+  if (avAudio) avAudio.style.display  = (mode === 'surface-area-viewer') ? 'grid' : 'none';
 
   updateSVBlockVisible();
 }
 
-
+      
+  
  function previewModules(){
   const mode   = getAnchorSel(); // <-- nur noch hier holen
   const target = ($('#imageTargetUrl')?.value || '').trim();
@@ -2513,10 +2524,11 @@ updateAnchorUI();
 
   const pathByMode = {
   'surface-webxr': '/surface-ar/webxr.html',
-  'native':        '/surface-ar/index.html',   // ← konsistent
+  'native':        '/surface-ar/index.html',
   'image':         '/image-ar/viewer.html',
   'scene-viewer':  '/scene-viewer/index.html',
-  'surface-guided':'/surface-ar/guided.html'
+  'surface-guided':'/surface-ar/guided.html',
+  'surface-area-viewer':'/surface-ar/area-viewer.html'
 };
 
   const entry = pathByMode[mode] || '/webxr.html';
@@ -2550,6 +2562,8 @@ updateAnchorUI();
         const c = SkeletonUtils.clone(r.group);
         c.traverse(n=>{ if(n.userData?.__pickProxy){ n.parent?.remove(n); n.geometry?.dispose?.(); n.material?.dispose?.(); } });
         root.add(c);
+
+        
       });
       return root;
     }
@@ -2680,20 +2694,62 @@ function resolvePathInClone(root, segments){
 // and attempts gentle resolution of target objects by name. If resolution fails, the track
 // is KEPT with its original name and a warning is logged. NO tracks are ever discarded.
 function safeRemap(clips, exportRoot){
-  // Build a fast name → nodes map in cloned tree for gentle resolution
   const byName = new Map();
-  exportRoot.traverse(n=>{ 
-    if (!n || !n.name) return; 
-    const arr = byName.get(n.name) || []; 
-    arr.push(n); 
-    byName.set(n.name, arr); 
-  });
+  exportRoot.traverse(n=>{ if(n?.name){ (byName.get(n.name) || byName.set(n.name,[]).get(n.name)).push(n); }});
 
-  function tryResolveTarget(trackName){
-    // trackName like 'Armature/Bone.quaternion' or 'Armature|mixamo.com|Layer0/Bone.position'
+  function splitPath(raw){ return String(raw||'').split(/[\/\\|]/).filter(Boolean); }
+
+  function resolveWithFlag(trackName){
     const dot = trackName.lastIndexOf('.');
     const targetPath = dot >= 0 ? trackName.slice(0, dot) : trackName;
-    
+    const seg = splitPath(targetPath);
+    if (!seg.length) return {node:null, usedFallback:false};
+
+    // 1) exakte Pfadauflösung
+    const nodeExact = (function resolvePath(root, segments){
+      const first = segments[0];
+      const cands = [];
+      exportRoot.traverse(n => { if(n?.name===first) cands.push(n); });
+      for (const c of cands){
+        let cur = c, ok = true;
+        for (let i=1;i<segments.length;i++){
+          const next = cur.children.find(ch => ch.name === segments[i]);
+          if (!next){ ok=false; break; }
+          cur = next;
+        }
+        if (ok) return cur;
+      }
+      return null;
+    }) (exportRoot, seg);
+
+    if (nodeExact) return {node:nodeExact, usedFallback:false};
+
+    // 2) Fallback: nur letzter Name
+    const last = seg.at(-1);
+    const cand = last && byName.get(last);
+    return {node: cand ? cand[0] : null, usedFallback: !!cand};
+  }
+
+  const out = [];
+  for (const clip of (clips||[])){
+    const tracks = [];
+    for (const tr of (clip.tracks||[])){
+      const {node, usedFallback} = resolveWithFlag(tr.name);
+      const copy = tr.clone();
+      if (node && usedFallback){
+        const suffix = tr.name.slice(tr.name.lastIndexOf('.')+1);
+        copy.name = node.uuid + (suffix ? '.'+suffix : '');
+      }
+      // Wenn node null ist: Originalname beibehalten → Exporter versucht es (und Fallback greift notfalls über deinen Original-GLB-Weg)
+      tracks.push(copy);
+    }
+    out.push(new THREE.AnimationClip(clip.name, clip.duration, tracks));
+  }
+  return out;
+}
+
+
+     
     // Split path into segments (handles '/', '\\', and '|' for Mixamo)
     const segments = splitPath(targetPath);
     if (!segments.length) return null;
@@ -2711,31 +2767,7 @@ function safeRemap(clips, exportRoot){
     return targetNode;
   }
 
-  const remapped = [];
-  for (const clip of (clips||[])){
-    if (!clip || !Array.isArray(clip.tracks) || !clip.tracks.length) continue;
-    const newTracks = [];
-    for (const tr of clip.tracks){
-      // Clone track WITHOUT altering its name (no UUID replacement)
-      const clonedTrack = tr.clone();
-      
-      // Attempt gentle resolution - but NEVER discard the track
-      const targetNode = tryResolveTarget(tr.name);
-      if (!targetNode){
-        console.warn('[safeRemap] Could not resolve track target (keeping original name):', tr.name);
-        // Keep the track with its original name unchanged
-      }
-      // Note: we do NOT change clonedTrack.name - it stays as the original name-based path
-      
-      newTracks.push(clonedTrack);
-    }
-    // Always include the clip, even if we couldn't resolve all targets
-    remapped.push(new THREE.AnimationClip(clip.name, clip.duration, newTracks)); 
-  }
-  return remapped;
-}
-
-// === Legacy remapAnimationClipsForExport (kept for reference, not used) ===
+  // === Legacy remapAnimationClipsForExport (kept for reference, not used) ===
 function remapAnimationClipsForExport_LEGACY(allClips, clonedRoot){
   // This function is DEPRECATED - it drops tracks and uses UUID-based naming
   // which breaks name-based binding. Use safeRemap() instead.
@@ -3004,7 +3036,8 @@ async function publish(){
   const AREA = (window.__AREA = window.__AREA || {});
   const file = (sel)=> (document.querySelector(sel)?.files?.[0]) || null;
 
-  const buildSceneJson = window.buildSceneJson;
+  const sceneJson = window.buildSceneJson();
+
 
   window.publishScene = async function publishScene(){
     try{
@@ -3395,11 +3428,24 @@ document.getElementById('btn-preview-draft')?.addEventListener('click', ()=>{
    /* === Theme Toggle (Slate ↔ Aurora ↔ Nebula) === */
 (function(){
   const html = document.documentElement;
+  const THEMES = ['theme-slate','theme-aurora','theme-nebula'];
+  const set = (t)=>{
+    THEMES.forEach(c=>html.classList.remove(c));
+    html.classList.add(t);
+    localStorage.setItem('theme', t);
+    window.__applyThemeToThree?.();
+  };
+  const saved = localStorage.getItem('theme');
+  if (saved && THEMES.includes(saved)) {
+    set(saved);
+    const r = document.getElementById(saved.replace('theme-','th-'));
+    r && (r.checked = true);
+  }
+  document.querySelectorAll('.theme-toggle3 input[name="theme3"]').forEach(r=>{
+    r.addEventListener('change', e => set(e.target.value));
+  });
+})();
 
-  const storage = (() => {
-    try { const s = localStorage; s.setItem('__t','1'); s.removeItem('__t'); return s; }
-    catch { return null; }
-  })();
 
   // ... in deinem Theme-Block:
 const THEMES = ['theme-slate','theme-aurora','theme-nebula'];
@@ -3463,6 +3509,301 @@ document.querySelectorAll('.theme-toggle3 input[name="theme3"]').forEach(inp=>{
 
 
        render();
+<script>
+/* ================= v3.0 – Ergänzungen (Theme, Menü, Publish, Share) ================ */
+(function(){
+  const AREA = (window.__AREA = window.__AREA || {});
+  const byId = (id)=>document.getElementById(id);
+
+  /* ---------- Theme: Radios + Persist + Three ---------- */
+  function applyTheme(t){
+    const html = document.documentElement;
+    ['theme-slate','theme-aurora','theme-nebula'].forEach(c=>html.classList.remove(c));
+    html.classList.add(t);
+    try{ localStorage.setItem('theme', t); }catch{}
+    try{ window.__applyThemeToThree && window.__applyThemeToThree(); }catch{}
+  }
+  function syncThemeRadios(){
+    const t = (localStorage.getItem('theme') || document.documentElement.classList[0] || 'theme-nebula');
+    (byId('th-slate')  || {}).checked = (t==='theme-slate');
+    (byId('th-aurora') || {}).checked = (t==='theme-aurora');
+    (byId('th-nebula') || {}).checked = (t==='theme-nebula');
+  }
+  ['th-slate','th-aurora','th-nebula'].forEach(id=>{
+    const el = byId(id);
+    el && el.addEventListener('change', (e)=>{ if(e.target.checked) applyTheme(e.target.value); });
+  });
+  // „T“ nur wenn nicht getippt / nicht im Welcome-Block
+  window.addEventListener('keydown', (e)=>{
+    if ((e.key||'').toLowerCase() !== 't') return;
+    const el = document.activeElement;
+    const typing = el?.isContentEditable || /^(input|textarea|select)$/i.test(el?.tagName||'');
+    const insideSv = !!byId('svBlock') && byId('svBlock').contains(el);
+    if (typing || insideSv) return;
+    const order = ['theme-slate','theme-aurora','theme-nebula'];
+    const cur = localStorage.getItem('theme') || order[0];
+    const next = order[(order.indexOf(cur)+1)%order.length];
+    applyTheme(next);
+    const map = { 'theme-slate':'th-slate','theme-aurora':'th-aurora','theme-nebula':'th-nebula' };
+    const rb = byId(map[next]); if (rb) rb.checked = true;
+  });
+  // initial
+  syncThemeRadios();
+
+  /* ---------- Projekt-Menü ---------- */
+  const menuWrap = byId('projectMenu');
+  const menuBtn  = byId('btn-project-menu');
+  const menuPop  = byId('projectMenuPop');
+
+  function closeMenu(){ menuWrap && menuWrap.classList.remove('open'); menuBtn && menuBtn.setAttribute('aria-expanded','false'); }
+  function toggleMenu(){
+    if (!menuWrap) return;
+    const isOpen = menuWrap.classList.toggle('open');
+    menuBtn && menuBtn.setAttribute('aria-expanded', String(isOpen));
+  }
+  menuBtn && menuBtn.addEventListener('click', (e)=>{ e.stopPropagation(); toggleMenu(); });
+  document.addEventListener('click', (e)=>{ if (!menuWrap) return; if (!menuWrap.contains(e.target)) closeMenu(); });
+
+  // Hooks
+  byId('btn-new')?.addEventListener('click', ()=>{
+    closeMenu();
+    try{ byId('btn-clear')?.click(); }catch{}
+    try{ window.setProjectName && window.setProjectName('Unbenanntes Projekt'); }catch{}
+  });
+  byId('file-project')?.addEventListener('change', (e)=>{
+    const f = e.target.files?.[0]; e.target.value='';
+    if (f) { closeMenu(); window.importProjectFile ? window.importProjectFile(f) : console.warn('importProjectFile fehlt'); }
+  });
+  byId('btn-save')?.addEventListener('click', async ()=>{
+    closeMenu();
+    try{ await window.saveProject?.({saveAs:false}); }catch{}
+  });
+  byId('btn-save-as')?.addEventListener('click', async ()=>{
+    closeMenu();
+    try{ await window.saveProject?.({saveAs:true}); }catch{}
+  });
+  byId('btn-preview')?.addEventListener('click', ()=>{
+    closeMenu();
+    try{ window.previewModules?.(); }catch{}
+  });
+  byId('btn-preview-draft')?.addEventListener('click', ()=>{
+    closeMenu();
+    try{ window.previewModules?.(); }catch{}
+  });
+
+  /* ---------- Share-Overlay (QR + Copy) ---------- */
+  function showSharePanel(url){
+    const old = document.getElementById('shareOverlay'); if (old) old.remove();
+
+    const wrap = document.createElement('div');
+    wrap.id = 'shareOverlay';
+    wrap.style.cssText = `
+      position:fixed; inset:0; z-index:4000;
+      display:flex; align-items:center; justify-content:center;
+      background:rgba(0,0,0,.55)`;
+    const pane = document.createElement('div');
+    pane.style.cssText = `
+      width:min(680px,92vw); max-width:92vw;
+      background:var(--panel); color:var(--text);
+      border:1px solid var(--border); border-radius:16px;
+      padding:16px; box-shadow:0 22px 50px rgba(0,0,0,.45)`;
+    pane.innerHTML = `
+      <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px">
+        <div class="status-pill">Teilen</div>
+        <div class="muted">Dein Viewer-Link</div>
+        <div style="margin-left:auto">
+          <button class="btn" id="shareClose">Schließen</button>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 160px; gap:12px; align-items:start">
+        <div>
+          <input id="shareUrl" class="input" style="width:100%" readonly>
+          <div style="display:flex; gap:8px; margin-top:8px">
+            <button class="btn" id="shareCopy">Link kopieren</button>
+            <a class="btn" id="shareOpen" href="#" target="_blank" rel="noopener">Öffnen</a>
+          </div>
+        </div>
+        <div style="display:grid; place-items:center; background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:8px">
+          <canvas id="qrCanvas" width="144" height="144" style="image-rendering:pixelated"></canvas>
+        </div>
+      </div>
+    `;
+    wrap.appendChild(pane);
+    document.body.appendChild(wrap);
+
+    const input = pane.querySelector('#shareUrl'); input.value = url;
+    const openA = pane.querySelector('#shareOpen'); openA.href = url;
+
+    pane.querySelector('#shareCopy').addEventListener('click', async ()=>{
+      try{ await navigator.clipboard.writeText(url); (window.toast||alert)('Kopiert'); }catch{ (window.toast||alert)('Kopieren fehlgeschlagen'); }
+    });
+    pane.querySelector('#shareClose').addEventListener('click', ()=> wrap.remove());
+    wrap.addEventListener('click', (e)=>{ if(e.target===wrap) wrap.remove(); });
+
+    // QR rendern
+    try{
+      try { QRCode.toCanvas(pane.querySelector('#qrCanvas'), url, { margin:0, width:144 }); } catch(e){ console.warn('QR fehlgeschlagen', e); }
+    }catch(e){ console.warn('QR fehlgeschlagen', e); }
+  }
+  window.showSharePanel = showSharePanel;
+
+  /* ---------- Publish Flow ---------- */
+  async function dataUrlToBlob(u){ const r = await fetch(u); return await r.blob(); }
+
+  function sanitizeId(s){ return (s||'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').replace(/^-+|-+$/g,'').slice(0,64)||'scene'; }
+
+  function getAnchorSel(){ return (document.getElementById('anchorMode')?.value || 'surface-webxr'); }
+
+  async function capturePosterBlob(quality = .75){
+    // nutzt dein vorhandenes capture (falls global), sonst fallback auf Canvas
+    if (window.capturePosterBlob) return await window.capturePosterBlob(quality);
+    const c = document.querySelector('#stage canvas');
+    return new Promise(res => c?.toBlob(res, 'image/jpeg', quality));
+  }
+
+  function findFirstAudio(){
+    if (window.findFirstAudio) return window.findFirstAudio();
+    return null;
+  }
+
+  window.publishScene = async function publishScene(){
+    try{
+      const mode   = getAnchorSel();
+      const sceneId= sanitizeId(window.projectName || document.title.replace(/^.*—\s*/,'') || 'scene');
+      const workerOrigin = AREA.FILE_BASE || new URL(AREA.PUBLISH_ENDPOINT, location.href).origin;
+      const viewerBase   = AREA.VIEWER_BASE || 'https://area-viewer.pages.dev';
+
+      (window.toast||console.log)('Exportiere …');
+      const glbBlob = await window.exportSceneGLB(); // behält Animations-Clips
+
+      // Poster: User-Upload bevorzugen, sonst Snapshot
+      let posterBlob = (window.customPosterBlob || null);
+      if (!posterBlob) posterBlob = await capturePosterBlob(.75);
+
+      // Audio optional
+      let audioBlob = null, audioName = 'audio.mp3';
+      try{
+        const ai = findFirstAudio();
+        if (ai?.fromFile)       audioBlob = ai.fromFile;
+        else if (ai?.fromDataUrl)  audioBlob = await dataUrlToBlob(ai.fromDataUrl);
+        else if (ai?.fromBlobUrl)  audioBlob = await (await fetch(ai.fromBlobUrl)).blob();
+      }catch{}
+
+      // USDZ optional (nur wenn „native“ ODER wenn du universal bereitstellen willst)
+      const usdzFile = document.getElementById('fileUsdz')?.files?.[0] || null;
+
+      // scene.json bauen (Viewer-Variante)
+      const sceneJson = (mode === 'scene-viewer' || mode === 'surface-guided' || mode === 'surface-area-viewer')
+        ? window.buildSceneViewerJSON_CF()
+        : window.buildSceneJSON({
+            sceneId,
+            title: window.projectName || sceneId,
+            mode,
+            glbUrl: 'scene.glb',
+            usdzUrl: usdzFile ? 'scene.usdz' : null,
+            targetUrl: document.getElementById('imageTargetUrl')?.value || ''
+          });
+
+      // FormData
+      const fd = new FormData();
+      fd.append('sceneId', sceneId);
+      fd.append('file', new Blob([JSON.stringify(sceneJson)], {type:'application/json'}), 'scene.json');
+      fd.append('file', glbBlob, 'scene.glb');
+      if (posterBlob) fd.append('file', posterBlob, 'poster.jpg');
+      if (audioBlob)  fd.append('file', audioBlob,  audioName);
+      if (usdzFile)   fd.append('file', usdzFile,   'scene.usdz');
+
+      const headers = AREA.PUBLISH_KEY ? {'X-AREA-Key': AREA.PUBLISH_KEY} : {};
+      const resp = await fetch(AREA.PUBLISH_ENDPOINT, { method:'POST', body: fd, headers });
+      if (!resp.ok) throw new Error('Publish fehlgeschlagen: '+resp.status);
+      const json = await resp.json().catch(()=> ({}));
+
+      // URL bevorzugt vom Worker, sonst robust zusammensetzen
+      const url = json.viewerUrl || window.buildRobustViewerUrl({
+        mode, sceneId, workerOrigin, viewerBase
+      });
+
+      (window.toast||console.log)('Veröffentlicht');
+      showSharePanel(url);
+      try{ closeMenu(); }catch{}
+    }catch(e){
+      console.error(e);
+      (window.toast||alert)('Publish-Fehler: '+(e?.message||e));
+    }
+  };
+
+})();
+
+  // --- Safe Remap: Tracks beibehalten, sanft auf Export-Baum mappen ---
+function safeRemap(clips, exportRoot){
+  const byName = new Map();
+  exportRoot.traverse(n => { if (n && n.name) (byName.get(n.name) || byName.set(n.name, []).get(n.name)).push(n); });
+
+  const split = s => String(s||'').split(/[\/\\|]/).filter(Boolean);
+
+  function resolveNode(trackName){
+    const dot = trackName.lastIndexOf('.');
+    const target = dot >= 0 ? trackName.slice(0, dot) : trackName;
+    const segs = split(target);
+    if (!segs.length) return { node:null, fallback:false };
+
+    // exakter Pfad
+    const first = segs[0];
+    const candidates = byName.get(first) || [];
+    for (const cand of candidates){
+      let cur = cand, ok = true;
+      for (let i=1;i<segs.length;i++){
+        cur = cur.children.find(ch => ch.name === segs[i]);
+        if (!cur){ ok=false; break; }
+      }
+      if (ok) return { node: cand, fallback:false };
+    }
+    // Fallback: letzter Name
+    const last = segs.at(-1);
+    const fallbackNode = byName.get(last)?.[0] || null;
+    return { node: fallbackNode, fallback: !!fallbackNode };
+  }
+
+  return (clips||[]).map(clip => {
+    const tracks = (clip.tracks||[]).map(tr => {
+      const { node, fallback } = resolveNode(tr.name);
+      const copy = tr.clone();
+      if (node && fallback){
+        const suffix = tr.name.slice(tr.name.lastIndexOf('.') + 1);
+        copy.name = node.uuid + (suffix ? '.' + suffix : '');
+      }
+      // Kein Node? → Namen unverändert lassen (Exporter versucht’s trotzdem)
+      return copy;
+    });
+    return new THREE.AnimationClip(clip.name, clip.duration, tracks);
+  });
+}
+
+// --- GLB-Export inkl. Animationen ---
+async function exportSceneGLB(){
+  const exportRoot = cloneForExport();
+  const allClips = [];
+  state.objects.filter(r => !r.media && r.clips?.length).forEach(r => allClips.push(...r.clips));
+  const remapped = safeRemap(allClips, exportRoot);
+
+  const exporter = new GLTFExporter();
+  return new Promise((resolve, reject) => {
+    exporter.parse(
+      exportRoot,
+      (binOrArrayBuffer) => {
+        const blob = binOrArrayBuffer instanceof Blob
+          ? binOrArrayBuffer
+          : new Blob([binOrArrayBuffer], { type:'model/gltf-binary' });
+        resolve(blob);
+      },
+      { binary:true, animations: remapped }
+    );
+  });
+}
+window.exportSceneGLB = exportSceneGLB;
+
+
+    
   </script>
 </body>
 </html>
