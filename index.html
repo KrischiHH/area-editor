@@ -179,8 +179,8 @@ html, body { font-family: var(--ui-font); }
 @supports (-webkit-mask: url("")) or (mask: url("")){
   #left > h3::before{
     background-color: currentColor;
-    -webkit-mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer%20icon.svg") no-repeat center / contain;
-            mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer%20icon.svg") no-repeat center / contain;
+    -webkit-mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer_icon.svg") no-repeat center / contain;
+            mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer_icon.svg") no-repeat center / contain;
   }
 }
   </style>
@@ -570,6 +570,14 @@ window.previewDraft = previewDraft;
   }
 })();
 </script>
+
+
+<style id="patch-minstage">
+/* --- ARea Editor Runtime Patch: guard zero-sized stage/viewport --- */
+#stage { min-width: 320px; min-height: 240px; }
+#viewport { min-width: 320px; min-height: 240px; }
+canvas { display:block; }
+</style>
 
 </head>
 <body>
@@ -1504,7 +1512,7 @@ async function blobToBase64(blob){
       v.crossOrigin = 'anonymous';
       v.playsInline = true; v.preload = 'auto'; v.loop = !!src.media.loop; v.controls = false; v.muted = false;
 
-      const tex = new THREE.VideoTexture(v);
+      const tex = createSafeVideoTexture(THREE, v);
       tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false;
 
       const w = src.media.w || 1.6, h = src.media.h || 0.9;
@@ -1719,7 +1727,7 @@ async function blobToBase64(blob){
       const vid=document.createElement('video');
       vid.src=url; vid.crossOrigin='anonymous'; vid.playsInline=true; vid.preload='auto'; vid.loop=false; vid.muted=false; vid.controls=false;
       let w=1.6, h=0.9;
-      const tex=new THREE.VideoTexture(vid); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false;
+      const tex=createSafeVideoTexture(THREE, vid); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false;
       const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({map:tex, toneMapped:false}));
       const group=new THREE.Group(); group.name=name; group.add(plane);
       vid.addEventListener('loadedmetadata', ()=>{ if(vid.videoWidth && vid.videoHeight){ const ar=vid.videoWidth/vid.videoHeight; w=1.6; h=w/ar; plane.geometry.dispose(); plane.geometry=new THREE.PlaneGeometry(w,h); const rec=findRec(id); if(rec && rec.media){ rec.media.w=w; rec.media.h=h; } }}, {once:true});
@@ -1924,7 +1932,7 @@ updateAnchorUI();
         if(obj.media && obj.media.kind==='video'){
           const vid=document.createElement('video');
           vid.src = obj.media.asset || ''; vid.crossOrigin='anonymous'; vid.playsInline=true; vid.preload='auto'; vid.loop=!!obj.media.loop; vid.controls=false;
-          const tex=new THREE.VideoTexture(vid); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false;
+          const tex=createSafeVideoTexture(THREE, vid); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false;
           const w=obj.media.w||1.6, h=obj.media.h||0.9;
           const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({map:tex, toneMapped:false}));
           group=new THREE.Group(); group.name=name; group.add(plane);
@@ -2873,5 +2881,74 @@ document.querySelectorAll('.theme-toggle3 input[name="theme3"]').forEach(inp=>{
 
        render();
   </script>
+
+<script id="patch-safety" type="module">
+/* --- ARea Editor Runtime Patch (WebGL/video) --- */
+(function(){
+  // Cap an overly high DPR (helps avoid max renderbuffer overflows on some mobiles)
+  try {
+    const dpr = window.devicePixelRatio || 1;
+    // Expose a helper so your code can use it instead of raw devicePixelRatio
+    window.__AREA_SAFE_DPR__ = Math.min(2, dpr);
+  } catch (e) {}
+
+  // Guard: ensure the stage gets a reasonable size before 3D init
+  function ensureStageMinSize(){
+    const stage = document.getElementById('stage') || document.getElementById('viewport') || null;
+    if (!stage) return;
+    const r = stage.getBoundingClientRect();
+    if (r.width < 32) stage.style.minWidth = '320px';
+    if (r.height < 32) stage.style.minHeight = '240px';
+  }
+  ensureStageMinSize();
+  try {
+    const ro = new ResizeObserver(()=>ensureStageMinSize());
+    const stageEl = document.getElementById('stage') || document.getElementById('viewport');
+    if (stageEl) ro.observe(stageEl);
+  } catch(e) {}
+
+  // Safe VideoTexture creator: starts with 1x1 placeholder, swaps when metadata is ready
+  // Usage: replace `createSafeVideoTexture(THREE, video)` with `createSafeVideoTexture(THREE, video)`
+  window.createSafeVideoTexture = function(THREE, video) {
+    try {
+      if (video && video.videoWidth && video.videoHeight) {
+        // already ready
+        const tx = createSafeVideoTexture(THREE, video);
+        tx.minFilter = THREE.LinearFilter;
+        tx.magFilter = THREE.LinearFilter;
+        tx.generateMipmaps = false;
+        return tx;
+      }
+      // placeholder 1x1
+      const canvas = document.createElement('canvas');
+      canvas.width = 1; canvas.height = 1;
+      const ctx = canvas.getContext('2d');
+      if (ctx) { ctx.fillStyle = '#000'; ctx.fillRect(0,0,1,1); }
+      const tx = createSafeVideoTexture(THREE, canvas);
+      tx.minFilter = THREE.LinearFilter;
+      tx.magFilter = THREE.LinearFilter;
+      tx.generateMipmaps = false;
+
+      const onReady = () => {
+        if (video.videoWidth && video.videoHeight) {
+          tx.image = video;
+          tx.needsUpdate = true;
+          video.removeEventListener('loadedmetadata', onReady);
+          video.removeEventListener('loadeddata', onReady);
+          video.removeEventListener('canplay', onReady);
+        }
+      };
+      video.addEventListener('loadedmetadata', onReady);
+      video.addEventListener('loadeddata', onReady);
+      video.addEventListener('canplay', onReady);
+      return tx;
+    } catch (e) {
+      console.warn('createSafeVideoTexture failed, falling back:', e);
+      try { return createSafeVideoTexture(THREE, video); } catch(e2) { return null; }
+    }
+  };
+})();
+</script>
+
 </body>
 </html>
