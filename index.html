@@ -3,248 +3,3332 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ARea Viewer – Drop-in (Animation Fix)</title>
+  <title>ARea Editor v3.0</title>
+  <script>
+(function(){
+  try{
+    var t = localStorage.getItem('theme') || 'theme-nebula';
+    var html = document.documentElement;
+    ['theme-slate','theme-aurora','theme-nebula'].forEach(c=>html.classList.remove(c));
+    html.classList.add(t);
+  }catch{}
+})();
+</script>
   <style>
-    :root { color-scheme: dark; }
+    :root { color-scheme: dark; } /* nur Globales hier rein */
+
+    /* ===================== Themes ===================== */
     :root.theme-slate{
-      --bg:#0b1020; --panel:#10172a; --text:#e6edf3; --muted:#94a3b8; --accent:#5b9dff; --border:#20304b;
+      --bg:#161b23; --panel:#111828; --panel2:#192339; --text:#e9ecf5;
+      --muted:#9fb3d9; --border:#24314a; --accent:#60a5fa; --accent2:#93c5fd;
+      color-scheme: dark;
     }
-    html,body { height:100%; margin:0; background:var(--bg); color:var(--text); font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial; }
-    #app { position:fixed; inset:0; }
-    canvas { display:block; width:100%; height:100%; }
-    .hud {
-      position:fixed; inset:16px auto auto 16px; padding:10px 12px;
-      background:color-mix(in hsl, var(--panel) 88%, transparent);
-      border:1px solid var(--border); border-radius:12px; backdrop-filter: blur(8px);
-      box-shadow: 0 6px 24px rgba(0,0,0,.25); font-size:14px; user-select:none;
+
+    /* Aurora: deutlich anders (türkise Akzente, grünlich-dunkler Hintergrund) */
+    :root.theme-aurora{
+      --bg:#062026;     /* deutlich grün/blau */
+      --panel:#06242b;
+      --panel2:#08323c;
+      --text:#e6fffb;   /* sehr hell, leicht mint */
+      --muted:#93d9d1;
+      --border:#0f3a43;
+      --accent:#22d3ee; /* knalliger Cyan */
+      --accent2:#67e8f9;
+      color-scheme: dark;
     }
-    .hud code{ padding:.15em .4em; background:#0006; border:1px solid #ffffff1a; border-radius:8px; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
-    .tapgate {
-      position:fixed; inset:0; display:none; place-items:center; z-index:20;
-      background:linear-gradient(180deg, rgba(7,12,24,.75), rgba(7,12,24,.85));
-      color:var(--text);
+
+    /* schlichtes Logo ohne Hintergrund/Pill */
+.top .brand-logo{
+  display:inline-flex;
+  align-items:center;
+  padding:0;
+  margin-right:8px;            /* etwas Abstand zur nächsten Pill */
+  border:none;
+  background:transparent;
+}
+.top .brand-logo img{
+  height:50px;                 /* ggf. 32–40px feinjustieren */
+  width:auto;
+  display:block;
+  border-radius:0;
+  box-shadow:none;
+  opacity:1;
+}
+
+
+    /* sanfte Übergänge beim Theme-Wechsel (ohne Layout-Jank) */
+    html, body,
+    .panel, .btn, .menubtn, .menu-pop, .toolbtn, .status-badge, .status-pill,
+    .icon, .tab, .del, .select, .input, .section > summary {
+      transition: background-color .25s ease, color .25s ease, border-color .25s ease, box-shadow .25s ease;
     }
-    .tapgate.show { display:grid; }
-    .card {
-      width:min(520px, 92vw); padding:20px; border-radius:16px; border:1px solid var(--border);
-      background:color-mix(in hsl, var(--panel) 92%, transparent);
-      box-shadow: 0 10px 30px rgba(0,0,0,.35); text-align:center;
+
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Inter,Roboto,Arial,sans-serif}
+    .top{height:56px;display:flex;gap:8px;align-items:center;padding:0 12px;background:var(--panel);border-bottom:1px solid var(--border);position:relative;z-index:10}
+    .brand{font-weight:800;letter-spacing:.02em}
+    .ver{opacity:.75;margin-left:6px}
+    .muted{color:var(--muted)}
+    .sp{flex:1}
+    .btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:10px;cursor:pointer;font-weight:700}
+    .btn:hover{border-color:var(--accent)}
+    .btn:disabled,.toolbtn:disabled{opacity:.5;cursor:not-allowed}
+
+    .wrap{
+      height:calc(100vh - 56px);
+      display:grid;
+      grid-template-columns:minmax(220px,280px) minmax(320px,1fr) minmax(280px,420px);
+      gap:10px;padding:10px;overflow:hidden
     }
-    .btn {
-      display:inline-flex; align-items:center; gap:.5rem; margin-top:12px; padding:10px 14px;
-      border-radius:12px; border:1px solid var(--border); background:var(--accent); color:#081018;
-      font-weight:600; cursor:pointer;
+    @media (max-width:1000px){.wrap{grid-template-columns:minmax(200px,260px) minmax(320px,1fr)} .wrap>.panel:nth-child(3){grid-column:1/-1}}
+    @media (max-width:680px){.wrap{grid-template-columns:1fr}}
+
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+    .panel h3{margin:0;padding:10px 12px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+    .content{padding:10px;overflow:auto}
+
+    /* ===================== Theme: Nebula (dark, glass, gradients) ===================== */
+:root.theme-nebula{
+  --bg:#080e19;
+
+  /* kräftiger violett/blauer Verlauf */
+  --bg-grad:
+    radial-gradient(1100px 800px at 12% 0%,  #2c3f84 0%,  transparent 58%),
+    radial-gradient(1200px 900px at 88% 8%, #6d3a99 0%,  transparent 60%),
+    radial-gradient(900px 700px  at 18% 86%, #2d6bb4 0%, transparent 62%),
+    linear-gradient(180deg, #0a0f1e 0%, #10182a 100%);
+
+  /* Glas-Parameter – etwas „nasser“ */
+  --glass:       rgba(255,255,255,0.07);
+  --glass-2:     rgba(255,255,255,0.10);
+  --glass-border:rgba(255,255,255,0.18);
+  --glass-blur:  14px;
+
+  --panel:#0e1424;
+  --panel2:#121a2e;
+  --text:#e8eefb;
+  --muted:#a9b7da;
+  --border:#1e2a45;
+  --accent:#7dd3fc;   /* cyan */
+  --accent2:#a78bfa;  /* lila für subtile Glows */
+  color-scheme: dark;
+}
+
+/* Hintergrund-Layer nur für Nebula */
+:root.theme-nebula body{ background:#0a0f1e; }
+:root.theme-nebula body::before{
+  content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background: var(--bg-grad);
+}
+
+/* Glassmorphism */
+:root.theme-nebula .top,
+:root.theme-nebula .panel,
+:root.theme-nebula .menu-pop,
+:root.theme-nebula .btn,
+:root.theme-nebula .menubtn,
+:root.theme-nebula .toolbtn,
+:root.theme-nebula .status-badge,
+:root.theme-nebula .status-pill,
+:root.theme-nebula .input,
+:root.theme-nebula .select,
+:root.theme-nebula .icon,
+:root.theme-nebula .del,
+:root.theme-nebula .dropzone{
+  background: var(--glass);
+  border-color: var(--glass-border);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+          backdrop-filter: blur(var(--glass-blur));
+  box-shadow:
+    0 12px 30px rgba(0,0,0,.38),
+    inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+/* Tiefe & feiner Glow */
+:root.theme-nebula .panel{
+  border-radius:18px;
+  box-shadow:
+    0 16px 44px rgba(0,0,0,.46),
+    0 0 0 1px rgba(255,255,255,.06),
+    0 0 40px -8px color-mix(in srgb, var(--accent2) 45%, transparent);
+}
+
+/* Topbar */
+:root.theme-nebula .top{
+  border-radius: 0 0 18px 18px;
+  background:
+    linear-gradient(135deg, rgba(125,211,252,.20), rgba(167,139,250,.14)),
+    var(--glass);
+  border-bottom-color: var(--glass-border);
+}
+
+/* Brand-Pill */
+:root.theme-nebula .top .brand-pill{
+  background: var(--glass-2);
+  box-shadow:
+    inset 10px 10px 18px rgba(0,0,0,.55),
+    inset -8px -8px 16px rgba(255,255,255,0.08),
+    0 0 0 1px rgba(255,255,255,.06);
+}
+
+/* Hover-Feedback für Clickables */
+:root.theme-nebula .btn:hover,
+:root.theme-nebula .menubtn:hover,
+:root.theme-nebula .toolbtn:hover{
+  border-color: var(--accent);
+  box-shadow:
+    0 6px 18px rgba(0,0,0,.35),
+    0 0 0 1px rgba(255,255,255,.06),
+    0 0 20px -6px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* kleine Z-Index/Pointer-Sauberkeit */
+.top, .panel, .viewport { position:relative; }
+.menu-pop{ z-index:3000; } /* Menü liegt sicher über allem, blockiert nichts daneben */
+
+/* Tabs/Badges/Outline-Farben bleiben über CSS-Variablen steuerbar (accents) */
+
+
+    #sceneList{ overflow-y:auto; overflow-x:hidden; }
+    #leftContent{ overflow-y:auto; overflow-x:hidden; scrollbar-width:none; }
+    #leftContent::-webkit-scrollbar{ display:none; }
+
+    .row{display:grid;grid-template-columns:24px 24px 1fr auto;gap:6px;align-items:center;padding:6px 8px;border-radius:8px}
+    .row:hover{ background: var(--panel2); }
+    .icon{width:24px;height:24px;display:flex;align-items:center;justify-content:center; cursor:pointer;border:1px solid var(--border);border-radius:8px;background:var(--panel2); }
+    .tab{display:block;text-align:left;background:transparent;border:1px solid transparent;padding:6px 8px;border-radius:8px;cursor:pointer;color:var(--text);font-weight:700;min-width:0}
+    .tab.active{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
+    .del{background:#0f1626;border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:8px;cursor:pointer}
+
+    .dropzone{
+  border:1px dashed var(--border);
+  background:var(--panel2);
+  padding:10px; border-radius:12px;
+  display:grid; grid-template-columns:56px 1fr auto; gap:10px; align-items:center;
+  cursor:pointer; user-select:none;
+}
+.dropzone.hover{ outline:2px solid var(--accent); outline-offset:2px }
+.dropzone .preview{ width:56px; height:56px; border-radius:8px; background:#0f1626;
+  display:grid; place-items:center; overflow:hidden }
+.dropzone .preview img{ width:100%; height:100%; object-fit:cover; display:block }
+
+
+    .viewport{position:relative;overflow:hidden;min-height:0;height:100%}
+    #stage{position:absolute;inset:0;width:100%;height:100%}
+    canvas{display:block}
+
+    .hint-fab{
+      position:absolute;left:12px;bottom:12px;z-index:6;width:40px;height:40px;border-radius:999px;
+      background: color-mix(in srgb, var(--panel) 85%, transparent);
+      border:1px solid var(--border);color:var(--muted);
+      display:flex;align-items:center;justify-content:center;font-weight:900;cursor:pointer
     }
-    .btn:active { transform:translateY(1px); }
-    .toast {
-      position:fixed; right:16px; bottom:16px; padding:10px 12px; border-radius:12px; border:1px solid var(--border);
-      background:color-mix(in hsl, var(--panel) 92%, transparent); box-shadow:0 6px 22px rgba(0,0,0,.25);
-      font-size:13px; opacity:0; transform:translateY(10px); transition:all .3s ease; z-index:30;
+    .hint{
+      position:absolute;left:60px;right:12px;bottom:12px;
+      background: color-mix(in srgb, var(--panel) 85%, transparent);
+      border:1px solid var(--border);border-radius:10px;padding:10px;font-size:12px;color:var(--muted);z-index:5;
+      transition:opacity .22s ease, transform .28s cubic-bezier(.2,.7,.2,1);transform-origin:left bottom
     }
-    .toast.show { opacity:1; transform:translateY(0); }
-    a{ color:var(--accent); text-decoration:none; }
+    .hint.hidden{opacity:0;transform:translateY(8px) scaleX(.85);pointer-events:none}
+
+    .status-badge{
+      position:absolute; top:12px; right:12px; z-index:7;
+      background: color-mix(in srgb, var(--panel) 85%, transparent);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:6px 10px;
+      font-size:12px;
+      color:var(--muted);
+      display:flex; gap:8px; align-items:center;
+      pointer-events:none;
+    }
+  .status-pill{
+  padding:2px 8px;
+  border:1px solid var(--border);
+  border-radius:999px;
+}
+
+
+    .toast{
+      position:fixed;bottom:14px;right:14px;
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      border:1px solid var(--border);
+      padding:10px 12px;border-radius:10px;display:none;z-index:1200
+    }
+
+    .menu{position:relative}
+    .menubtn{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:10px;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:6px}
+    .menu-pop{position:absolute;top:44px;left:0;min-width:220px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:6px;display:none;z-index:2000;box-shadow:0 10px 24px rgba(0,0,0,.35)}
+    .menu.open .menu-pop{display:block}
+    .menuitem{display:flex;align-items:center;gap:8px;width:100%;padding:10px;border-radius:10px;background:transparent;border:1px solid transparent;color:var(--text);cursor:pointer;text-align:left;font-weight:700}
+    .menuitem:hover{background:var(--panel2);border-color:var(--border)}
+    .menuitem input[type="file"]{display:none}
+
+    .toolbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+    .toolbtn{background:#0f1626;border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:999px;cursor:pointer;font-weight:700}
+    .toolbtn.active{outline:2px solid var(--accent)}
+
+    .select,.input{background:#0f1420;border:1px solid var(--border);color:var(--text);padding:8px;border-radius:10px}
+    .select option{background:#0f1420;color:var(--text)}
+    .kv{display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center;margin-bottom:8px}
+
+ 
+    /* === Topbar Pills (harmonisch zu Slate/Aurora/Nebula) === */
+.top .ui-pill{
+  position: relative;
+  display:inline-flex; align-items:center; gap:8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--panel2) 80%, var(--accent) 20%) 0%,
+      color-mix(in srgb, var(--panel2) 88%, var(--accent2) 12%) 100%);
+  color: var(--text);
+  box-shadow:
+    0 10px 24px rgba(0,0,0,.35),
+    0 0 0 1px rgba(255,255,255,.04),
+    0 6px 16px -6px color-mix(in srgb, var(--accent) 35%, transparent);
+  transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+}
+.top .ui-pill:hover{
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  box-shadow:
+    0 12px 28px rgba(0,0,0,.38),
+    0 0 0 1px rgba(255,255,255,.05),
+    0 10px 22px -8px color-mix(in srgb, var(--accent) 45%, transparent);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--panel2) 74%, var(--accent) 26%) 0%,
+      color-mix(in srgb, var(--panel2) 84%, var(--accent2) 16%) 100%);
+}
+.top .ui-pill:active{ transform: translateY(0); }
+
+/* Labels (mit <input hidden>) sollen wie Buttons wirken */
+.top label.ui-pill{ user-select:none; }
+
+/* === Dropdown im Tooltip-Look (öffnet nach UNTEN mit Pfeil) === */
+.menu .ui-tooltip{
+  position: absolute;
+  top: calc(100% + 14px);      /* ↓ nach unten öffnen */
+  left: 0;
+  min-width: 220px;
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--panel) 88%, var(--accent) 12%) 0%,
+      color-mix(in srgb, var(--panel2) 90%, var(--accent2) 10%) 100%);
+  color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow:
+    0 18px 36px rgba(0,0,0,.45),
+    0 0 0 1px rgba(255,255,255,.06);
+  display:none; z-index:2000;
+}
+.menu.open .ui-tooltip{ display:block; }
+
+/* Pfeilspitze (oben mittig) */
+.menu .ui-tooltip::before,
+.menu .ui-tooltip::after{
+  content:"";
+  position:absolute;
+  top:-10px; left:28px;         /* leicht versetzt zur Buttonkante; ggf. feintunen */
+  width:0; height:0;
+  border-left:10px solid transparent;
+  border-right:10px solid transparent;
+}
+.menu .ui-tooltip::before{
+  border-bottom:10px solid color-mix(in srgb, var(--border) 82%, transparent); /* „Rand“ */
+  top:-11px;
+}
+.menu .ui-tooltip::after{
+  border-bottom:10px solid
+    color-mix(in srgb, color-mix(in srgb, var(--panel) 88%, var(--accent) 12%) 60%,
+                     color-mix(in srgb, var(--panel2) 90%, var(--accent2) 10%) 40%);
+}
+
+/* Einheitliche Basis für alle Topbar-Pills (auch "Projekt") */
+.top .menubtn.ui-pill {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--panel2) 80%, var(--accent) 20%) 0%,
+      color-mix(in srgb, var(--panel2) 88%, var(--accent2) 12%) 100%);
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  color: var(--text);
+}
+
+/* ---------- Sweep (hover) – wie Uiverse, aber thematisch getönt ---------- */
+:root.theme-nebula { 
+  --sweep-bg: linear-gradient(90deg,
+                color-mix(in srgb, var(--accent2) 70%, transparent),
+                color-mix(in srgb, var(--accent) 65%, transparent));
+  --sweep-fg: #0a0f1e;  /* dunkle Schrift auf hellem Sweep */
+}
+:root.theme-slate {
+  --sweep-bg: linear-gradient(90deg,
+                color-mix(in srgb, var(--accent) 55%, transparent),
+                color-mix(in srgb, var(--accent2) 50%, transparent));
+  --sweep-fg: #0b1220;
+}
+:root.theme-aurora {
+  --sweep-bg: linear-gradient(90deg,
+                color-mix(in srgb, #22d3ee 55%, transparent),
+                color-mix(in srgb, #67e8f9 50%, transparent));
+  --sweep-fg: #031a1e;
+}
+
+    /* 3-Wege Theme Toggle */
+.theme-toggle3{
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  align-items: center;
+  gap: 6px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+  user-select: none;
+}
+.theme-toggle3 input{
+  position:absolute; opacity:0; pointer-events:none;
+}
+.theme-toggle3 label{
+  text-align:center; padding:6px 8px;
+  font-weight: 900; letter-spacing:.02em;
+  color: var(--muted);
+  cursor: pointer;
+  z-index:1;
+}
+.theme-toggle3 .thumb{
+  position:absolute; left:4px; top:4px; bottom:4px;
+  width: calc((100% - 8px) / 3);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--accent) 22%, var(--panel2) 78%),
+      color-mix(in srgb, var(--accent2) 18%, var(--panel2) 82%));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  box-shadow: 0 6px 16px rgba(0,0,0,.35);
+  transform: translateX(calc(var(--i,0) * (100% + 6px)));
+  transition: transform .3s cubic-bezier(.2,.7,.2,1);
+  z-index:0;
+}
+/* aktive Beschriftung betonen */
+.theme-toggle3 input:checked + label{ color: var(--text); }
+
+/* Thumb-Position über :checked steuern (Input + Label + Input + Label …) */
+#th-slate:checked  ~ .thumb{ --i: 0; }
+#th-aurora:checked ~ .thumb{ --i: 1; }
+#th-nebula:checked ~ .thumb{ --i: 2; }
+
+
+/* Uiverse-Style Sweep – aber farbig und lesbar */
+.top .ui-pill.sweep{
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.top .ui-pill.sweep::after{
+  content: "";
+  position: absolute;
+  left: -25%; right: -25%; top: 0; bottom: 0;
+  background: var(--sweep-bg);
+  transform: skewX(-45deg) scaleX(0);
+  transform-origin: left center;
+  transition: transform .5s ease;
+  opacity: .85;
+  z-index: 0;
+}
+.top .ui-pill.sweep:hover::after{ transform: skewX(-45deg) scaleX(1); }
+.top .ui-pill.sweep > *{ position: relative; z-index: 1; }
+/* dunkle Schrift auf hellem Sweep */
+.top .ui-pill.sweep:hover{ color: var(--sweep-fg); }
+
+
+
+/* Menüeinträge dezenter, dafür klar lesbar */
+.menu .menuitem{
+  display:flex; align-items:center; gap:10px;
+  width:100%;
+  padding:10px 12px;
+  border-radius:10px;
+  background:transparent;
+  border:1px solid transparent;
+  color:var(--text);
+  font-weight:700;
+}
+.menu .menuitem:hover{
+  background: color-mix(in srgb, var(--panel2) 84%, var(--accent) 16%);
+  border-color: color-mix(in srgb, var(--border) 70%, var(--accent) 30%);
+}
+.menu .menuitem input[type="file"]{ display:none; }
+
+
+
+    /* Icons (Masken) – zentral definiert */
+    :root{
+        --ico-transform: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/transform_icon.svg");
+        --ico-scene:     url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/camera%20icon.svg");
+        --ico-animation: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/animation_movie_icon.svg");
+        --ico-material:  url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/material-icon.svg");
+        --ico-media:     url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/player_video_icon.svg");
+        --ico-audio:     url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/audio_icon.svg");
+        --ico-lock-closed:url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/closed_lock_icon.svg");
+        --ico-lock-open: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/lock_open_icon.svg");
+        --ico-eye-open:  url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/eye_icon.svg");
+        --ico-eye-closed:url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/eye_close_icon.svg");
+        --ico-chev:          url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 10l4 4 4-4' fill='none' stroke='%23A9C7FF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    }
+    .ico-mask{
+      width:16px; height:16px; flex:0 0 16px;
+      background-color: currentColor;
+      -webkit-mask: var(--ico) no-repeat center / contain;
+              mask: var(--ico) no-repeat center / contain;
+    }
+    .ico--transform  { --ico: var(--ico-transform); }
+    .ico--scene      { --ico: var(--ico-scene); }
+    .ico--animation  { --ico: var(--ico-animation); }
+    .ico--material   { --ico: var(--ico-material); }
+    .ico--media      { --ico: var(--ico-media); }
+    .ico--audio      { --ico: var(--ico-audio); }
+    .ico--lock-closed{ --ico: var(--ico-lock-closed); }
+    .ico--lock-open  { --ico: var(--ico-lock-open); }
+    .ico--eye-open   { --ico: var(--ico-eye-open); }
+    .ico--eye-closed { --ico: var(--ico-eye-closed); }
+    .ico--chev       { --ico: var(--ico-chev); width:12px; height:12px; }
+    .section > summary .sum-icons .ico-mask{ color: var(--muted); }
+
+    .section{margin-bottom:10px;border:0}
+    .section > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:800;letter-spacing:.02em;color:var(--muted);background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.08));border:1px solid var(--border);border-radius:999px;padding:8px 12px;transition:border-color .18s ease,background .18s ease}
+    .section > summary::-webkit-details-marker,.section > summary::marker{display:none}
+    .sum-icons{display:flex;align-items:center;gap:10px}
+    .section > summary .ico--chev{display:inline-block;transform:rotate(-90deg);transform-origin:50% 50%;will-change:transform;transition:transform .18s ease}
+    .section[open] > summary .ico--chev{transform:rotate(0deg)}
+    .section[open] > summary{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+    .section > summary:hover{border-color:var(--accent2)}
+    .section .body{padding-top:10px}
+    .section .body .kv{margin-bottom:8px}
+
+    .viewport,#stage{min-width:0}
+
+ 
+/* Einheitliche Section-Pills (volle Breite) */
+.panel .section { display:block; }
+
+.panel .section > summary{
+  /* bleibt wie bei dir … */
+  display:flex;
+  align-items:center;
+  justify-content: flex-start;   /* ← überschreibt das space-between der Basis */
+  gap:10px;
+  width: calc(100% - 10px);
+  margin: 0 10px 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 40px;
+  box-sizing: border-box;
+}
+.panel .section > summary .sum-title{
+  flex: 1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+}
+.panel .section > summary .sum-icons{
+  margin-left:auto; flex:0 0 auto;
+}
+
+
+
+    /* --- FIX 1: Section-Pills nicht „zu breit“ --- */
+.panel .content{
+  /* Scrollbar-Platz reservieren, verhindert optisches „Überlaufen“ */
+  scrollbar-gutter: stable both-edges;
+}
+.panel .section > summary{
+  /* volle Breite minus kleiner Rand, damit nichts anstößt */
+  width: calc(100% - 10px);
+  margin-right: 10px;
+}
+@supports not (scrollbar-gutter: stable) {
+  /* Fallback für ältere Browser: etwas mehr Luft rechts */
+  .panel .section > summary{ margin-right: 12px; }
+}
+
+/* --- FIX 2: Projekt-Dropdown NICHT transparent --- */
+.menu-pop,
+.menu .ui-tooltip{
+  background: var(--panel) !important;     /* deckend */
+  border-color: var(--border) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 18px 36px rgba(0,0,0,.45),
+              0 0 0 1px rgba(255,255,255,.06) !important;
+  z-index: 3000;                            /* sicher über dem Panel */
+  isolation: isolate;                       /* keine Durchscheineffekte */
+}
+
+
+    /* ----- Einheitliche Section‑Pills: gleiche Form & Ausrichtung ----- */
+/* Wichtig: am Ende der CSS laden, damit vorherige !important-Regeln überschrieben werden */
+#sec-look > summary,
+#sec-anim > summary {
+  display: flex !important;                       /* volle Zeilen-Box */
+  width: calc(100% - 10px) !important;            /* gleiche Breite wie andere Pills */
+  justify-content: space-between !important;      /* Titel links, Icons rechts */
+  gap: 8px;
+  margin-right: 10px !important;
+  box-sizing: border-box;
+  min-height: 40px;
+  align-items: center;
+  padding: 8px 10px;                              /* optional: gleiche innere Abstände */
+}
+
+/* Icons wieder an die rechte Kante schieben */
+#sec-look > summary .sum-icons,
+#sec-anim > summary .sum-icons {
+  margin-left: auto !important;
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Titel darf schrumpfen / ellipsieren wie bei den anderen */
+#sec-look > summary .sum-title,
+#sec-anim > summary .sum-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Stellen sicher, dass alle summary-Elemente gleiche visuelle Basis haben */
+.panel .section > summary {
+  width: calc(100% - 10px);
+  margin-right: 10px;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 40px;
+}
+
+:root{
+  --ui-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+             "Helvetica Neue", Arial, "Apple Color Emoji",
+             "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+}
+
+/* global anwenden (kommt NACH der alten body-font Regel) */
+html, body { font-family: var(--ui-font); }
+.btn, .menubtn, .toolbtn, .tab, .status-pill, .menuitem,
+.input, .select, .panel h3 { font-family: var(--ui-font); }
+
+    /* === Icon vor "Szene" im linken Panel ===================== */
+/* Icon vor "Szene" – PNG-Fallback */
+#left > h3{
+  display:flex; align-items:center; gap:8px;
+  color: var(--muted);
+}
+#left > h3::before{
+  content:"";
+  display:inline-block;
+  width:16px; height:16px; flex:0 0 16px;
+  background: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer_icon.png")
+              center / contain no-repeat;
+  opacity:.95;
+}
+
+/* Moderne Variante: farbige SVG-Maske (nimmt currentColor) */
+@supports (-webkit-mask: url("")) or (mask: url("")){
+  #left > h3::before{
+    /* WICHTIG: PNG-Fallback NICHT killen – wir überschreiben nur die Darstellung */
+    background-color: currentColor;
+    -webkit-mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer%20icon.svg")
+                  no-repeat center / contain;
+            mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer%20icon.svg")
+                  no-repeat center / contain;
+    /* Kein background: none;  → lässt Fallback intakt, falls Maske nicht lädt */
+  }
+}
+
+
+
+    
   </style>
+
+  <!-- Minimal Config -->
+<script>
+  window.__AREA = {
+    PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish",
+    FILE_BASE:       "https://area-publish.area-webar.workers.dev",   // NEU: dient NUR zum Ausliefern /scenes/
+    PUBLISH_KEY: "",
+    VIEWER_BASE: "https://area-viewer.pages.dev"
+  };
+</script>
+
+
+
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+      "qrcode": "https://esm.sh/qrcode@1.5.3"
+    }
+  }
+  </script>
+
+<!-- === Variante A: Original-GLB Passthrough (Animationen erhalten) === -->
+<script>
+(function(){
+  const AREA = (window.__AREA = window.__AREA || {});
+  AREA.__origGlb = null;
+
+  // 1) Dateiimport (#file-glb) → Original-GLB puffern
+  const fileGlbInput = document.getElementById('file-glb');
+  if (fileGlbInput) {
+    fileGlbInput.addEventListener('change', async (ev)=>{
+      try{
+        const f = ev.target.files && ev.target.files[0];
+        if (!f) return;
+        AREA.__origGlb = await f.arrayBuffer();
+        console.log('[editor] Original GLB gepuffert (Datei):', f.name, AREA.__origGlb.byteLength, 'Bytes');
+      }catch(e){ console.warn('[editor] GLB-Puffer fehlgeschlagen:', e); }
+    });
+  }
+
+  // 2) Optionaler URL-Import → nach dem Bestätigen/Setzen der URL aufrufen
+  AREA.rememberOriginalGlbFromUrl = async function(glbUrl){
+    try{
+      if (!/^https?:\/\//i.test(glbUrl)) return;
+      const r = await fetch(glbUrl, { mode:'cors', credentials:'omit' });
+      if (!r.ok){ console.warn('[editor] GLB-URL fetch fehlgeschlagen:', r.status, r.statusText); return; }
+      AREA.__origGlb = await r.arrayBuffer();
+      console.log('[editor] Original GLB gepuffert (URL):', glbUrl, AREA.__origGlb.byteLength, 'Bytes');
+    }catch(e){ console.warn('[editor] GLB-URL Puffer fehlgeschlagen:', e); }
+  };
+
+  // 3) Helper: Check if GLB contains animations[] in JSON chunk (global for reuse)
+  window.hasAnimationsInGlbBlob = async function hasAnimationsInGlbBlob(blob){
+  try{
+    const ab = await blob.arrayBuffer();
+    const dv = new DataView(ab);
+    // 'glTF'
+    if (dv.getUint32(0, true) !== 0x46546c67) return false;
+    // version (>=2)
+    if (dv.getUint32(4, true) < 2) return false;
+
+    // erstes Chunk: JSON
+    const jsonLength = dv.getUint32(12, true);
+    const jsonType   = dv.getUint32(16, true);
+    if (jsonType !== 0x4E4F534A) return false; // 'JSON'
+
+    const jsonStr = new TextDecoder().decode(new Uint8Array(ab, 20, jsonLength));
+    try {
+      const j = JSON.parse(jsonStr);
+      return Array.isArray(j.animations) && j.animations.length > 0;
+    } catch {
+      return /"animations"\s*:\s*\[/.test(jsonStr);
+    }
+  } catch(e){
+    console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
+    return false;
+  }
+};
+
+
+  // 4) Fetch-Wrapper: POST /publish → intelligent GLB fallback (defensive version)
+  const _origFetch = window.fetch.bind(window);
+  window.fetch = async (input, init)=>{
+    // Defensive: ensure init exists
+    if (!init) init = {};
+    
+    // Early return: only engage for POST
+    const method = init.method ? String(init.method).toUpperCase() : 'GET';
+    if (method !== 'POST') return _origFetch(input, init);
+    
+    // Early return: only engage if body is FormData
+    if (!(init.body instanceof FormData)) return _origFetch(input, init);
+    
+    // Early return: only engage if __origGlb is present
+    if (!AREA.__origGlb) return _origFetch(input, init);
+    
+    // Now safe to parse URL (only for POST + FormData + __origGlb)
+    try{
+      // Parse URL without optional chaining
+      let urlString = '';
+      if (typeof input === 'string') {
+        urlString = input;
+      } else if (input && typeof input.url === 'string') {
+        urlString = input.url;
+      } else {
+        // Cannot determine URL, pass through
+        return _origFetch(input, init);
+      }
+      
+      const urlObj = new URL(urlString, location.href);
+      const isPublish = urlObj.pathname === '/publish';
+      if (!isPublish) return _origFetch(input, init);
+      
+      // All checks passed: perform intelligent GLB fallback
+      // a) Iterate FormData, extract exporter scene.glb while preserving other entries
+      const fdOld = init.body;
+      const fdNew = new FormData();
+      let exporterSceneGlb = null;
+      
+      for (const [k,v] of fdOld.entries()){
+        if (k === 'file' && v && typeof v.name === 'string' && /scene\.glb$/i.test(v.name || '')){
+          exporterSceneGlb = v;
+          continue; // don't append yet
+        }
+        fdNew.append(k, v);
+      }
+      
+      // b) Decide which GLB to use
+      let chosenGlb = null;
+      if (!exporterSceneGlb){
+        // b) No exporter GLB → use original
+        chosenGlb = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
+        console.log('[editor] Publish: Original scene.glb angehängt (', AREA.__origGlb.byteLength, 'Bytes )');
+      } else {
+        // c) Exporter GLB exists → check for animations
+        const hasAnim = await window.hasAnimationsInGlbBlob(exporterSceneGlb);
+        if (hasAnim){
+          chosenGlb = exporterSceneGlb;
+          console.log('[editor] Publish: Exporter-GLB mit animations[] verwendet.');
+        } else {
+          chosenGlb = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
+          console.log('[editor] Exportiertes GLB ohne animations[] – fallback auf Original-GLB.');
+        }
+      }
+      
+      // d) Rebuild FormData with chosen scene.glb
+      fdNew.append('file', chosenGlb, 'scene.glb');
+      init = { ...init, body: fdNew };
+    }catch(e){ 
+      console.warn('[editor] fetch wrapper warn:', e); 
+      return _origFetch(input, init);
+    }
+    return _origFetch(input, init);
+  };
+
+  // (Optional) Reset des Puffers beim "Szene leeren" oder "Neues Projekt"
+  try {
+    const btnClear = document.getElementById('btn-clear');
+    btnClear && btnClear.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    const btnNew = document.getElementById('btn-new');
+    btnNew && btnNew.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+  } catch(_) {}
+})();
+</script>
+
+  <script>
+/* Editor: scene.json-Export + Publish nach \"Aero/Spark-Style\" Schema */
+(function(){
+  const AREA = (window.__AREA = window.__AREA || {});
+  AREA.scene = AREA.scene || {};
+
+  function val(sel, def=''){ const el=document.querySelector(sel); return (el && 'value' in el) ? (el.value ?? def) : def; }
+  function chk(sel, def=false){ const el=document.querySelector(sel); return (el && 'checked' in el) ? !!el.checked : def; }
+  function num(sel, def){ const v = parseFloat(val(sel, String(def))); return Number.isFinite(v) ? v : def; }
+  function file(sel){ return (document.querySelector(sel)?.files?.[0]) || null; }
+
+  // OPTIONAL: Wenn dein Stage/Lader Clips kennt, kannst du die Länge hier abfragen
+  function knownClipsCount(){
+    try {
+      if (Array.isArray(AREA.currentClips)) return AREA.currentClips.length;
+      if (Array.isArray(AREA.scene?.clips)) return AREA.scene.clips.length;
+    } catch {}
+    return undefined;
+  }
+
+  window.buildSceneJson = function buildSceneJson(){
+    const s  = (AREA.scene = AREA.scene || {});
+    const a  = (s.animation = s.animation || {});
+    const au = (s.audio = s.audio || {});
+    const ui = (s.ui = s.ui || {});
+    const wl = (ui.welcome = ui.welcome || {});
+
+    // Animation (UI -> State)
+    a.clipName   = (val('#animClip', '*') || '*').trim();
+    a.start      = (val('#animStart', 'onPlace') || 'onPlace');
+    a.loop       = (document.querySelector('#animLoop') ? chk('#animLoop', true) : true);
+    a.iterations = Math.max(1, num('#animIterations', 9999));
+
+    // Note: Do NOT force clipName to 'none' when knownClipsCount()==0
+    // Keep '*' (or user selection) to allow viewer to show imported animations
+
+    // Audio (UI -> State)
+    au.autoplay  = val('#audioAutoplay', 'withAnimation') || 'withAnimation';
+    au.loop      = (document.querySelector('#audioLoop') ? chk('#audioLoop', true) : true);
+    au.volume    = Math.max(0, Math.min(1, document.querySelector('#audioVolume') ? num('#audioVolume', 0.85) : 0.85));
+
+    // Welcome/Poster
+    wl.eyebrow   = val('#svEyebrow', '');
+    wl.title     = val('#svTitle',  (s.meta?.title || 'ARea Scene'));
+    wl.desc      = val('#svDesc',   'Tippe auf OK und platziere das 3D‑Objekt.');
+    wl.nativeCta = val('#nativeCta', 'ios-only') || 'ios-only';
+
+    // Dateien (nur Namen in JSON, die Files selbst kommen im Publish)
+    const posterF = file('#file-poster');
+    const audioF  = file('#file-audio');   // Nur Audio für diesen Patch
+    const usdzF   = file('#fileUsdz');
+
+    s.meta = s.meta || {};
+    s.meta.title = wl.title;
+    s.meta.description = wl.desc;
+    s.meta.mode = 'area-viewer';
+
+    s.model = s.model || {};
+    s.model.url = 'scene.glb';
+    if (usdzF) s.model.usdzUrl = 'model.usdz';
+    s.model.scale = (typeof s.model.scale === 'number') ? s.model.scale : 1.0;
+
+    if (posterF) wl.poster = posterF.name;   // poster.jpg|png|webp
+    if (audioF)  au.url    = audioF.name;    // audio.mp3|wav|ogg|m4a|webm
+
+    s.animation = a;
+    s.audio = au;
+    s.ui = ui;
+
+    return JSON.parse(JSON.stringify(s)); // saubere Kopie
+  };
+
+  if (typeof buildViewerEntryForMode !== 'function') {
+    window.buildViewerEntryForMode = function buildViewerEntryForMode(mode){
+      const map = {
+        'surface-webxr':      '/surface-ar/webxr.html',
+        'native':             '/surface-ar/index.html',
+        'image':              '/image-ar/viewer.html',
+        'scene-viewer':       '/scene-viewer/index.html',
+        'surface-guided':     '/surface-ar/guided.html',
+        'surface-area-viewer':'/surface-ar/area-viewer.html'
+      };
+      return map[mode] || '/surface-ar/area-viewer.html';
+    };
+  }
+
+if (typeof buildRobustViewerUrl !== 'function') {
+  window.buildRobustViewerUrl = function buildRobustViewerUrl({ mode, sceneId, workerOrigin, viewerBase }){
+    const entry = buildViewerEntryForMode(mode);
+    const u = new URL(entry, viewerBase);
+    const glbUrl = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.glb`;
+    // immer glb + scene + base setzen
+    u.searchParams.set('glb', glbUrl);
+    u.searchParams.set('scene', sceneId);
+    u.searchParams.set('base', workerOrigin);
+    if (mode === 'native') u.searchParams.set('force', 'native');
+    return u.toString();
+  };
+}
+
+
+  // publishScene will be defined later with proper implementation
+  // (removed broken first implementation that had fd.append before fd declaration)
+
+  // Button „Veröffentlichen" verbinden (falls vorhanden)
+  try {
+    const btn = document.getElementById('btn-publish');
+    btn && btn.addEventListener('click', (ev)=>{ ev.preventDefault(); window.publishScene(); });
+  } catch(_){}
+
+})();
+</script>
+
+  
+<script>
+/* Welcome/Audio-UI abhängig vom Anchor anzeigen (robust, mit trim/aliases + Debug) */
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  const sel     = byId('anchorMode');
+  const svBlock = byId('svBlock');
+  const usdzRow = byId('usdzUploadRow');
+  const avAudio = byId('avAudioRow');
+
+  function norm(v){ return String(v || '').trim().toLowerCase(); }
+
+  function show(el, disp){
+    if (!el) return;
+    el.hidden = false;
+    el.style.display = disp; // 'block' | '' | 'grid'
+  }
+  function hide(el){
+    if (!el) return;
+    el.style.display = 'none';
+  }
+
+  function computeModes(){
+    const v = norm(sel?.value);
+    const txt = norm(sel?.options?.[sel.selectedIndex]?.textContent);
+    const both = v + ' ' + txt; // z. B. "surface-area-viewer surface (area viewer)"
+
+    const isSceneViewer =
+      v === 'scene-viewer' ||
+      txt.includes('szene viewer') || txt.includes('scene viewer');
+
+    const isAreaViewer =
+      v === 'surface-area-viewer' ||
+      v === 'area-viewer' ||
+      v === 'surface-area' ||
+      both.includes('area-viewer') ||
+      both.includes('area viewer'); // tolerant auf Text
+
+    const isGuided =
+      v === 'surface-guided' || txt.includes('guided');
+
+    return { isSceneViewer, isAreaViewer, isGuided, raw:v, label:txt };
+  }
+
+  function apply(reason=''){
+    const { isSceneViewer, isAreaViewer, isGuided, raw, label } = computeModes();
+    // Debug in Console
+    try {
+      console.log('[anchorMode]', { value: raw, label, isSceneViewer, isAreaViewer, isGuided, reason });
+    } catch {}
+
+    // Poster/Welcome-Block: für Scene Viewer ODER Area Viewer
+    if (svBlock) (isSceneViewer || isAreaViewer) ? show(svBlock, 'block') : hide(svBlock);
+
+    // USDZ nur für Scene Viewer
+    if (usdzRow) isSceneViewer ? show(usdzRow, '') : hide(usdzRow);
+
+    // Audio nur für Area Viewer (wenn auch für Szene-Viewer gewünscht → || isSceneViewer)
+    if (avAudio) isAreaViewer ? show(avAudio, 'grid') : hide(avAudio);
+  }
+
+  // Event-Bindings
+  if (sel){
+    sel.addEventListener('change', ()=>apply('change'));
+    sel.addEventListener('input',  ()=>apply('input'));
+  }
+
+  // Beim Laden ausführen und „spät“ nochmal (falls andere Handler danach togglen)
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', ()=>{
+      apply('DOMContentLoaded');
+      setTimeout(()=>apply('post-timeout-0'), 0);
+    });
+  } else {
+    apply('immediate');
+    setTimeout(()=>apply('post-timeout-0'), 0);
+  }
+
+  // Optional: beobachten, falls UI-Framework DOM später ändert
+  try {
+    const mo = new MutationObserver(()=>apply('mutation'));
+    if (sel?.parentNode) mo.observe(sel.parentNode, { childList:true, subtree:true, attributes:true });
+  } catch {}
+})();
+</script>
+  
 </head>
 <body>
-  <div id="app"></div>
+  <div class="top">
+  <a class="brand-logo" href="#" aria-label="Home" title="AREA">
+  <img src="icons/Logo%20Area_v1.png" alt="AREA Logo" draggable="false">
+</a>
 
-  <div class="hud" id="hud">
-    <div><strong>ARea Viewer – Animation Fix</strong></div>
-    <div style="opacity:.8;margin-top:.35rem">
-      Lädt <code>scene.json</code> (oder <code>?scene=…</code>) und <code>scene.glb</code>.<br/>
-      Animationen per <code>onStart</code>/<code>onClick</code>. Fallback: <em>alle Clips</em> abspielen.
+
+  <!-- Projekt-Menü (öffnet nach unten) -->
+  <div class="menu" id="projectMenu">
+    <button id="btn-project-menu" class="menubtn ui-pill sweep" aria-haspopup="true" aria-expanded="false">
+      Projekt ▾
+    </button>
+    <div class="menu-pop ui-tooltip" id="projectMenuPop" role="menu">
+      <button id="btn-new" class="menuitem" role="menuitem">+ Neues Projekt…</button>
+      <label class="menuitem" role="menuitem">Projekt öffnen <input id="file-project" type="file" accept=".webar,.json"></label>
+      <button id="btn-save" class="menuitem" role="menuitem">Speichern</button>
+      <button id="btn-save-as" class="menuitem" role="menuitem">Speichern unter</button>
+      <button id="btn-preview" class="menuitem" role="menuitem">Vorschau (Module)</button>
+      <button id="btn-preview-draft" class="menuitem" role="menuitem">Schnell-Preview (Draft)</button>
+      <button id="btn-publish" class="menuitem" role="menuitem">Veröffentlichen</button>
     </div>
   </div>
 
-  <div class="tapgate" id="tapgate" role="dialog" aria-modal="true" aria-label="Zum Starten tippen">
-    <div class="card">
-      <h2 style="margin:0 0 8px 0">Tippen zum Starten</h2>
-      <p style="margin:0 0 12px 0; color:var(--muted)">Deine Szene wartet auf einen Nutzer-Klick (<code>start:"onClick"</code>).</p>
-      <button class="btn" id="startBtn" type="button">▶ Animation starten</button>
-      <div style="margin-top:10px; font-size:12px; color:var(--muted)">Falls nichts passiert: Prüfe Clip-Namen in <code>scene.json</code>.</div>
+  <!-- Einmalige Import-Pills (passen zu deinem JS: #file-glb / #file-media) -->
+  <label class="ui-pill sweep">
+    Objekt import
+    <input id="file-glb" type="file" accept=".glb,.gltf,.fbx" hidden>
+  </label>
+
+  <label class="ui-pill sweep">
+    Medien import
+    <input id="file-media" type="file" accept="video/*,audio/*" hidden>
+  </label>
+
+  <div class="sp"></div>
+  <div class="status-pill" id="projNamePill" title="Projektname (Doppelklick zum Umbenennen)">Unbenanntes Projekt</div>
+</div>
+
+
+
+  <div class="wrap"><!-- GRID START -->
+
+  <!-- LEFT: Szenenliste -->
+  <div class="panel" id="left">
+    <h3>Szene</h3>
+    <div class="content" id="leftContent">
+      <div id="sceneList"></div>
     </div>
   </div>
 
-  <div class="toast" id="toast"></div>
+     <!-- CENTER -->
+    <div class="viewport">
+      <div id="stage"></div>
+      <div id="vpStatus" class="status-badge"><span id="vp-pill-space" class="status-pill">Space: Local</span><span id="vp-pill-snap" class="status-pill">Snap: Aus</span></div>
+      <button id="hintFab" class="hint-fab" aria-expanded="false" title="Hinweise">i</button>
+      <div class="hint hidden">LMB drehen · Rad zoomen · RMB/Shift+LMB schwenken · Klick = Auswahl (Shift=Mehrfach) · W/E/R Move/Rotate/Scale · D Duplizieren · F Drop-to-Floor ·  1–5 Bookmarks · Shift+1–5 Speichern · Ctrl+G Gruppieren · Ctrl+Shift+G Aufheben</div>
+    </div>
+
+
+  <div class="panel">
+  <h3>Eigenschaften</h3>
+  <div class="content">
+    <div class="toolbar">
+      <button id="tool-move" class="toolbtn">Verschieben (W)</button>
+      <button id="tool-rotate" class="toolbtn">Drehen (E)</button>
+      <button id="tool-scale" class="toolbtn">Skalieren (R)</button>
+    </div>
+
+    <div class="toolbar">
+      <button id="btn-duplicate" class="toolbtn" title="D">Duplizieren</button>
+      <button id="btn-floor" class="toolbtn" title="F">Drop to Floor</button>
+      <span class="toolbtn" style="pointer-events:none">Space:</span>
+      <button id="space-local" class="toolbtn active">Lokal</button>
+      <button id="space-world" class="toolbtn">Welt</button>
+    </div>
+
+    <div class="toolbar">
+      <button id="btn-group" class="toolbtn" title="Ctrl+G" disabled>Gruppieren</button>
+      <button id="btn-ungroup" class="toolbtn" title="Ctrl+Shift+G" disabled>Gruppierung aufheben</button>
+    </div>
+
+    <details id="sec-transform" class="section">
+      <summary>
+        <span class="sum-title">Transform</span>
+        <span class="sum-icons">
+          <span class="ico-mask ico--transform" aria-hidden="true"></span>
+          <span class="ico-mask ico--chev" aria-hidden="true"></span>
+        </span>
+      </summary>
+      <div class="body">
+        <div class="kv"><div>Name</div><input id="prop-name" class="input" placeholder="Objekt"></div>
+        <div class="kv"><div>Pos X</div><input id="posx" class="input" type="number" step="0.01"></div>
+        <div class="kv"><div>Pos Y</div><input id="posy" class="input" type="number" step="0.01"></div>
+        <div class="kv"><div>Pos Z</div><input id="posz" class="input" type="number" step="0.01"></div>
+        <div class="kv"><div>Rot X°</div><input id="rotx" class="input" type="number" step="1"></div>
+        <div class="kv"><div>Rot Y°</div><input id="roty" class="input" type="number" step="1"></div>
+        <div class="kv"><div>Rot Z°</div><input id="rotz" class="input" type="number" step="1"></div>
+        <div class="kv"><div>Scale</div><input id="scale" class="input" type="number" step="0.01"></div>
+
+        <div class="kv"><div>Snap aktiv</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="snapChk" type="checkbox"> <span class="muted">(öffnet Optionen)</span></label></div>
+        <div id="snapPanel" style="display:none">
+          <div class="kv"><div>Translate Snap (m)</div>
+            <select id="transSnapSel" class="select">
+              <option value="">Off</option><option value="0.1" selected>0.1</option><option value="0.25">0.25</option><option value="0.5">0.5</option><option value="1">1.0</option>
+            </select>
+          </div>
+          <div class="kv"><div>Rotate Snap (°)</div>
+            <select id="rotSnapSel" class="select">
+              <option value="">Off</option><option value="15" selected>15°</option><option value="30">30°</option><option value="45">45°</option><option value="90">90°</option>
+            </select>
+          </div>
+          <div class="kv"><div>Scale Snap</div>
+            <select id="scaleSnapSel" class="select">
+              <option value="">Off</option><option value="0.1" selected>0.1</option><option value="0.25">0.25</option><option value="0.5">0.5</option>
+            </select>
+          </div>
+        </div>
+        <button id="btn-apply" class="btn" style="margin-top:6px">Übernehmen</button>
+      </div>
+    </details>
+
+    <details id="sec-scene" class="section">
+      <summary>
+        <span class="sum-title">Szene &amp; Ansichten</span>
+        <span class="sum-icons">
+          <span class="ico-mask ico--scene" aria-hidden="true"></span>
+          <span class="ico-mask ico--chev"  aria-hidden="true"></span>
+        </span>
+      </summary>
+      <div class="body">
+        <div class="toolbar">
+          <button class="btn" id="btn-view-iso">Iso</button>
+          <button class="btn" id="btn-view-front">Front</button>
+          <button class="btn" id="btn-view-side">Seite</button>
+          <button class="btn" id="btn-view-top">Top</button>
+          <button class="btn" id="btn-frame-all">Fokus Szene</button>
+          <button class="btn" id="btn-clear">Szene leeren</button>
+        </div>
+        <div class="kv"><div>Raumgröße</div><input id="roomSize" class="input" type="number" step="1" value="24"></div>
+        <div class="kv"><div>Grid Helligkeit</div><input id="gridIntensity" class="input" type="range" min="0.5" max="1" step="0.05" value="0.95"></div>
+        <div class="kv"><div>Grid anzeigen</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="gridVisible" type="checkbox" checked> <span>Ein</span></label></div>
+        <div class="kv"><div>Belichtung</div><input id="exposure" class="input" type="range" min="0.5" max="3" step="0.05" value="1.4"></div>
+        <div class="kv"><div>Kameralicht</div><label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0"><input id="headlight" type="checkbox" checked> <span>an</span></label></div>
+        <!-- Theme Toggle (3 Wege) -->
+<div class="kv">
+  <div>Theme</div>
+  <div>
+    <div class="theme-toggle3" role="group" aria-label="Theme">
+      <input id="th-slate"  type="radio" name="theme3" value="theme-slate">
+      <label for="th-slate"  title="Slate">S</label>
+
+      <input id="th-aurora" type="radio" name="theme3" value="theme-aurora">
+      <label for="th-aurora" title="Aurora">A</label>
+
+      <input id="th-nebula" type="radio" name="theme3" value="theme-nebula">
+      <label for="th-nebula" title="Nebula">N</label>
+
+      <span class="thumb" aria-hidden="true"></span>
+    </div>
+    <div class="muted" style="font-size:12px;margin-top:6px">Slate · Aurora · Nebula</div>
+  </div>
+</div>
+
+
+      
+        <!-- Anchor-Modus UI -->
+        <div class="kv"><div>Anchor-Modus</div>
+          <select id="anchorMode" class="select">
+            <option value="surface-webxr" selected>Surface (WebXR)</option>
+            <option value="image">Image Trigger</option>
+            <option value="native">Surface (Native)</option>
+            <option value="scene-viewer">Szene Viewer</option>
+            <option value="surface-guided">Surface (Guided)</option>
+            <option value="surface-area-viewer">Surface (Area Viewer)</option>
+
+          </select>
+        </div>
+        <div id="imageTargetRow" class="kv" style="display:none">
+          <div>Image Target (.mind)</div>
+          <input id="imageTargetUrl" class="input" placeholder="https://…/target.mind" value="../assets/targets/target.mind">
+        </div>
+        <div id="nativeRow" class="kv" style="display:none">
+          <div>Native Assets</div>
+          <div style="display:grid;grid-template-columns:1fr;gap:6px">
+            <input id="nativeGlbUrl"  class="input" placeholder="Android GLB – https://…/model.glb">
+            <input id="nativeUsdzUrl" class="input" placeholder="iOS USDZ – https://…/model.usdz">
+          </div>
+        </div>
+        <!-- ▼▼▼ NEU: USDZ Upload (optional, wird als scene.usdz veröffentlicht) -->
+        <div id="usdzUploadRow" class="kv" style="display:none">
+          <div>USDZ Upload</div>
+          <div style="display:grid;grid-template-columns:1fr;gap:6px">
+            <input id="fileUsdz" type="file" accept=".usdz,model/vnd.usdz+zip">
+            <div class="muted" style="font-size:12px">Optional – wenn gesetzt, wird <code>scene.usdz</code> mit veröffentlicht.</div>
+          </div>
+        </div>
+        <!-- Scene Viewer: Willkommensblock -->
+<div id="svBlock">
+  <!-- Poster Dropzone -->
+  <div class="kv">
+    <div>Poster</div>
+    <div style="display:grid; gap:6px">
+      <div id="svDrop" class="dropzone" role="button" tabindex="0" title="JPG reinziehen oder klicken" aria-controls="file-poster">
+  <div class="preview"><img id="svPosterPrev" alt="" style="display:none"></div>
+  <div>
+    <div style="font-weight:700">Ziehen &amp; ablegen oder klicken</div>
+    <div class="muted" style="font-size:12px">JPG empfohlen · 1280×720</div>
+  </div>
+  <div class="btn">Datei wählen</div>
+</div>
+<input id="file-poster" type="file" accept="image/jpeg" hidden>
+
+      
+
+      <div class="muted" id="svPosterHint" style="font-size:12px">
+        Ohne Upload wird beim Publish ein Canvas-Snapshot genutzt.
+      </div>
+    </div>
+  </div>
+
+  <!-- Begrüßungstexte -->
+  <div class="kv"><div>Eyebrow</div><input id="svEyebrow" class="input" maxlength="24" placeholder="z. B. ARea – Szene"></div>
+  <div class="kv"><div>Titel</div><input  id="svTitle"   class="input" maxlength="60" placeholder="Titel der Szene"></div>
+  <div class="kv"><div>Textzeile</div><input id="svDesc"    class="input" maxlength="90" placeholder="Kurzbeschreibung …"></div>
+
+  <!-- Audio (nur für area-viewer & optional auch scene-viewer) -->
+<div id="avAudioRow" class="kv" style="display:none">
+  <div>Audio</div>
+  <div style="display:grid;gap:6px">
+    <input id="file-audio" type="file" accept="audio/*">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
+        <span>Autoplay</span>
+        <select id="audioAutoplay" class="select">
+          <option value="withAnimation" selected>Mit Animation</option>
+          <option value="onStart">Beim Start</option>
+          <option value="never">Nie</option>
+        </select>
+      </label>
+      <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
+        <input id="audioLoop" type="checkbox" checked> <span>Loop</span>
+      </label>
+    </div>
+    <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
+      <span>Lautstärke</span>
+      <input id="audioVolume" type="range" min="0" max="1" step="0.05" value="0.85">
+    </label>
+  </div>
+</div>
+
+  <!-- Scene-Viewer: Controls (neu) -->
+  <div class="kv">
+    <div>Controls</div>
+    <div style="display:grid; gap:6px">
+      <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
+        <input id="svShowPlayBtn" type="checkbox">
+        <span>Play/Pause-Button anzeigen</span>
+      </label>
+      <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
+        <input id="svShowMuteBtn" type="checkbox">
+        <span>Mute-Button anzeigen</span>
+      </label>
+    </div>
+  </div>
+</div>
+
+      </div>
+    </details>
+
+    <details id="sec-look" class="section">
+      <summary>
+        <span class="sum-title">Material Look</span>
+        <span class="sum-icons">
+          <span class="ico-mask ico--material" aria-hidden="true"></span>
+          <span class="ico-mask ico--chev"  aria-hidden="true"></span>
+        </span>
+      </summary>
+      <div class="body">
+        <div class="kv"><div>Mattheit (+Roughness)</div><input id="matRoughAdd" class="input" type="range" min="0" max="0.6" step="0.01" value="0.25"></div>
+        <div class="kv"><div>Reflexionsstärke (IBL)</div><input id="matEnvMul" class="input" type="range" min="0" max="2" step="0.05" value="1.2"></div>
+      </div>
+    </details>
+
+    <details id="sec-anim" class="section">
+      <summary>
+        <span class="sum-title">Animation</span>
+        <span class="sum-icons">
+          <span class="ico-mask ico--animation" aria-hidden="true"></span>
+          <span class="ico-mask ico--chev"  aria-hidden="true"></span>
+        </span>
+      </summary>
+      <div class="body">
+        <div class="kv"><div>Clip</div><select id="animClip" class="select"></select></div>
+        <div class="kv"><div>Loop</div>
+          <select id="animLoop" class="select">
+            <option value="off">aus</option>
+            <option value="once">einmal</option>
+            <option value="repeat" selected>wiederholen</option>
+          </select>
+        </div>
+        <div class="kv"><div>Repeats</div><input id="animRepeats" class="input" type="number" step="1" min="1" value="9999"></div>
+
+        <div class="kv">
+  <div>Startverhalten</div>
+  <select id="animStartMode" class="select">
+    <option value="onStart" selected>Autostart</option>
+    <option value="onClick">Per Klick (Play-Button)</option>
+  </select>
+</div>        
+
+        
+        <div class="toolbar">
+          <button id="animPlay" class="toolbtn">Play</button>
+          <button id="animStop" class="toolbtn">Stop</button>
+          <button id="animPause" class="toolbtn">Pause</button>
+        </div>
+      </div>
+    </details>
+
+    
+<!-- ▼▼▼ HIER EINFÜGEN: Media-Section ▼▼▼ -->
+<details id="sec-media" class="section" style="display:none">
+  <summary>
+    <span class="sum-title">Media</span>
+    <span class="sum-icons">
+      <span class="ico-mask ico--media" aria-hidden="true"></span>
+      <span class="ico-mask ico--chev"  aria-hidden="true"></span>
+    </span>
+  </summary>
+  <div class="body">
+    <div class="kv"><div>Typ</div>
+      <input id="mediaType" class="input" readonly value="—">
+    </div>
+    <div class="kv"><div>Loop</div>
+      <label class="input" style="display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0">
+        <input id="mediaLoop" type="checkbox"> <span>an</span>
+      </label>
+    </div>
+    <div class="kv"><div>Repeats</div>
+      <input id="mediaRepeats" class="input" type="number" step="1" min="1" value="1">
+    </div>
+    <div class="toolbar">
+      <button id="mediaPlay"  class="toolbtn">Play</button>
+      <button id="mediaPause" class="toolbtn">Pause</button>
+      <button id="mediaStop"  class="toolbtn">Stop</button>
+    </div>
+  </div>
+</details>
+<!-- ▲▲▲ /Media-Section ▲▲▲ -->
+
+   
+  </div><!-- /.wrap --> 
+  
+  <div class="toast" id="toast" aria-live="polite"></div>
+
 
   <script type="module">
-    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-    import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
-    import { GLTFLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { TransformControls } from 'three/addons/controls/TransformControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+    import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+    import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass }     from 'three/addons/postprocessing/RenderPass.js';
+    import { OutlinePass }    from 'three/addons/postprocessing/OutlinePass.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import QRCode from 'qrcode';
 
-    const qs = new URLSearchParams(location.search);
-    const sceneJsonUrl = qs.get('scene') || 'scene.json';
+    window.addEventListener('error', e => { try{ toast('JS-Fehler: '+(e?.error?.message||e.message)); }catch{} });
 
-    const elApp = document.getElementById('app');
-    const elTap = document.getElementById('tapgate');
-    const elStart = document.getElementById('startBtn');
-    const elToast = document.getElementById('toast');
 
-    const showToast = (msg) => {
-      elToast.textContent = msg;
-      elToast.classList.add('show');
-      clearTimeout(showToast._t);
-      showToast._t = setTimeout(()=>elToast.classList.remove('show'), 3000);
-    };
+    const $ = s=>document.querySelector(s);
+    const toastEl = $('#toast');
+    function toast(m){ toastEl.textContent=m; toastEl.style.display='block'; setTimeout(()=>toastEl.style.display='none',1800); }
 
-    function normalizeAnimation(a = {}) {
-      const out = { ...a };
-      out.enabled = a.enabled !== false;
-      out.loop = !!a.loop;
-      out.iterations = out.loop ? Math.max(1, Number(a.iterations) || 9999) : 1;
-      out.start = (a.start === 'onClick') ? 'onClick' : 'onStart';
-      if (typeof out.clip !== 'string') out.clip = null;
-      return out;
+    let customPosterBlob = null;          // optional vom Nutzer
+    let customPosterDataUrl = '';         // fürs Persistieren/Preview
+
+
+    // --- State ---
+    let projectName = 'Unbenanntes Projekt';
+    function setProjectName(n){ projectName = (n||'').trim()||'Unbenanntes Projekt'; $('#projNamePill').textContent = projectName; document.title = 'ARea Editor v3.0 — '+projectName; }
+    function promptNewName(){ const v = prompt('Projektname:', projectName==='Unbenanntes Projekt'?'Mein AR-Projekt':projectName); if(v!=null) setProjectName(v); }
+    $('#projNamePill').addEventListener('dblclick', promptNewName);
+
+    const stage = $('#stage');
+const renderer = new THREE.WebGLRenderer({
+  antialias: true,
+  preserveDrawingBuffer: true,
+  powerPreference: 'high-performance',
+  alpha: true
+});
+renderer.setClearColor(0x000000, 0); // ← wichtig: Alpha 0
+renderer.setClearAlpha(0); // transparenter Canvas (Gradient sichtbar)
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.autoClear = false;
+stage.appendChild(renderer.domElement);
+
+    if ('outputColorSpace' in renderer) {
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+} else {
+  renderer.outputEncoding = THREE.sRGBEncoding;
+}
+
+
+
+    // --- Anchor-Mode nur noch aus dem rechten Select lesen ---
+function getAnchorSel(){
+  const r = document.getElementById('anchorMode');
+  return (r?.value || 'surface-webxr');
+}
+function setAnchorSel(v){
+  const r = document.getElementById('anchorMode');
+  if (r) r.value = v;
+}
+function updateSVBlockVisible(){
+  const sv = document.getElementById('svBlock');
+  if (!sv) return;
+  const mode = getAnchorSel();
+  const wantsPoster = (mode === 'scene-viewer' || mode === 'surface-guided');
+  sv.style.display = wantsPoster ? 'block' : 'none';
+}
+
+// Nur der rechte Select triggert UI-Updates
+document.getElementById('anchorMode')?.addEventListener('change', ()=>{
+  updateAnchorUI();
+});
+
+// Initial synchronisieren (nur noch rechts maßgeblich)
+requestAnimationFrame(()=>{
+  updateAnchorUI();
+});
+
+
+    
+ // --- Poster Dropzone ---
+const svDrop   = document.getElementById('svDrop');
+const svInput  = document.getElementById('file-poster');
+const svImg    = document.getElementById('svPosterPrev');
+
+function setPoster(blob){
+  customPosterBlob = blob;
+  if (!blob){ svImg.style.display='none'; svImg.src=''; return; }
+  const url = URL.createObjectURL(blob);
+  svImg.src = url; svImg.style.display='block';
+  // zusätzlich eine DataURL (Persistierbar) erzeugen:
+  const r = new FileReader();
+  r.onload = () => { customPosterDataUrl = r.result; };
+  r.readAsDataURL(blob);
+}
+
+svDrop?.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); if (!svInput) return;
+  svInput.value = '';   // erlaubt, dieselbe Datei nochmal zu wählen
+  svInput.click();      // genau EIN Dialog
+});
+svDrop?.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); svInput?.click(); }});
+svDrop?.addEventListener('dragover', (e)=>{ e.preventDefault(); svDrop.classList.add('hover'); });
+svDrop?.addEventListener('dragleave', ()=> svDrop.classList.remove('hover'));
+svDrop?.addEventListener('drop', (e)=>{
+  e.preventDefault(); svDrop.classList.remove('hover');
+  const f = e.dataTransfer?.files?.[0];
+  if(!f) return;
+  if(!/^image\/jpeg$/i.test(f.type)){ toast('Bitte ein JPG wählen'); return; }
+  setPoster(f);
+});
+svInput?.addEventListener('change', (e)=>{
+  const f = e.target.files?.[0];
+  if(!f){ setPoster(null); return; }
+  if(!/^image\/jpeg$/i.test(f.type)){ toast('Bitte ein JPG wählen'); e.target.value=''; return; }
+  setPoster(f);
+});
+
+
+    // CSS-Var -> THREE.Color
+    function cssColor(varName, fallback){
+      const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+      return new THREE.Color(v || fallback);
     }
 
-    function resolveRelative(baseUrl, file) {
-      try { return new URL(file, baseUrl).toString(); } catch { return file; }
-    }
+    // Farben aus Theme in Three.js übernehmen
+    function applyThemeToThree(){
+  const isNebula = document.documentElement.classList.contains('theme-nebula');
+  scene.background = isNebula ? null : cssColor('--bg', '#0b1323');
+  renderer.setClearAlpha(isNebula ? 0 : 1);
 
-    const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    renderer.setSize(innerWidth, innerHeight);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    elApp.appendChild(renderer.domElement);
+  if (outlinePass){
+    outlinePass.visibleEdgeColor.set(cssColor('--accent',  '#9ecbff'));
+    outlinePass.hiddenEdgeColor.set(cssColor('--accent2', '#2a65b3'));
+  }
+}
+
+    window.__applyThemeToThree = applyThemeToThree;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0b1020);
+    const overlayScene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(30,1,0.01,2000); camera.position.set(15,6,15);
 
-    const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 1000);
-    camera.position.set(1.8, 1.4, 2.8);
+    const contentRoot = new THREE.Group(); contentRoot.name = 'ContentRoot'; scene.add(contentRoot);
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
+    controls.enableDamping = true; controls.enablePan = true; controls.minDistance=0.2; controls.maxDistance=400;
+    controls.target.set(0,0,0); controls.update();
 
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x223344, 0.8);
-    const dir = new THREE.DirectionalLight(0xffffff, 1.2);
-    dir.position.set(3, 5, 3);
-    scene.add(hemi, dir);
+    // Licht
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x334466, 1.2); scene.add(hemi);
+    const dir  = new THREE.DirectionalLight(0xffffff, 2.5); dir.position.set(2,6,2); scene.add(dir);
+    const amb = new THREE.AmbientLight(0xffffff, 0.25); scene.add(amb);
 
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(5, 64), new THREE.MeshBasicMaterial({ color: 0x0f162b }));
-    ground.rotation.x = -Math.PI/2;
-    scene.add(ground);
+    // Kameralicht
+const camLight = new THREE.PointLight(0xffffff, 1.6, 0); // unendlich Reichweite
+camera.add(camLight);
+camLight.position.set(0, 0, 0); // hängt an der Kamera
+camLight.visible = document.getElementById('headlight')?.checked ?? true;
 
-    let mixer = null;
-    const actions = [];
+document.getElementById('headlight')?.addEventListener('change', (e)=>{
+  camLight.visible = !!e.target.checked;
+});
 
-    function applyAnimation(glb, metaList) {
-      if (!glb.animations || glb.animations.length === 0) {
-        showToast('Keine Clips im GLB gefunden.');
-        console.warn('⚠️ Keine GLB-Animationen vorhanden.');
-        return;
+
+    // Environment (IBL)
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    // Audio
+    const audioListener = new THREE.AudioListener();
+    camera.add(audioListener);
+
+    // Transform Controls
+    const tcontrols = new TransformControls(camera, renderer.domElement);
+    tcontrols.addEventListener('dragging-changed', e=>{ controls.enabled = !e.value; });
+    tcontrols.setMode('translate'); tcontrols.setSize(1.0);
+    overlayScene.add(tcontrols);
+    tcontrols.traverse(o=>{
+      if (o.material){
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach(m=>{ m.depthTest=false; m.depthWrite=false; m.toneMapped=false; m.transparent=true; });
       }
-      mixer = new THREE.AnimationMixer(glb.scene);
-
-      const byName = new Map(glb.animations.map(c => [c.name, c]));
-      const explicit = metaList.map(normalizeAnimation).filter(m => m.enabled && m.clip);
-      const anyClick = (list) => list.some(m => m.start === 'onClick');
-      const anyAuto  = (list) => list.some(m => m.start === 'onStart');
-
-      if (explicit.length) {
-        console.log('🎬 Explizite Clips aus scene.json:', explicit.map(m=>m.clip));
-        explicit.forEach(meta => {
-          const clip = byName.get(meta.clip);
-          if (!clip) { console.warn('❌ Clip nicht gefunden:', meta.clip); return; }
-          const act = mixer.clipAction(clip);
-          if (meta.loop) { act.setLoop(THREE.LoopRepeat, meta.iterations); act.clampWhenFinished = false; }
-          else { act.setLoop(THREE.LoopOnce, 0); act.clampWhenFinished = true; }
-          act.enabled = true; act.reset();
-          actions.push({ meta, action: act });
-        });
-      } else {
-        // Fallback: ALLE Clips spielen
-        const base = normalizeAnimation(metaList[0] || { loop:true, iterations:9999, start:'onStart' });
-        console.log(`🎯 Keine spezifischen Clips → Fallback: ALLE ${glb.animations.length} Clips`, base);
-        glb.animations.forEach(clip => {
-          const meta = { ...base, clip: clip.name };
-          const act = mixer.clipAction(clip);
-          if (meta.loop) { act.setLoop(THREE.LoopRepeat, meta.iterations); act.clampWhenFinished = false; }
-          else { act.setLoop(THREE.LoopOnce, 0); act.clampWhenFinished = true; }
-          act.enabled = true; act.reset();
-          actions.push({ meta, action: act });
-        });
-      }
-
-      const hasClick = anyClick(actions.map(a=>a.meta));
-      const hasAuto  = anyAuto(actions.map(a=>a.meta));
-      console.log(`✅ Actions vorbereitet: ${actions.length} | onStart=${hasAuto} | onClick=${hasClick}`);
-
-      if (hasAuto) actions.forEach(({meta, action}) => { if (meta.start === 'onStart') action.play(); });
-      if (hasClick) showTapGate(true);
-
-      showToast(`${actions.length} Animation(en) bereit`);
-    }
-
-    function showTapGate(show) { document.getElementById('tapgate').classList.toggle('show', !!show); }
-    function startClickAnimations() {
-      actions.forEach(({meta, action}) => { if (meta.start === 'onClick') action.play(); });
-      showTapGate(false);
-      showToast('Animation gestartet.');
-    }
-    document.getElementById('tapgate').addEventListener('click', startClickAnimations);
-    document.getElementById('startBtn').addEventListener('click', startClickAnimations);
-
-    const loader = new GLTFLoader();
-    loader.setCrossOrigin('anonymous');
-
-    async function loadScene() {
-      const res = await fetch(sceneJsonUrl, { cache:'no-cache' });
-      if (!res.ok) throw new Error(`scene.json nicht gefunden (${res.status})`);
-      const data = await res.json();
-      console.log('📄 scene.json:', data);
-
-      const glbPath = data.model || data.src || data.glb || 'scene.glb';
-      const glbUrl = resolveRelative(sceneJsonUrl, glbPath);
-
-      const animationsMeta = Array.isArray(data.animations) ? data.animations : [{ clip:null, loop:true, iterations:9999, enabled:true, start:'onStart' }];
-      console.log('🎬 Anim-Meta:', animationsMeta);
-
-      const gltf = await new Promise((resolve, reject) => loader.load(glbUrl, resolve, undefined, reject));
-      console.log('📦 GLB Clips:', gltf.animations.map(c=>c.name));
-
-      if (data.modelTransform && typeof data.modelTransform === 'object') {
-        const t = data.modelTransform;
-        gltf.scene.position.set(t.x || 0, t.y || 0, t.z || 0);
-        gltf.scene.rotation.set((t.rx||0)*Math.PI/180, (t.ry||0)*Math.PI/180, (t.rz||0)*Math.PI/180);
-        if (t.s) gltf.scene.scale.setScalar(t.s);
-      }
-
-      scene.add(gltf.scene);
-
-      try {
-        const box = new THREE.Box3().setFromObject(gltf.scene);
-        const size = new THREE.Vector3(); box.getSize(size);
-        const center = new THREE.Vector3(); box.getCenter(center);
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const dist = Math.max(2.2, maxDim * 1.6);
-        camera.position.set(center.x + dist, center.y + dist * 0.6, center.z + dist);
-        camera.lookAt(center);
-        controls.target.copy(center);
-        controls.update();
-      } catch {}
-
-      applyAnimation(gltf, animationsMeta);
-      showToast('Szene geladen.');
-    }
-
-    const clock = new THREE.Clock();
-    function tick() {
-      const dt = clock.getDelta();
-      if (mixer) mixer.update(dt);
-      controls.update();
-      renderer.render(scene, camera);
-      requestAnimationFrame(tick);
-    }
-
-    addEventListener('resize', () => {
-      camera.aspect = innerWidth / innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(innerWidth, innerHeight);
+      o.renderOrder = 9999;
     });
 
-    tick();
-    loadScene().catch(err => { console.error(err); showToast(err.message || 'Fehler beim Laden.'); });
+    // --- Proportionales (uniformes) Skalieren erzwingen ---
+let __scaleStart = null;
+let __scaleAxis  = null;
+
+tcontrols.addEventListener('dragging-changed', (ev)=>{
+  // Start des Dragvorgangs: Ausgangsskala und Achse merken
+  if (ev.value && tcontrols.getMode?.() === 'scale' && tcontrols.object){
+    __scaleStart = tcontrols.object.scale.clone();
+    __scaleAxis  = tcontrols.axis || 'XYZ';
+  } else if (!ev.value){
+    __scaleStart = null;
+    __scaleAxis  = null;
+  }
+});
+
+tcontrols.addEventListener('objectChange', ()=>{
+  // Nur im Scale-Modus und während Dragging eingreifen
+  if (tcontrols.getMode?.() !== 'scale' || !tcontrols.dragging) return;
+  const obj = tcontrols.object;
+  if (!obj || !__scaleStart) return;
+
+  // Uniform-Faktor aus der geänderten Achse ableiten
+  const sx0 = __scaleStart.x || 1;
+  const sy0 = __scaleStart.y || 1;
+  const sz0 = __scaleStart.z || 1;
+
+  const ax  = (__scaleAxis || tcontrols.axis || 'XYZ');
+  let f = 1;
+  if (ax.includes('X') && sx0 !== 0)      f = obj.scale.x / sx0;
+  else if (ax.includes('Y') && sy0 !== 0) f = obj.scale.y / sy0;
+  else if (ax.includes('Z') && sz0 !== 0) f = obj.scale.z / sz0;
+  else {
+    // Fallback: nimm X, sonst Y, sonst Z
+    f = (sx0 !== 0 ? obj.scale.x / sx0 :
+        (sy0 !== 0 ? obj.scale.y / sy0 :
+        (sz0 !== 0 ? obj.scale.z / sz0 : 1)));
+  }
+
+  // Grenzen (optional anpassen)
+  const MIN = 0.01;
+  const MAX = 100;
+  // clamp, bezogen auf den größten/kleinsten Startwert
+  const maxStart = Math.max(sx0, sy0, sz0);
+  const minStart = Math.min(sx0, sy0, sz0);
+  if (maxStart > 0) f = Math.min(f, MAX / maxStart);
+  if (minStart > 0) f = Math.max(f, MIN / minStart);
+
+  const nx = sx0 * f;
+  const ny = sy0 * f;
+  const nz = sz0 * f;
+
+  // Uniform auf alle Achsen anwenden
+  obj.scale.set(nx, ny, nz);
+
+  // UI/Outline aktualisieren (falls vorhanden)
+  try { syncPropFromSel?.(); } catch {}
+});
+
+    // Postprocessing (Outline)
+    let composer, renderPass, outlinePass;
+    function initPost(){
+      composer = new EffectComposer(renderer);
+      renderPass = new RenderPass(scene, camera);
+      renderPass.clear = true;
+      renderPass.clearColor = new THREE.Color(0x000000);
+      renderPass.clearAlpha = 0; // ← sorgt dafür, dass die Canvas durchsichtig bleibt
+      composer.addPass(renderPass);
+      outlinePass = new OutlinePass(new THREE.Vector2(stage.clientWidth||1, stage.clientHeight||1), scene, camera);
+      outlinePass.edgeStrength=3; outlinePass.edgeThickness=2; outlinePass.pulsePeriod=0;
+      outlinePass.visibleEdgeColor.set(cssColor('--accent',  '#9ecbff'));
+      outlinePass.hiddenEdgeColor.set(cssColor('--accent2', '#2a65b3'));
+      outlinePass.renderToScreen = true;
+      composer.addPass(outlinePass);
+    }
+    initPost();
+
+    let gridNear=null, gridFar=null, axisX=null, axisZ=null;
+
+    function buildRoom(size = 24){
+      [gridNear,gridFar,axisX,axisZ].forEach(o=>{ if(!o)return; scene.remove(o); o.geometry?.dispose?.(); o.material?.dispose?.(); });
+      gridNear=gridFar=axisX=axisZ=null;
+
+      const L=Math.max(2,size), div=Math.max(10,Math.round(L));
+      const gi = parseFloat($('#gridIntensity').value)||0.95;
+
+const nebula = document.documentElement.classList.contains('theme-nebula');
+
+const cNearLine   = nebula ? new THREE.Color('#6f7fb0') : new THREE.Color(0x44577a);
+const cNearCenter = nebula ? new THREE.Color('#a8b9ff') : new THREE.Color(0x506a92);
+const cFar        = nebula ? new THREE.Color('#2c3a5d') : new THREE.Color(0x1f2a44);
+
+const opNear = nebula ? (0.38 + 0.52*gi) : (0.22 + 0.48*gi);
+const opFar  = nebula ? (0.10 + 0.24*gi) : (0.06 + 0.20*gi);
+
+
+      gridNear=new THREE.GridHelper(L,div,cNearCenter,cNearLine);
+      Object.assign(gridNear.material,{transparent:true,opacity:opNear,depthTest:true,depthWrite:false,toneMapped:false});
+      gridNear.position.y=0.0025; scene.add(gridNear);
+
+      gridFar=new THREE.GridHelper(600,120,cFar,cFar);
+      Object.assign(gridFar.material,{transparent:true,opacity:opFar,depthTest:true,depthWrite:false,toneMapped:false});
+      gridFar.position.y=-0.008; scene.add(gridFar);
+
+      const half=L*0.5, y=0.0035, axisMat=new THREE.LineBasicMaterial({color:0xe7eefc,transparent:true,opacity:0.85*gi,depthTest:true,depthWrite:false,toneMapped:false});
+      axisX=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-half,y,0),new THREE.Vector3(half,y,0)]),axisMat.clone());
+      axisZ=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,y,-half),new THREE.Vector3(0,y,half)]),axisMat.clone());
+      scene.add(axisX,axisZ);
+
+      const vis=$('#gridVisible').checked; [gridNear,gridFar,axisX,axisZ].forEach(o=>o&&(o.visible=vis));
+    }
+
+    function onResize(){
+      const r = stage.getBoundingClientRect();
+      const w = Math.max(1, r.width), h = Math.max(1, r.height);
+      renderer.setSize(w, h, false);
+      camera.aspect = w/h; camera.updateProjectionMatrix();
+      composer?.setSize(w,h);
+      const pr=renderer.getPixelRatio(); outlinePass?.resolution.set(w*pr,h*pr);
+    }
+    new ResizeObserver(onResize).observe(stage); onResize();
+
+    // Selection & data model
+    const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2();
+    const state = { objects: [], selectedId:null, selection:new Set() };
+    function uid(){ return 'o_'+Math.random().toString(36).slice(2,9); }
+
+    const gltfLoader = new GLTFLoader();gltfLoader.setCrossOrigin('anonymous'); // <--
+    const draco = new DRACOLoader();draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');gltfLoader.setDRACOLoader(draco);
+    const fbxLoader = new FBXLoader();
+
+    function forEachRec(fn){ function visit(rec){ fn(rec); if(rec.type==='group' && rec.children) rec.children.forEach(visit); } state.objects.forEach(visit); }
+
+  function rebuildList(){
+  const root = $('#sceneList');
+  if (!root) return;            // Guard, falls Layout noch nicht gemountet ist
+  root.innerHTML = '';
+      if (!state.objects.length){ root.innerHTML = '<div class="muted">Noch keine Objekte</div>'; return; }
+
+      state.objects.forEach(o=>{
+        const row = document.createElement('div'); row.className='row';
+        const eye = document.createElement('div'); eye.className='icon eye'; eye.textContent = o.hidden ? '🚫' : '👁️'; eye.title = o.hidden ? 'Einblenden' : 'Ausblenden';
+        const lock = document.createElement('div'); lock.className='icon lock';
+        lock.innerHTML = `<span class="ico-mask ${o.locked ? 'ico--lock-closed' : 'ico--lock-open'}"></span>`; lock.title = o.locked ? 'Entsperren' : 'Sperren';
+        const tab = document.createElement('button'); tab.type='button'; tab.className='tab'+(state.selection.has(o.id)?' active':''); tab.innerHTML='<span class="name"></span>';
+        const prefix = o.media ? (o.media.kind==='video'?'🎞️ ':'🔊 ') : (o.type==='group'?'📦 ':'');
+        tab.querySelector('.name').textContent = prefix + o.name;
+
+        const del = document.createElement('button'); del.type='button'; del.className='del'; del.textContent='✕';
+
+        row.append(eye,lock,tab,del); root.appendChild(row);
+
+        eye.addEventListener('click', ()=>{ o.hidden=!o.hidden; if(o.group) o.group.visible=!o.hidden; eye.textContent=o.hidden?'🚫':'👁️'; eye.title=o.hidden?'Einblenden':'Ausblenden'; updateOutlineSelection(); });
+        lock.addEventListener('click', ()=>{ o.locked=!o.locked; lock.innerHTML=`<span class="ico-mask ${o.locked?'ico--lock-closed':'ico--lock-open'}"></span>`; lock.title=o.locked?'Entsperren':'Sperren';
+          if (o.locked && state.selection.has(o.id)){ state.selection.delete(o.id); if(state.selectedId===o.id) state.selectedId=null; tcontrols.detach(); syncPropFromSel(); updateGroupButtons(); updateOutlineSelection(); }
+        });
+        tab.addEventListener('click', (ev)=>{ if(o.locked){ toast('Objekt ist gesperrt'); return; } if(ev.shiftKey) toggleSelect(o.id); else selectOnly(o.id); });
+        del.addEventListener('click', ()=> deleteIds([o.id]));
+      });
+    }
+
+    function findRec(id){ return state.objects.find(o=>o.id===id); }
+
+    function selectOnly(id){
+      state.selection.clear(); state.selection.add(id); state.selectedId=id;
+      tcontrols.attach(findRec(id)?.group||null);
+      syncPropFromSel(); rebuildList(); updateGroupButtons(); updateOutlineSelection(); syncMediaUI();
+    }
+    function toggleSelect(id){
+      if(state.selection.has(id)) state.selection.delete(id); else state.selection.add(id);
+      state.selectedId = Array.from(state.selection).slice(-1)[0]||null;
+      if(state.selection.size===1){ tcontrols.attach(findRec(state.selectedId)?.group||null);} else { tcontrols.detach(); }
+      syncPropFromSel(); rebuildList(); updateGroupButtons(); updateOutlineSelection(); syncMediaUI();
+    }
+    function clearSelection(){
+      state.selection.clear(); state.selectedId=null; tcontrols.detach();
+      syncPropFromSel(); rebuildList(); updateGroupButtons(); updateOutlineSelection(); syncMediaUI();
+    }
+
+    function updateOutlineSelection(){
+      if(!outlinePass) return;
+      const selMeshes = [];
+      [...state.selection].forEach(id=>{
+        const rec = findRec(id);
+        if(rec && rec.group){
+          rec.group.traverse(ch=>{
+            if (ch.isMesh && !ch.userData?.__pickProxy) selMeshes.push(ch);
+          });
+        }
+      });
+      outlinePass.selectedObjects = selMeshes;
+    }
+
+    let down=null, isOrbiting=false;
+    controls.addEventListener('start', ()=>{isOrbiting=true}); controls.addEventListener('end', ()=>{isOrbiting=false});
+    renderer.domElement.addEventListener('pointerdown', e=>{ if(tcontrols?.dragging) return; down={x:e.clientX,y:e.clientY}; }, {passive:true});
+    renderer.domElement.addEventListener('pointerup', e=>{
+      if(!down) return; const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y); down=null; if(tcontrols?.dragging||moved>3) return;
+      const rect=renderer.domElement.getBoundingClientRect(); mouse.x=((e.clientX-rect.left)/rect.width)*2-1; mouse.y=-((e.clientY-rect.top)/rect.height)*2+1; raycaster.setFromCamera(mouse,camera);
+      const targets = state.objects.filter(o=>!o.hidden && !o.locked).map(o=>o.group);
+      const hits = raycaster.intersectObjects(targets,true);
+      if(hits.length){
+        let obj3=hits[0].object; while(obj3 && obj3.parent && obj3.parent!==contentRoot) obj3=obj3.parent;
+        const rec=state.objects.find(o=>o.group===obj3);
+        if(rec){ if(e.shiftKey) toggleSelect(rec.id); else selectOnly(rec.id); }
+      }
+    }, {passive:true});
+// Globale Tastenkürzel (Escape + Delete/Backspace)
+window.addEventListener('keydown', (e)=>{
+  // Escape: Auswahl aufheben
+  if (e.key === 'Escape') { clearSelection(); return; }
+
+  // Nicht auslösen, wenn der Fokus in einem Eingabefeld liegt
+  const el = document.activeElement;
+  const tag = (el?.tagName || '').toLowerCase();
+  const isTyping = el?.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select';
+  if (isTyping) return;
+
+  // Entf / Backspace: ausgewählte Objekte löschen
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (state?.selection && state.selection.size) {
+      e.preventDefault(); // verhindert z. B. "Zurück"-Navigation bei Backspace
+      deleteIds([...state.selection]);
+    }
+  }
+});
+
+renderer.domElement.addEventListener('dblclick', e=>{
+  if(isOrbiting||tcontrols?.dragging) return;
+  const rect=renderer.domElement.getBoundingClientRect();
+  mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  const targets=state.objects.filter(o=>!o.hidden && !o.locked).map(o=>o.group);
+  const hits = raycaster.intersectObjects(targets,true);
+  if(hits.length===0) clearSelection();
+}, {passive:true});
+
+    // Import 3D
+    async function createFromGLTF(url,name){
+      const gltf = await gltfLoader.loadAsync(url);
+      const root = gltf.scene || gltf.scenes?.[0];
+      const group = new THREE.Group(); group.name = name || 'Objekt';
+      group.add(root);
+      const clips=(gltf.animations||[]).slice();
+      return { group, root, clips };
+    }
+    async function createFromFBX(url,name){
+      const obj = await fbxLoader.loadAsync(url);
+      const group = new THREE.Group(); group.name = name || 'Objekt';
+      group.add(obj);
+      const clips=(obj.animations||[]).slice();
+      return { group, root: obj, clips };
+    }
+    function fitUniformScale(group, fit=1.5){ const b=new THREE.Box3().setFromObject(group); const s=new THREE.Vector3(); b.getSize(s); const maxDim=Math.max(s.x,s.y,s.z)||1; group.scale.setScalar(fit/maxDim); }
+
+    function addPickProxy(rec){
+      rec.group.traverse(c=>{ if(c.userData?.__pickProxy){ c.parent?.remove(c); c.geometry?.dispose?.(); c.material?.dispose?.(); }});
+      rec.group.updateMatrixWorld(true);
+      const boxW=new THREE.Box3().setFromObject(rec.group); if(!isFinite(boxW.min.x)) return;
+      const cornersW=[new THREE.Vector3(boxW.min.x,boxW.min.y,boxW.min.z),new THREE.Vector3(boxW.min.x,boxW.min.y,boxW.max.z),new THREE.Vector3(boxW.min.x,boxW.max.y,boxW.min.z),new THREE.Vector3(boxW.min.x,boxW.max.y,boxW.max.z),new THREE.Vector3(boxW.max.x,boxW.min.y,boxW.min.z),new THREE.Vector3(boxW.max.x,boxW.min.y,boxW.max.z),new THREE.Vector3(boxW.max.x, boxW.max.y, boxW.min.z),new THREE.Vector3(boxW.max.x,boxW.max.y,boxW.max.z)];
+      const cornersL=cornersW.map(p=>rec.group.worldToLocal(p.clone()));
+      const minL=new THREE.Vector3(+Infinity,+Infinity,+Infinity), maxL=new THREE.Vector3(-Infinity,-Infinity,-Infinity);
+      cornersL.forEach(p=>{minL.min(p); maxL.max(p);});
+      const PAD=0.01; minL.subScalar(PAD); maxL.addScalar(PAD);
+      const sizeL=new THREE.Vector3().subVectors(maxL,minL), centerL=new THREE.Vector3().addVectors(minL,maxL).multiplyScalar(0.5);
+      const geo=new THREE.BoxGeometry(Math.max(sizeL.x,1e-3),Math.max(sizeL.y,1e-3),Math.max(sizeL.z,1e-3));
+      const mat=new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthTest:false,depthWrite:false}); mat.colorWrite=false;
+      const proxy=new THREE.Mesh(geo,mat); proxy.position.copy(centerL); proxy.name='__pickProxy'; proxy.userData.__pickProxy=true;
+      rec.group.add(proxy); rec.__pickProxy=proxy;
+    }
+    tcontrols.addEventListener('objectChange', ()=>{ if(state.selection.size!==1) return; const rec=findRec(state.selectedId); if(!rec) return; addPickProxy(rec); updateOutlineSelection(); });
+
+async function blobToBase64(blob){
+  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); });
+}
+
+    
+    async function addFromFile(file){
+      const id=uid(); const url=URL.createObjectURL(file);
+      try{
+        const name=(file.name||'Objekt').replace(/\.(glb|gltf|fbx)$/i,'');
+        let group, root, clips;
+        if(/\.fbx$/i.test(file.name)){
+          ({group,root,clips} = await createFromFBX(url,name));
+        } else {
+          ({group,root,clips} = await createFromGLTF(url,name));
+        }
+        URL.revokeObjectURL(url);
+        const box=new THREE.Box3().setFromObject(group); const center=new THREE.Vector3(); box.getCenter(center);
+        group.children.forEach(c=>c.position.sub(center)); group.position.add(center);
+        fitUniformScale(group,1.5);
+        prepareMaterialBases(group); updateMaterialLook();
+        contentRoot.add(group);
+        const rec={id,type:'object',name:group.name,file, url:null, group, root, clips, mixer:null, actions:{}, hidden:false, locked:false, media:null};
+        state.objects.push(rec); addPickProxy(rec); selectOnly(id); populateAnimUI(rec); toast('Importiert: '+group.name);
+      }catch(e){console.error(e); toast('Import fehlgeschlagen'); URL.revokeObjectURL(url);}
+    }
+    $('#file-glb').addEventListener('change', e=>{ const f=e.target.files?.[0]; if(!f){ e.target.value=''; return;} addFromFile(f); e.target.value=''; });
+    stage.addEventListener('dragover', e=>e.preventDefault());
+    stage.addEventListener('drop', e=>{ e.preventDefault(); const f=e.dataTransfer?.files?.[0]; if(f && /(\.glb|\.gltf|\.fbx)$/i.test(f.name)) addFromFile(f); });
+
+    // Material helpers
+    function iterateMaterials(root, cb){
+      root.traverse(ch=>{ if(ch?.isMesh && ch.material){ const mats=Array.isArray(ch.material)?ch.material:[ch.material]; mats.forEach(m=>m && cb(m)); }});
+    }
+    function prepareMaterialBases(root){
+      iterateMaterials(root, m=>{
+        const ud=m.userData||(m.userData={}); const base=ud.__base||(ud.__base={});
+        if(base.roughness===undefined && 'roughness' in m) base.roughness=(typeof m.roughness==='number')?m.roughness:0.5;
+        if(base.envMapIntensity===undefined && 'envMapIntensity' in m) base.envMapIntensity=(typeof m.envMapIntensity==='number')?m.envMapIntensity:1;
+      });
+    }
+    function updateMaterialLook(){
+      const add=parseFloat($('#matRoughAdd')?.value)||0, mul=parseFloat($('#matEnvMul')?.value)||1;
+      state.objects.forEach(rec=>{
+        if(!rec?.group) return;
+        iterateMaterials(rec.group, m=>{
+          const base=m.userData?.__base||{};
+          if('roughness' in m && base.roughness!==undefined) m.roughness=Math.min(1,Math.max(0, base.roughness+add));
+          if('envMapIntensity' in m && base.envMapIntensity!==undefined) m.envMapIntensity=base.envMapIntensity*mul;
+          m.needsUpdate=true;
+        });
+      });
+    }
+    $('#matRoughAdd')?.addEventListener('input', updateMaterialLook);
+    $('#matEnvMul')?.addEventListener('input', updateMaterialLook);
+
+    function syncPropFromSel(){
+      if(state.selection.size!==1){ $('#prop-name').value=''; ['posx','posy','posz','rotx','roty','rotz','scale'].forEach(id=>$('#'+id).value=''); populateAnimUI(null); return; }
+      const rec=findRec(state.selectedId); if(!rec) return;
+      $('#prop-name').value=rec.name;
+      const g=rec.group; const p=g.position,r=g.rotation;
+      $('#posx').value=p.x.toFixed(3); $('#posy').value=p.y.toFixed(3); $('#posz').value=p.z.toFixed(3);
+      $('#rotx').value=THREE.MathUtils.radToDeg(r.x).toFixed(1); $('#roty').value=THREE.MathUtils.radToDeg(r.y).toFixed(1); $('#rotz').value=THREE.MathUtils.radToDeg(r.z).toFixed(1);
+      $('#scale').value=g.scale.x.toFixed(3);
+      populateAnimUI(rec.type==='object'?rec:null);
+    }
+    $('#btn-apply').addEventListener('click', ()=>{
+      if(state.selection.size!==1) return;
+      const rec=findRec(state.selectedId); if(!rec) return;
+      const g=rec.group;
+      rec.name = ($('#prop-name').value||rec.name).trim()||rec.name; g.name=rec.name;
+      const px=+$('#posx').value||0, py=+$('#posy').value||0, pz=+$('#posz').value||0;
+      const rx=THREE.MathUtils.degToRad(+$('#rotx').value||0), ry=THREE.MathUtils.degToRad(+$('#roty').value||0), rz=THREE.MathUtils.degToRad(+$('#rotz').value||0);
+      const s=+$('#scale').value||1;
+      g.position.set(px,py,pz); g.rotation.set(rx,ry,rz); g.scale.setScalar(s);
+      addPickProxy(rec); updateOutlineSelection(); rebuildList();
+    });
+    function submitOnEnter(el,fn){ el.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); fn(); }}); }
+    ['prop-name','posx','posy','posz','rotx','roty','rotz','scale'].forEach(id=> submitOnEnter($('#'+id), ()=>$('#btn-apply').click()));
+
+    function updateToolButtons(){ ['tool-move','tool-rotate','tool-scale'].forEach(id=>$('#'+id)?.classList.remove('active')); const m=tcontrols.getMode(); const map={translate:'tool-move',rotate:'tool-rotate',scale:'tool-scale'}; $('#'+map[m])?.classList.add('active'); }
+    $('#tool-move').addEventListener('click', ()=>{ tcontrols.setMode('translate'); updateToolButtons(); });
+    $('#tool-rotate').addEventListener('click', ()=>{ tcontrols.setMode('rotate'); updateToolButtons(); });
+    $('#tool-scale').addEventListener('click', ()=>{ tcontrols.setMode('scale'); updateToolButtons(); });
+
+    let currentSpace='local';
+    function updateSpaceButtons(){ $('#space-local').classList.toggle('active',currentSpace==='local'); $('#space-world').classList.toggle('active',currentSpace==='world'); }
+    function setSpace(space){ currentSpace=(space==='world')?'world':'local'; tcontrols.setSpace(currentSpace); $('#vp-pill-space').textContent='Space: '+(currentSpace==='world'?'World':'Local'); updateSpaceButtons(); }
+    $('#space-local').addEventListener('click', ()=>setSpace('local'));
+    $('#space-world').addEventListener('click', ()=>setSpace('world'));
+
+ function duplicateSelected(){
+  const ids=[...state.selection];
+  if(!ids.length) return;
+  // Guard: Gruppen aktuell nicht duplizieren
+  if (ids.some(id => findRec(id)?.type === 'group')) {
+    toast('Gruppen-Duplikat noch nicht unterstützt'); 
+    return;
+  }
+
+  const newIds = [];
+  ids.forEach(id=>{
+    const src = findRec(id);
+    if (!src) return;
+
+    let group, root = null, clips = [];
+    let media = null;
+
+    if (src.media?.kind === 'video'){
+      // neue <video>-Instanz + neuer VideoTexture (nicht teilen!)
+      const v = document.createElement('video');
+      v.src = src.media.src || '';
+      v.crossOrigin = 'anonymous';
+      v.playsInline = true; v.preload = 'auto'; v.loop = !!src.media.loop; v.controls = false; v.muted = false;
+
+      const tex = new THREE.VideoTexture(v);
+      tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false;
+
+      const w = src.media.w || 1.6, h = src.media.h || 0.9;
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({ map: tex, toneMapped:false }));
+
+      group = new THREE.Group();
+      group.name = src.name + ' (Kopie)';
+      group.add(plane);
+
+      media = { kind:'video', el:v, tex, loop:!!src.media.loop, repeats:src.media.repeats||1, count:0, w, h, src:v.src };
+
+    } else if (src.media?.kind === 'audio'){
+      // neue PositionalAudio-Instanz; Buffer der Quelle wiederverwenden
+      group = new THREE.Group();
+      group.name = src.name + ' (Kopie)';
+
+      const gizmo = new THREE.Mesh(
+        new THREE.SphereGeometry(0.08,16,16),
+        new THREE.MeshStandardMaterial({color:0x66aaff, emissive:0x0a1e3a, roughness:0.3, metalness:0.1})
+      );
+      const sound = new THREE.PositionalAudio(audioListener);
+      group.add(gizmo); gizmo.add(sound);
+
+      const buf = src.media.sound?.buffer || null;
+      if (buf){
+        sound.setBuffer(buf);
+        sound.setRefDistance(1.5);
+        sound.setDistanceModel('inverse');
+        sound.setLoop(!!src.media.loop);
+      }
+      media = { kind:'audio', sound, loop:!!src.media.loop, repeats:src.media.repeats||1, count:0, src: src.media.src || '' };
+
+    } else {
+      // normales 3D-Objekt
+      group = new THREE.Group();
+      group.name = src.name + ' (Kopie)';
+      root = SkeletonUtils.clone(src.root);
+      group.add(root);
+      clips = (src.clips||[]).slice();
+      prepareMaterialBases(group);
+      updateMaterialLook();
+    }
+
+    contentRoot.add(group);
+    // Transform übernehmen + kleine Versatzlage
+    group.position.copy(src.group.position);
+    group.quaternion.copy(src.group.quaternion);
+    group.scale.copy(src.group.scale);
+    group.position.add(new THREE.Vector3(0.25,0,0.25));
+
+    const rec = {
+      id: uid(), type:'object', name: group.name,
+      file: src.file || null, url: src.url || null,
+      group, root, clips, mixer:null, actions:{},
+      hidden:false, locked:false, media
+    };
+    state.objects.push(rec);
+    addPickProxy(rec);
+    newIds.push(rec.id);
+  });
+
+  if (newIds.length){
+    state.selection = new Set(newIds);
+    state.selectedId = newIds.at(-1);
+    tcontrols.attach(findRec(state.selectedId)?.group || null);
+    rebuildList(); updateOutlineSelection(); syncMediaUI();
+    toast('Dupliziert');
+  }
+}
+
+
+
+    
+    $('#btn-duplicate').addEventListener('click', duplicateSelected);
+
+    function dropToFloor(){
+      const ids=[...state.selection]; if(!ids.length) return;
+      ids.forEach(id=>{
+        const rec=findRec(id); if(!rec) return;
+        const box=new THREE.Box3().setFromObject(rec.group); const dy=-box.min.y;
+        if(Number.isFinite(dy) && Math.abs(dy)>1e-6){ rec.group.position.y += dy; addPickProxy(rec); }
+      });
+      updateOutlineSelection();
+    }
+    $('#btn-floor').addEventListener('click', dropToFloor);
+
+    function disposeObject3DTree(root){
+      root.traverse(n=>{
+        if(n.isMesh){
+          n.geometry?.dispose?.();
+          const mats=Array.isArray(n.material)?n.material:[n.material];
+          mats.forEach(m=>{ if(!m) return; ['map','normalMap','metalnessMap','roughnessMap','emissiveMap','aoMap','alphaMap','envMap','specularMap','bumpMap','displacementMap'].forEach(k=> m[k]?.dispose?.()); m.dispose?.(); });
+        }
+      });
+    }
+
+    function deleteIds(ids){
+      ids.forEach(id=>{
+        const rec=findRec(id); if(!rec) return;
+        if(rec.media?.kind==='video'){
+      try{
+        rec.media.el.pause();
+        if(rec.media.src?.startsWith('blob:')) URL.revokeObjectURL(rec.media.src);
+        rec.media.el.src='';
+        rec.media.tex?.dispose?.();
+      }catch{}
+    }
+    if(rec.media?.kind==='audio'){
+      try{
+        rec.media.sound?.stop?.();
+        if(rec.media.src?.startsWith('blob:')) URL.revokeObjectURL(rec.media.src);
+      }catch{}
+    }
+        if(rec.group){ disposeObject3DTree(rec.group); contentRoot.remove(rec.group); }
+        const i=state.objects.indexOf(rec); if(i>=0) state.objects.splice(i,1);
+      });
+      clearSelection(); rebuildList(); updateOutlineSelection();
+    }
+
+    function updateGroupButtons(){
+      const canGroup = state.selection.size>=2 && [...state.selection].every(id=>{ const r=findRec(id); return r && r.type!=='group'; });
+      const canUngroup = state.selection.size===1 && findRec(state.selectedId)?.type==='group';
+      $('#btn-group').disabled=!canGroup; $('#btn-ungroup').disabled=!canUngroup;
+    }
+    function groupSelected(){
+      if(state.selection.size<2) return;
+      const ids=[...state.selection]; const recs=ids.map(findRec).filter(Boolean).filter(r=>r.type==='object');
+      if(recs.length<2) return;
+      const box=new THREE.Box3(); let ok=false;
+      recs.forEach(r=>{ const b=new THREE.Box3().setFromObject(r.group); if(isFinite(b.min.x)){ if(!ok){box.copy(b); ok=true;} else box.union(b);} });
+      const center=new THREE.Vector3(); box.getCenter(center);
+      const parent=new THREE.Group(); parent.name='Gruppe'; parent.position.copy(center); contentRoot.add(parent); parent.updateMatrixWorld(true);
+      const inv=new THREE.Matrix4().copy(parent.matrixWorld).invert();
+      recs.forEach(r=>{ r.group.updateMatrixWorld(true); r.group.applyMatrix4(inv); parent.add(r.group); });
+      const gid=uid(); const grec={id:gid,type:'group',name:'Gruppe',group:parent,children:recs,hidden:false,locked:false};
+      state.objects = state.objects.filter(o=>!ids.includes(o.id)); state.objects.push(grec);
+      state.selection=new Set([gid]); state.selectedId=gid; tcontrols.attach(parent); rebuildList(); updateGroupButtons(); updateOutlineSelection(); toast('Gruppiert');
+    }
+    function ungroupSelected(){
+      if(state.selection.size!==1) return; const rec=findRec(state.selectedId); if(!rec||rec.type!=='group') return;
+      const parent=rec.group; parent.updateMatrixWorld(true); const newIds=[];
+      (rec.children||[]).forEach(child=>{ child.group.updateMatrixWorld(true); child.group.applyMatrix4(parent.matrixWorld); contentRoot.add(child.group); state.objects.push(child); newIds.push(child.id); });
+      contentRoot.remove(parent); const i=state.objects.indexOf(rec); if(i>=0) state.objects.splice(i,1);
+      state.selection=new Set(newIds); state.selectedId=newIds[newIds.length-1]||null; tcontrols.attach(findRec(state.selectedId)?.group||null); rebuildList(); updateGroupButtons(); updateOutlineSelection(); toast('Gruppierung aufgehoben');
+    }
+    $('#btn-group').addEventListener('click', groupSelected);
+    $('#btn-ungroup').addEventListener('click', ungroupSelected);
+
+    function getSnapValues(){ const on=$('#snapChk').checked; const ts=$('#transSnapSel').value; const rs=$('#rotSnapSel').value; const ss=$('#scaleSnapSel').value; return { t:on&&ts?parseFloat(ts):null, r:on&&rs?THREE.MathUtils.degToRad(parseFloat(rs)):null, s:on&&ss?parseFloat(ss):null } }
+    function applySnap(){ const v=getSnapValues(); tcontrols.setTranslationSnap(v.t); tcontrols.setRotationSnap(v.r); tcontrols.setScaleSnap(v.s); $('#vp-pill-snap').textContent='Snap: '+($('#snapChk').checked?'An':'Aus'); }
+    $('#snapChk').addEventListener('change', ()=>{ $('#snapPanel').style.display=$('#snapChk').checked?'block':'none'; applySnap(); });
+    $('#transSnapSel').addEventListener('change', applySnap); $('#rotSnapSel').addEventListener('change', applySnap); $('#scaleSnapSel').addEventListener('change', applySnap);
+
+    function goCamera(pos,target,fov=30,dur=450){
+      const fromPos=camera.position.clone(), toPos=new THREE.Vector3(...pos);
+      const fromTarget=controls.target.clone(), toTarget=new THREE.Vector3(...target);
+      const t0=performance.now();
+      function step(){ const t=Math.min(1,(performance.now()-t0)/dur); const s=t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2; camera.position.copy(fromPos).lerp(toPos,s); const tmp=fromTarget.clone().lerp(toTarget,s); controls.target.copy(tmp); camera.fov=fov; camera.updateProjectionMatrix(); if(t<1) requestAnimationFrame(step); } step();
+    }
+    $('#btn-view-iso').addEventListener('click', ()=> goCamera([15,6,15],[0,0,0]));
+    $('#btn-view-front').addEventListener('click', ()=> goCamera([0,1.8,8],[0,1,0]));
+    $('#btn-view-side').addEventListener('click', ()=> goCamera([8,1.8,0],[0,1,0]));
+    $('#btn-view-top').addEventListener('click', ()=> goCamera([0,10,0],[0,0,0]));
+    $('#btn-frame-all').addEventListener('click', ()=>{
+      const box=new THREE.Box3(); let ok=false;
+      state.objects.forEach(o=>{ const b=new THREE.Box3().setFromObject(o.group); if(isFinite(b.min.x)&&isFinite(b.max.x)){ if(!ok){box.copy(b); ok=true;} else box.union(b);} });
+      if(!ok) return; const s=new THREE.Vector3(); box.getSize(s); const c=new THREE.Vector3(); box.getCenter(c);
+      const radius=Math.max(s.x,s.y,s.z)*0.5; const dist=radius/Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)+radius*0.6;
+      const dir=camera.position.clone().sub(controls.target).normalize(); const pos=c.clone().add(dir.multiplyScalar(dist));
+      goCamera([pos.x,pos.y,pos.z],[c.x,c.y,c.z]);
+    });
+    $('#btn-clear').addEventListener('click', ()=>{ if(!confirm('Szene leeren?')) return; state.objects.forEach(o=>{ if(o.group){ disposeObject3DTree(o.group); contentRoot.remove(o.group); }}); state.objects=[]; clearSelection(); rebuildList(); updateGroupButtons(); updateOutlineSelection(); updateMaterialLook(); toast('Szene geleert'); });
+
+    // Animation UI
+    function populateAnimUI(rec){
+      const sel=$('#animClip'); sel.innerHTML='';
+      if(!rec||!rec.clips||rec.clips.length===0){ const opt=document.createElement('option'); opt.value=''; opt.textContent='— (keine)'; sel.appendChild(opt); sel.disabled=true; return; }
+      sel.disabled=false; rec.clips.forEach((clip,i)=>{ const opt=document.createElement('option'); opt.value=String(i); opt.textContent=clip.name||('Clip '+(i+1)); sel.appendChild(opt); });
+    }
+    function ensureMixer(rec){ if(!rec) return null; if(!rec.mixer){ rec.mixer=new THREE.AnimationMixer(rec.root); } return rec.mixer; }
+    function stopAnim(rec){ if(!rec || !rec.mixer) return; rec.mixer.stopAllAction(); rec.actions={}; }
+    $('#animPlay').addEventListener('click', ()=>{
+      if(state.selection.size!==1) return; const rec=findRec(state.selectedId);
+      if(!rec || rec.type!=='object' || !rec.clips?.length) return;
+      const idx=parseInt($('#animClip').value||'0',10)||0; const clip=rec.clips[idx]; const mixer=ensureMixer(rec);
+      mixer.stopAllAction(); const act=mixer.clipAction(clip); rec.actions[idx]=act;
+      const loop=$('#animLoop').value; const reps=parseInt($('#animRepeats').value||'9999',10)||9999;
+      if(loop==='off'||loop==='once'){ act.setLoop(THREE.LoopOnce,0); act.clampWhenFinished=true; } else { act.setLoop(THREE.LoopRepeat,reps); }
+      act.reset().play();
+    });
+    $('#animStop').addEventListener('click', ()=>{ if(state.selection.size!==1) return; const rec=findRec(state.selectedId); if(rec && rec.type==='object') stopAnim(rec); $('#animPause').textContent='Pause'; });
+    $('#animPause').addEventListener('click', ()=>{
+      if(state.selection.size!==1) return; const rec=findRec(state.selectedId); if(!rec || rec.type!=='object' || !rec.mixer) return;
+      if(rec.mixer.timeScale===0){ rec.mixer.timeScale=1; $('#animPause').textContent='Pause'; } else { rec.mixer.timeScale=0; $('#animPause').textContent='Weiter'; }
+    });
+
+    // ==== MEDIA: Import, UI, Playback
+    const audioLoader = new THREE.AudioLoader();
+    function isVideoFile(f){ return /^video\//.test(f.type) || /\.(mp4|webm|ogg)$/i.test(f.name); }
+    function isAudioFile(f){ return /^audio\//.test(f.type) || /\.(mp3|wav|ogg|m4a)$/i.test(f.name); }
+
+    $('#file-media').addEventListener('change', async (e)=>{
+      const file=e.target.files?.[0]; e.target.value=''; if(!file) return;
+      if(isVideoFile(file)) await addVideoFromFile(file);
+      else if(isAudioFile(file)) await addAudioFromFile(file);
+      else toast('Unbekanntes Medienformat');
+    });
+
+    async function addVideoFromFile(file){
+      const id=uid(); const url=URL.createObjectURL(file);
+      const name=(file.name||'Video').replace(/\.[^/.]+$/, '');
+      const vid=document.createElement('video');
+      vid.src=url; vid.crossOrigin='anonymous'; vid.playsInline=true; vid.preload='auto'; vid.loop=false; vid.muted=false; vid.controls=false;
+      let w=1.6, h=0.9;
+      const tex=new THREE.VideoTexture(vid); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false;
+      const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({map:tex, toneMapped:false}));
+      const group=new THREE.Group(); group.name=name; group.add(plane);
+      vid.addEventListener('loadedmetadata', ()=>{ if(vid.videoWidth && vid.videoHeight){ const ar=vid.videoWidth/vid.videoHeight; w=1.6; h=w/ar; plane.geometry.dispose(); plane.geometry=new THREE.PlaneGeometry(w,h); const rec=findRec(id); if(rec && rec.media){ rec.media.w=w; rec.media.h=h; } }}, {once:true});
+
+      contentRoot.add(group);
+      const rec={id,type:'object',name, file, url:null, group, root:null, clips:[], mixer:null, actions:{}, hidden:false, locked:false,
+        media:{kind:'video', el:vid, tex, loop:false, repeats:1, count:0, w, h, src:url}
+      };
+      state.objects.push(rec); addPickProxy(rec); selectOnly(id); rebuildList(); syncMediaUI(); toast('Video importiert');
+    }
+
+    async function addAudioFromFile(file){
+      const id=uid(); const url=URL.createObjectURL(file);
+      const name=(file.name||'Audio').replace(/\.[^/.]+$/, '');
+      const group=new THREE.Group(); group.name=name;
+      const gizmo=new THREE.Mesh(new THREE.SphereGeometry(0.08,16,16), new THREE.MeshStandardMaterial({color:0x66aaff, emissive:0x0a1e3a, roughness:0.3, metalness:0.1}));
+      const sound=new THREE.PositionalAudio(audioListener);
+      group.add(gizmo); gizmo.add(sound);
+      contentRoot.add(group);
+
+      audioLoader.load(url, buffer=>{ sound.setBuffer(buffer); sound.setRefDistance(1.5); sound.setDistanceModel('inverse'); sound.setLoop(false); });
+
+      const rec={id,type:'object',name, file, url:null, group, root:null, clips:[], mixer:null, actions:{}, hidden:false, locked:false,
+        media:{kind:'audio', sound, loop:false, repeats:1, count:0, src:url}
+      };
+      state.objects.push(rec); addPickProxy(rec); selectOnly(id); rebuildList(); syncMediaUI(); toast('Audio importiert');
+    }
+
+    function syncMediaUI(){
+  const box = document.getElementById('sec-media');
+  const t = document.getElementById('mediaType');
+  const loop = document.getElementById('mediaLoop');
+  const reps = document.getElementById('mediaRepeats');
+
+  if (state.selection.size !== 1){ box.open = false; box.style.display='none'; return; }
+  const rec = findRec(state.selectedId);
+  if (!rec?.media){ box.open = false; box.style.display='none'; return; }
+
+  box.style.display = 'block';
+  box.open = true;                  // ← wichtig, damit der Body sichtbar ist
+  t.value  = rec.media.kind==='video' ? 'Video' : 'Audio (3D)';
+  loop.checked = !!rec.media.loop;
+  reps.value   = rec.media.repeats ?? 1;
+}
+
+    $('#mediaLoop').addEventListener('change', ()=>{
+      if(state.selection.size!==1) return; const rec=findRec(state.selectedId); if(!rec?.media) return;
+      rec.media.loop = $('#mediaLoop').checked;
+      if(rec.media.kind==='video'){ rec.media.el.loop = rec.media.loop; }
+      if(rec.media.kind==='audio'){ rec.media.sound?.setLoop?.(rec.media.loop); }
+    });
+    $('#mediaRepeats').addEventListener('change', ()=>{
+      if(state.selection.size!==1) return; const rec=findRec(state.selectedId); if(!rec?.media) return;
+      const v=Math.max(1, parseInt($('#mediaRepeats').value||'1',10)||1);
+      rec.media.repeats = v;
+    });
+
+    function mediaPlay(rec){
+      if(!rec?.media) return;
+      rec.media.count = 0;
+      if(rec.media.kind==='video'){
+        const v=rec.media.el; v.currentTime = v.currentTime||0; v.play().catch(()=>{ toast('Autoplay blockiert? Tipp: einmal manuell Play drücken.'); });
+        v.onended = null;
+        if(!rec.media.loop){ v.onended = ()=>{ rec.media.count++; if(rec.media.count < (rec.media.repeats||1)) v.play(); }; }
+      } else {
+        const s=rec.media.sound; if(!s?.buffer){ toast('Audio lädt noch…'); return; }
+        s.setLoop(!!rec.media.loop);
+        s.stop();
+        if(!rec.media.loop){
+          let played=0; const playOnce=()=>{ s.play(); s.source.onended = ()=>{ played++; if(played < (rec.media.repeats||1)) playOnce(); }; }; playOnce();
+        } else { s.play(); }
+      }
+    }
+    function mediaPause(rec){ if(!rec?.media) return; if(rec.media.kind==='video'){ rec.media.el.pause(); } else { if(rec.media.sound?.isPlaying){ rec.media.sound.stop(); } } }
+    function mediaStop(rec){ if(!rec?.media) return; if(rec.media.kind==='video'){ const v=rec.media.el; v.pause(); try{ v.currentTime=0; }catch{} rec.media.count=0; } else { try{ rec.media.sound?.stop?.(); }catch{} rec.media.count=0; } }
+
+    $('#mediaPlay').addEventListener('click', ()=>{ if(state.selection.size!==1) return; const rec=findRec(state.selectedId); mediaPlay(rec); });
+    $('#mediaPause').addEventListener('click', ()=>{ if(state.selection.size!==1) return; const rec=findRec(state.selectedId); mediaPause(rec); });
+    $('#mediaStop').addEventListener('click', ()=>{ if(state.selection.size!==1) return; const rec=findRec(state.selectedId); mediaStop(rec); });
+
+    // Save / Load
+    async function fileToBase64(file){ return new Promise((resolve,reject)=>{ const r=new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(file); }); }
+    function blobUrlToBase64(url){ return fetch(url).then(r=>r.blob()).then(b=> new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.readAsDataURL(b); })); }
+
+    async function buildProjectData(){
+      const out=[];
+      async function pushRec(rec){
+        if(rec.type==='group' && rec.children){ for(const c of rec.children) await pushRec(c); return; }
+        const g=rec.group; g.updateMatrixWorld(true);
+        const pos=new THREE.Vector3(), quat=new THREE.Quaternion(), scl=new THREE.Vector3();
+        g.matrixWorld.decompose(pos,quat,scl);
+        const eul=new THREE.Euler().setFromQuaternion(quat,'XYZ');
+
+        let asset=null;
+        if(rec.file){ asset=await fileToBase64(rec.file); }
+        else if(rec.url){ asset=await blobUrlToBase64(rec.url); }
+
+        let media=null;
+        if(rec.media){
+          if(rec.media.kind==='video'){
+            const srcData = rec.file ? await fileToBase64(rec.file) : (rec.media.src ? await blobUrlToBase64(rec.media.src) : null);
+            media = { kind:'video', loop:!!rec.media.loop, repeats:rec.media.repeats||1, w:rec.media.w||1.6, h:rec.media.h||0.9, asset:srcData };
+          } else if(rec.media.kind==='audio'){
+            const srcData = rec.file ? await fileToBase64(rec.file) : (rec.media.src ? await blobUrlToBase64(rec.media.src) : null);
+            media = { kind:'audio', loop:!!rec.media.loop, repeats:rec.media.repeats||1, asset:srcData };
+          }
+        }
+
+        out.push({
+          name:rec.name,
+          transform:{
+            position:[pos.x,pos.y,pos.z],
+            rotationDeg:[THREE.MathUtils.radToDeg(eul.x),THREE.MathUtils.radToDeg(eul.y),THREE.MathUtils.radToDeg(eul.z)],
+            scale:scl.x
+          },
+          asset,
+          media
+        });
+      }
+      for(const rec of state.objects) await pushRec(rec);
+      return {
+        version:'3.0',
+        meta:{ app:'ARea Editor', projectName, savedAt:new Date().toISOString() },
+        settings:{
+          roomSize: parseFloat($('#roomSize').value)||24,
+          gridVisible: $('#gridVisible').checked,
+          anchorMode: getAnchorSel(),
+          animStartMode: document.getElementById('animStartMode')?.value || 'onStart',
+          sceneViewer: {
+            eyebrow: $('#svEyebrow')?.value||'',
+            title:   $('#svTitle')?.value||'',
+            desc:    $('#svDesc')?.value||'',
+            posterData: customPosterBlob ? await blobToBase64(customPosterBlob) : (customPosterDataUrl || ''),
+            controls: {
+              showPlay: !!document.getElementById('svShowPlayBtn')?.checked,
+              showMute: !!document.getElementById('svShowMuteBtn')?.checked
+            }
+          }
+        },
+        objects: out
+      };
+    }
+
+    function stripExt(n){ return (n||'').replace(/\.(webar|json)$/i,''); }
+
+    async function saveProject({saveAs=false}={}) {
+      try {
+        if('showSaveFilePicker' in window){
+          if(saveAs || !window.__fh){
+            const suggested=((projectName && projectName!=='Unbenanntes Projekt')?projectName:'projekt')+'.webar';
+            window.__fh = await window.showSaveFilePicker({ suggestedName:suggested, types:[{description:'WebAR Projekt', accept:{'application/json':['.webar','.json']}}] });
+          }
+          const baseName=stripExt(window.__fh.name||''); if(baseName) setProjectName(baseName);
+          const data=await buildProjectData(); const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+          const w=await window.__fh.createWritable(); await w.write(blob); await w.close(); toast('Projekt gespeichert'); return true;
+        }
+        const downloadName=((projectName && projectName!=='Unbenanntes Projekt')?projectName:'projekt')+'.webar';
+        const data=await buildProjectData(); const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+        const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=downloadName; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); toast('Download gestartet'); return true;
+      } catch { toast('Speichern abgebrochen'); return false; }
+    }
+
+    async function importProjectFile(file){
+      try{
+        const text=await file.text(); const data=JSON.parse(text);
+        if(!data.meta) data.meta={}; if(!data.meta.projectName && file?.name) data.meta.projectName=stripExt(file.name);
+        await importProjectData(data);
+      }catch(e){ console.error(e); toast('Konnte Projekt nicht laden'); }
+    }
+
+    async function importProjectData(data){
+      state.objects.forEach(o=>{ if(o.group){ disposeObject3DTree(o.group); contentRoot.remove(o.group);} }); state.objects=[]; clearSelection();
+
+      if (data.meta?.projectName) setProjectName(data.meta.projectName);
+      if (data.settings?.anchorMode){
+  setAnchorSel(data.settings.anchorMode);
+        (document.getElementById('animStartMode')||{}).value = data.settings?.animStartMode || 'onStart';
+
+}
+if (data.settings?.sceneViewer){
+  const sv = data.settings.sceneViewer;
+  (document.getElementById('svEyebrow')||{}).value = sv.eyebrow||'';
+  (document.getElementById('svTitle')||{}).value   = sv.title||'';
+  (document.getElementById('svDesc')||{}).value    = sv.desc||'';
+  if (sv.posterData){
+    // Vorschau & Blob rekonstruieren
+    const b = await dataUrlToBlob(sv.posterData);
+    setPoster(new File([b], 'poster.jpg', { type:'image/jpeg' }));
+  }
+  const controls = sv.controls || {};
+  (document.getElementById('svShowPlayBtn')||{}).checked = !!controls.showPlay;
+  (document.getElementById('svShowMuteBtn')||{}).checked = !!controls.showMute;
+}
+updateAnchorUI();
+
+
+      for (const obj of (data.objects || [])){
+        const name = obj.name || 'Objekt';
+        let group=null, root=null, clips=[];
+        let media=null;
+
+        if(obj.media && obj.media.kind==='video'){
+          const vid=document.createElement('video');
+          vid.src = obj.media.asset || ''; vid.crossOrigin='anonymous'; vid.playsInline=true; vid.preload='auto'; vid.loop=!!obj.media.loop; vid.controls=false;
+          const tex=new THREE.VideoTexture(vid); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false;
+          const w=obj.media.w||1.6, h=obj.media.h||0.9;
+          const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({map:tex, toneMapped:false}));
+          group=new THREE.Group(); group.name=name; group.add(plane);
+          media={kind:'video', el:vid, tex, loop:!!obj.media.loop, repeats:obj.media.repeats||1, count:0, w, h, src:vid.src};
+        } else if(obj.media && obj.media.kind==='audio'){
+          group=new THREE.Group(); group.name=name;
+          const gizmo=new THREE.Mesh(new THREE.SphereGeometry(0.08,16,16), new THREE.MeshStandardMaterial({color:0x66aaff, emissive:0x0a1e3a, roughness:0.3, metalness:0.1}));
+          const sound=new THREE.PositionalAudio(audioListener); group.add(gizmo); gizmo.add(sound);
+          const src=obj.media.asset||'';
+          if(src){ audioLoader.load(src, buffer=>{ sound.setBuffer(buffer); sound.setRefDistance(1.5); sound.setDistanceModel('inverse'); sound.setLoop(!!obj.media.loop); }); }
+          media={kind:'audio', sound, loop:!!obj.media.loop, repeats:obj.media.repeats||1, count:0, src};
+        } else {
+          const url = obj.asset || null;
+          if(url){ const r = await createFromGLTF(url, name); group=r.group; root=r.root; clips=r.clips; }
+          else { group=new THREE.Group(); group.name=name; }
+        }
+
+        const t = obj.transform || { position:[0,0,0], rotationDeg:[0,0,0], scale:1 };
+        group.position.set(t.position[0], t.position[1], t.position[2]);
+        group.rotation.set(THREE.MathUtils.degToRad(t.rotationDeg[0]), THREE.MathUtils.degToRad(t.rotationDeg[1]), THREE.MathUtils.degToRad(t.rotationDeg[2]));
+        group.scale.setScalar(t.scale);
+
+        if(!media){ prepareMaterialBases(group); }
+        contentRoot.add(group);
+
+        const rec = { id: uid(), type:'object', name, file:null, url:obj.asset||null, group, root, clips, mixer:null, actions:{}, hidden:false, locked:false, media };
+        state.objects.push(rec); addPickProxy(rec);
+      }
+
+      rebuildList(); updateGroupButtons(); updateOutlineSelection(); updateMaterialLook(); toast('Projekt geladen');
+    }
+
+    // Bookmarks & Exposure
+    const bookmarks=Array(5).fill(null);
+    function saveBookmark(i){ bookmarks[i]={pos:camera.position.clone(),target:controls.target.clone(),fov:camera.fov}; toast(`Bookmark ${i+1} gespeichert`); }
+    function recallBookmark(i){ const bm=bookmarks[i]; if(!bm){ toast(`Kein Bookmark auf ${i+1}`); return; } goCamera([bm.pos.x,bm.pos.y,bm.pos.z],[bm.target.x,bm.target.y,bm.target.z],bm.fov,350); toast(`Bookmark ${i+1} geladen`); }
+    const LIGHT_BASE = { hemi: 1.2, dir: 2.5, amb: 0.25 };
+    function applyExposure(){ const e=parseFloat($('#exposure').value)||1; renderer.toneMappingExposure=e; hemi.intensity=LIGHT_BASE.hemi*e; dir.intensity=LIGHT_BASE.dir*e; amb.intensity=LIGHT_BASE.amb*e; camLight.intensity = 1.6 * e; }
+    $('#exposure').addEventListener('input', applyExposure); applyExposure();
+
+    // ===== Anchor-UI toggeln =====
+    function updateAnchorUI(){
+  const mode = getAnchorSel();
+  // rechte Panel-Optionen weiter bedienen:
+  const imgRow = document.getElementById('imageTargetRow');
+  const natRow = document.getElementById('nativeRow');
+  const usdzRow = document.getElementById('usdzUploadRow'); // NEU
+  if (imgRow) imgRow.style.display = (mode==='image')  ? 'grid' : 'none';
+  if (natRow) natRow.style.display = (mode==='native') ? 'grid' : 'none';
+  if (usdzRow) usdzRow.style.display = (mode==='native') ? 'grid' : 'none';
+
+  updateSVBlockVisible();
+}
+
+
+ function previewModules(){
+  const mode   = getAnchorSel(); // <-- nur noch hier holen
+  const target = ($('#imageTargetUrl')?.value || '').trim();
+  const glb    = ($('#nativeGlbUrl')?.value  || '').trim();
+  const usdz   = ($('#nativeUsdzUrl')?.value || '').trim();
+
+  const viewerBase = (window.__AREA || {}).VIEWER_BASE || 'https://area-viewer.pages.dev';
+
+  const pathByMode = {
+  'surface-webxr': '/surface-ar/webxr.html',
+  'native':        '/surface-ar/index.html',   // ← konsistent
+  'image':         '/image-ar/viewer.html',
+  'scene-viewer':  '/scene-viewer/index.html',
+  'surface-guided':'/surface-ar/guided.html'
+};
+
+  const entry = pathByMode[mode] || '/webxr.html';
+
+  (async () => {
+    const data = await buildProjectData();
+    const src = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data));
+
+    let url = `${viewerBase}${entry}?src=${encodeURIComponent(src)}&anchor=${encodeURIComponent(mode)}`;
+    if (mode === 'image' && target) {
+      url += `&target=${encodeURIComponent(target)}`;
+    }
+    if (mode === 'native') {
+      if (glb)  url += `&glb=${encodeURIComponent(glb)}`;
+      if (usdz) url += `&usdz=${encodeURIComponent(usdz)}`;
+    }
+
+    window.open(url, '_blank', 'noopener');
+    toast('Vorschau geöffnet');
+  })();
+}
+
+    // ===== Ende Vorschau =====
+
+    // ===== Export → Worker-Publish → QR =====
+    function sanitizeId(s){ return (s||'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').replace(/^-+|-+$/g,'').slice(0,64)||'scene'; }
+
+    function cloneForExport(){
+      const root = new THREE.Group(); root.name='ExportRoot';
+      state.objects.filter(r=>!r.media).forEach(r=>{
+        const c = SkeletonUtils.clone(r.group);
+        c.traverse(n=>{ if(n.userData?.__pickProxy){ n.parent?.remove(n); n.geometry?.dispose?.(); n.material?.dispose?.(); } });
+        root.add(c);
+      });
+      return root;
+    }
+
+    function makeGLBFromJSON(jsonLike){
+      const jsonStr = (typeof jsonLike === 'string') ? jsonLike : JSON.stringify(jsonLike);
+      const enc = new TextEncoder();
+      let jsonBytes = enc.encode(jsonStr);
+      const pad = (4 - (jsonBytes.byteLength % 4)) % 4;
+      if (pad) {
+        const tmp = new Uint8Array(jsonBytes.byteLength + pad);
+        tmp.set(jsonBytes, 0);
+        tmp.fill(0x20, jsonBytes.byteLength); // ' '
+        jsonBytes = tmp;
+      }
+      const GLB_HEADER_BYTES = 12;
+      const CHUNK_HEADER_BYTES = 8;
+      const totalLength = GLB_HEADER_BYTES + CHUNK_HEADER_BYTES + jsonBytes.byteLength;
+
+      const glb = new ArrayBuffer(totalLength);
+      const dv = new DataView(glb);
+      let off = 0;
+
+      // Header
+      dv.setUint32(off, 0x46546C67, true); off += 4; // 'glTF'
+      dv.setUint32(off, 2, true);          off += 4; // version
+      dv.setUint32(off, totalLength, true); off += 4; // length
+
+      // JSON chunk
+      dv.setUint32(off, jsonBytes.byteLength, true); off += 4; // chunkLength
+      dv.setUint32(off, 0x4E4F534A, true);          off += 4; // "JSON"
+      new Uint8Array(glb, off, jsonBytes.byteLength).set(jsonBytes); off += jsonBytes.byteLength;
+
+      return new Blob([glb], { type: 'model/gltf-binary' });
+    }
+
+async function capturePosterBlob(quality = 0.75){
+  const c = renderer?.domElement;
+  if (!c) throw new Error('Renderer-Canvas fehlt');
+
+  // Zustand merken
+  const prevPR   = renderer.getPixelRatio();
+  const prevSize = renderer.getSize(new THREE.Vector2());
+
+  // Temporär kleiner & PR=1 für schnellen Snapshot
+  const W = 1280, H = 720;
+  renderer.setPixelRatio(1);
+  renderer.setSize(W, H, false);
+
+  // Einen Frame in der neuen Größe rendern
+  renderer.clear();
+  if (composer) {
+    composer.setSize(W, H);
+    composer.render();
+  } else {
+    renderer.render(scene, camera);
+  }
+
+  // Async-Blob statt blockierendem DataURL
+  const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', quality));
+
+  // Zustand zurück
+  renderer.setPixelRatio(prevPR);
+  renderer.setSize(prevSize.x, prevSize.y, false);
+  if (composer) composer.setSize(prevSize.x, prevSize.y);
+  onResize?.();
+
+  return blob;
+}
+
+    
+async function dataUrlToBlob(u){ const r = await fetch(u); return await r.blob(); }
+
+// === Namen des Anim-Clip aus UI/Selection bestimmen ===
+function getSelectedClipNameForExport(){
+  // Wenn genau 1 Objekt selektiert und Clips vorhanden → UI auslesen
+  if (state.selection.size === 1){
+    const rec = state.objects.find(o=>o.id===state.selectedId);
+    if (rec?.clips?.length){
+      const idx = parseInt(document.getElementById('animClip').value||'0',10) || 0;
+      const clip = rec.clips[idx] || rec.clips[0];
+      return (clip?.name)||null;
+    }
+  }
+  // sonst „*“ (erster Clip)
+  return "*";
+}
+
+// === Helper: split path on '/', '\\', or '|' (for Mixamo) ===
+function splitPath(raw){
+  if (!raw) return [];
+  // Split on forward slash, backslash, or pipe
+  return raw.split(/[\/\\|]/).filter(Boolean);
+}
+
+// === Helper: walk cloned tree by name segments ===
+function resolvePathInClone(root, segments){
+  if (!segments?.length) return null;
+
+  const first = segments[0];
+  const candidates = [];
+  root.traverse(n => { if (n?.name === first) candidates.push(n); });
+
+  const walk = (node, fromIdx) => {
+    let cur = node;
+    for (let i = fromIdx; i < segments.length; i++){
+      const seg = segments[i];
+      let next = null;
+      for (let k = 0; k < cur.children.length; k++){
+        if (cur.children[k].name === seg){ next = cur.children[k]; break; }
+      }
+      if (!next) return null;
+      cur = next;
+    }
+    return cur;
+  };
+
+  for (const cand of candidates){
+    const found = walk(cand, 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+
+// === Remap AnimationClips for cloned export tree ===
+function remapAnimationClipsForExport(allClips, clonedRoot){
+  // Build a fast name → nodes map in cloned tree for fallback lookup
+  const byName = new Map();
+  clonedRoot.traverse(n=>{ 
+    if (!n || !n.name) return; 
+    const arr = byName.get(n.name) || []; 
+    arr.push(n); 
+    byName.set(n.name, arr); 
+  });
+
+  function findClonedForTrack(trackName){
+    // trackName like 'Armature/Bone.quaternion' or 'Armature|mixamo.com|Layer0/Bone.position'
+    const dot = trackName.lastIndexOf('.');
+    const targetPath = dot >= 0 ? trackName.slice(0, dot) : trackName;
+    
+    // Split path into segments (handles '/', '\\', and '|' for Mixamo)
+    const segments = splitPath(targetPath);
+    if (!segments.length) return null;
+    
+    // Try to resolve full path in cloned tree
+    let targetNode = resolvePathInClone(clonedRoot, segments);
+    
+    // Fallback: if full path fails, try just the last segment by name
+    if (!targetNode){
+      const lastName = segments[segments.length - 1];
+      const cand = lastName && byName.get(lastName);
+      targetNode = cand ? cand[0] : null;
+    }
+    
+    return targetNode;
+  }
+
+  const remapped = [];
+  for (const clip of (allClips||[])){
+    if (!clip || !Array.isArray(clip.tracks) || !clip.tracks.length) continue;
+    const newTracks = [];
+    for (const tr of clip.tracks){
+      const targetNode = findClonedForTrack(tr.name);
+      if (!targetNode){
+        console.warn('[remapAnimationClipsForExport] Could not resolve track:', tr.name);
+        continue; // drop tracks we can't map
+      }
+      const dot = tr.name.lastIndexOf('.');
+      const suffix = dot >= 0 ? tr.name.slice(dot+1) : '';
+      const t = tr.clone();
+      t.name = targetNode.uuid + (suffix ? ('.'+suffix) : ''); // bind by UUID for robustness
+      newTracks.push(t);
+    }
+    if (newTracks.length){ 
+      remapped.push(new THREE.AnimationClip(clip.name, clip.duration, newTracks)); 
+    } else {
+      console.warn('[remapAnimationClipsForExport] Clip dropped (no tracks mapped):', clip.name);
+    }
+  }
+  return remapped;
+}
+
+async function exportSceneGLB(){
+  const exporter = new GLTFExporter();
+  const exportRoot = cloneForExport();
+  const allClips = [];
+  state.objects.forEach(r => { if (r?.clips?.length) r.clips.forEach(c => allClips.push(c)); });
+
+  // Remap animation clips to cloned nodes
+  const remappedClips = remapAnimationClipsForExport(allClips, exportRoot);
+  console.log('[exportSceneGLB] Original clips:', allClips.length, 'Remapped clips:', remappedClips.length);
+  
+  // Debug: log first track names for comparison
+  if (allClips.length > 0 && allClips[0]?.tracks?.length > 0){
+    console.log('[exportSceneGLB] Original first track:', allClips[0].tracks[0].name);
+  }
+  if (remappedClips.length > 0 && remappedClips[0]?.tracks?.length > 0){
+    console.log('[exportSceneGLB] Remapped first track:', remappedClips[0].tracks[0].name);
+  }
+
+  return new Promise((resolve, reject)=>{
+    exporter.parse(
+      exportRoot,
+      async (result)=>{
+        try{
+          let glbBlob;
+          if (result instanceof ArrayBuffer || ArrayBuffer.isView(result)){
+            const ab = (result instanceof ArrayBuffer) ? result : result.buffer;
+            glbBlob = new Blob([ab], { type:'model/gltf-binary' });
+          } else {
+            glbBlob = makeGLBFromJSON(result);
+          }
+          // Check if animations are present in the exported GLB
+          const hasAnim = await window.hasAnimationsInGlbBlob(glbBlob);
+          console.log('[exportSceneGLB] Exported GLB has animations:', hasAnim);
+          resolve(glbBlob);
+        }catch(e){ reject(e); }
+      },
+      { binary:true, onlyVisible:true, embedImages:true, animations: remappedClips }
+    );
+  });
+}
+
+/* === Audio-Helper: erstes Audioobjekt in der Szene finden === */
+function findFirstAudio(){
+  for (const rec of state.objects){
+    const m = rec?.media;
+    if (m && m.kind === 'audio'){
+      // Wenn über "Medien import" als Datei geladen wurde, steckt die File im rec.file
+      const fromFile = (rec.file && (
+        /^audio\//.test(rec.file.type) || /\.(mp3|wav|ogg|m4a)$/i.test(rec.file.name)
+      )) ? rec.file : null;
+
+      // Quelle aus dem Media-Record (kann data: oder blob: sein)
+      const src = (m.src || '').trim();
+      const fromDataUrl = (!fromFile && src.startsWith('data:')) ? src : null;
+      const fromBlobUrl = (!fromFile && src.startsWith('blob:')) ? src : null;
+
+      return {
+        loop: !!m.loop,
+        fromFile,       // File | null
+        fromDataUrl,    // string | null (data:)
+        fromBlobUrl     // string | null (blob:)
+      };
+    }
+  }
+  return null;
+}
+
+
+function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
+  const clipName  = getSelectedClipNameForExport() || "*";
+  const audioInfo = findFirstAudio();
+
+  const json = {
+    meta: {
+      version: "1.1",
+      mode,
+      title: title || sceneId,
+      createdAt: new Date().toISOString()
+    },
+    model: { url: glbUrl, usdzUrl: usdzUrl || null, scale: 1, rotateY: 0 },
+    animation: {
+      enabled: true,
+      clipName,
+      start: (document.getElementById('animStartMode')?.value || 'onStart'),
+      loop:  (document.getElementById('animLoop')?.value || 'repeat') === 'repeat',
+      iterations: parseInt(document.getElementById('animRepeats')?.value || '9999', 10) || 9999,
+      clampWhenFinished: true
+    },
+    ui: { showGround: true, autocenter: true, loader: "minimal" }
+  };
+
+  if (mode === "image") {
+    json.target = { mindUrl: targetUrl || null };
+  }
+
+  if (audioInfo) {
+    json.audio = {
+      url: "audio.mp3",      // relativ
+      autoplay: "onPlace",   // startet nach erstem Tap-to-place
+      loop: !!audioInfo.loop,
+      volume: 0.85
+    };
+  }
+
+  return json;
+}
+
+
+
+    function val(id, def=''){ const el = document.getElementById(id); const v=(el?.value||'').trim(); return v || def; }
+
+function buildSceneViewerJSON_CF() {
+  const clipName = getSelectedClipNameForExport() || "*";
+  const showPlay = !!document.getElementById('svShowPlayBtn')?.checked;
+  const showMute = !!document.getElementById('svShowMuteBtn')?.checked;
+
+  const eyebrow = document.getElementById('svEyebrow')?.value || "ARea – Szene";
+  const title   = document.getElementById('svTitle')?.value   || projectName || "Scene";
+  const desc    = document.getElementById('svDesc')?.value    || "Klicke auf OK, um zu starten.";
+
+  const audioInfo = findFirstAudio(); // dein Helper
+
+   return {
+    ui: {
+      showGround: true,
+      autocenter: true,
+      welcome: {
+        eyebrow, title, desc, cta: "OK",
+        poster: "poster.jpg",
+        nativeCta: "ios-only"   // <- NEU: niemals auf Android zeigen
+      },
+      controls: { showPlay, showMute }
+    },
+    camera: { fov: 50, start:[2.2,1.6,3.0], lookAt:[0,1.1,0] },
+    model:  { url: "scene.glb", scale: 1, rotateY: 0 }, // RELATIV
+    animation: {
+      enabled: true,
+      clipName,
+      start: (document.getElementById('animStartMode')?.value || 'onStart'),
+      loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
+      iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
+      clampWhenFinished: true,
+      crossfade: 0.25,
+      timeScale: 1
+    },
+    audio: audioInfo ? {
+      // WICHTIG: NUR RELATIV!
+      url: "audio.mp3",
+      autoplay: "withAnimation",
+      loop: !!audioInfo.loop,
+      volume: 0.85
+    } : { url: "" }
+  };
+}
+
+
+
+    function showSharePanel(url){
+      let el = document.getElementById('shareOverlay');
+      if(el) el.remove();
+      el = document.createElement('div'); el.id='shareOverlay';
+      el.style.cssText='position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:3000;';
+      const card=document.createElement('div');
+      card.style.cssText='background: var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px; max-width:520px; width:92%; color:var(--text); box-shadow:0 10px 30px rgba(0,0,0,.4)';
+      const h=document.createElement('div'); h.textContent='Veröffentlicht – teilen & scannen'; h.style.cssText='font-weight:800;margin-bottom:8px;color:var(--muted)';
+      const qr=document.createElement('canvas'); qr.width=0; qr.height=0; qr.style.cssText='display:block;margin:8px auto;';
+      const link=document.createElement('div'); link.textContent=url; link.style.cssText='font-size:12px;word-break:break-all;margin:8px 0;color:#aecdff;';
+      const row=document.createElement('div'); row.style.cssText='display:flex;gap:8px;justify-content:flex-end;margin-top:10px;';
+      const btnCopy=document.createElement('button'); btnCopy.className='btn'; btnCopy.textContent='Link kopieren';
+      const btnOpen=document.createElement('button'); btnOpen.className='btn'; btnOpen.textContent='Im neuen Tab öffnen';
+      const btnClose=document.createElement('button'); btnClose.className='btn'; btnClose.textContent='Schließen';
+      row.append(btnCopy,btnOpen,btnClose);
+      card.append(h,qr,link,row); el.append(card); document.body.append(el);
+      QRCode.toCanvas(qr, url, {  margin: 1,  scale: 4,               // vorher 6
+  errorCorrectionLevel: 'M' // statt 'Q'/'H'
+});
+      btnCopy.onclick=async()=>{ try{ await navigator.clipboard.writeText(url); toast('Link kopiert'); }catch{ toast('Konnte nicht kopieren'); } };
+      btnOpen.onclick=()=>{ window.open(url,'_blank'); };
+      btnClose.onclick=()=>{ el.remove(); };
+    }
+
+function addParam(url, key, val){
+  try {
+    const u = new URL(url, location.href);
+    if (!u.searchParams.has(key)) u.searchParams.set(key, val);
+    return u.toString();
+  } catch { return url; }
+}
+    
+// Legacy publish() wrapper - redirects to canonical window.publishScene
+async function publish(){
+  if (typeof window.publishScene === 'function') {
+    return await window.publishScene();
+  } else {
+    alert('publishScene is not available yet');
+  }
+}
+
+// Canonical publishScene implementation (robust, handles export, fallbacks, FormData, upload, robust viewer URL)
+(function(){
+  const AREA = (window.__AREA = window.__AREA || {});
+  const file = (sel)=> (document.querySelector(sel)?.files?.[0]) || null;
+
+  const buildSceneJson = window.buildSceneJson;
+
+  window.publishScene = async function publishScene(){
+    try{
+      // 1) Determine sceneId from projNamePill or fallback, with user prompt
+      const projNamePill = document.getElementById('projNamePill');
+      const projectName = projNamePill?.textContent?.trim() || 'Unbenanntes Projekt';
+      const sanitizeId = (s) => (s||'scene').toLowerCase().replace(/[^a-z0-9-_]+/g,'-').replace(/^-+|-+$/g,'').slice(0,64)||'scene';
+      const defaultSceneId = sanitizeId(AREA?.sceneId || projectName);
+      const userSceneId = prompt('Scene ID:', defaultSceneId);
+      if (!userSceneId) {
+        // User cancelled
+        return;
+      }
+      const sceneId = sanitizeId(userSceneId);
+
+      // 2) Export GLB via exportSceneGLB; if null and __origGlb present, fallback to original GLB
+      let glbBlob = null;
+      let glbSource = 'none';
+      try {
+        glbBlob = await exportSceneGLB();
+        AREA.files = AREA.files || {};
+        AREA.files.glb = glbBlob;
+        glbSource = 'export';
+        console.log('[publish] Export: GLB erzeugt via exportSceneGLB');
+      } catch (e) {
+        console.warn('[publish] Export fehlgeschlagen, versuche Fallback:', e);
+      }
+
+      // Fallback: wenn Original vorhanden und exportiertes GLB keine animations[] enthält → Original nutzen
+      if (AREA.__origGlb){
+        let mustFallback = false;
+        if (glbBlob){
+          const hasAnim = await window.hasAnimationsInGlbBlob(glbBlob);
+          if (!hasAnim){
+            console.warn('[publish] Exportiertes GLB ohne animations[] – fallback auf Original-GLB.');
+            mustFallback = true;
+          }
+        } else {
+          mustFallback = true;
+        }
+        if (mustFallback){
+          glbBlob = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
+          glbSource = 'fallback';
+          console.log('[publish] GLB source: fallback to original GLB (Passthrough), size:', AREA.__origGlb.byteLength, 'bytes');
+        }
+      }
+
+      if (glbSource === 'export'){
+        console.log('[publish] GLB source: export (via exportSceneGLB)');
+      }
+
+      if (!glbBlob){
+        alert('Kein GLB exportiert/importiert. Bitte ein GLB laden oder exportieren.');
+        return;
+      }
+
+      // 3) Build scene.json (existing logic)
+      const sceneJson = buildSceneJson();
+      const sceneText = JSON.stringify(sceneJson);
+
+      // 4) Build FormData AFTER creation
+      const fd = new FormData();
+      fd.append('sceneId', sceneId);
+      fd.append('file', new Blob([sceneText], {type:'application/json'}), 'scene.json');
+      fd.append('file', glbBlob, 'scene.glb');
+
+      // 5) Optional assets: USDZ, poster, audio
+      const usdzF   = file('#fileUsdz');
+      if (usdzF) fd.append('file', usdzF, 'model.usdz');
+
+      const posterF = file('#file-poster');
+      if (posterF) {
+        fd.append('file', posterF, posterF.name);
+      } else {
+        // Try capturing poster from canvas if not provided
+        try {
+          const snap = await capturePosterBlob(0.78);
+          if (snap) {
+            fd.append('file', snap, 'poster.jpg');
+            console.log('[editor] Poster: Canvas-Snapshot angehängt');
+          }
+        } catch (e) { console.warn('Poster-Snapshot fehlgeschlagen:', e); }
+      }
+
+      const audioF  = file('#file-audio');
+      if (audioF) {
+        fd.append('file', audioF, 'audio.mp3');
+      } else {
+        // Try finding audio from scene objects
+        const ai = findFirstAudio();
+        if (ai?.fromFile) {
+          fd.append('file', ai.fromFile, 'audio.mp3');
+          console.log('[editor] Audio: aus Media-Objekt (File) hinzugefügt');
+        } else if (ai?.fromDataUrl) {
+          const b = await dataUrlToBlob(ai.fromDataUrl);
+          fd.append('file', new File([b], 'audio.mp3', { type: b.type || 'audio/mpeg' }), 'audio.mp3');
+          console.log('[editor] Audio: aus data:URL hinzugefügt');
+        }
+      }
+
+      // 6) Publish to endpoint
+      const PUBLISH_URL = AREA?.publishUrl || AREA?.PUBLISH_ENDPOINT || 'https://area-publish-proxy.area-webar.workers.dev/publish';
+      const PUBLISH_KEY = AREA?.publishKey || AREA?.PUBLISH_KEY || '';
+
+      const res = await fetch(PUBLISH_URL, {
+        method:'POST',
+        headers:{ 'X-AREA-Key': PUBLISH_KEY },
+        body: fd
+      });
+      if (!res.ok){
+        const t = await res.text().catch(()=>String(res.status));
+        alert('Publish fehlgeschlagen: ' + t);
+        return;
+      }
+
+      // 7) Compute robust viewer URL
+      const json = await res.json().catch(()=>null);
+      console.log('[publish] POST result:', json);
+      
+      const viewerBase   = AREA?.VIEWER_BASE || 'https://area-viewer.pages.dev';
+      const workerOrigin = AREA?.FILE_BASE || (new URL(PUBLISH_URL).origin);
+      const mode = (function getAnchorSel(){
+        const sel = document.getElementById('anchorMode');
+        return sel?.value || 'surface-webxr';
+      })();
+
+      const robustUrl = buildRobustViewerUrl({ mode, sceneId, workerOrigin, viewerBase });
+      console.log('[publish] Final viewer URL:', robustUrl);
+
+      // Show share panel with QR code and link
+      showSharePanel(robustUrl);
+
+      // Copy to clipboard (best-effort)
+      try { 
+        await navigator.clipboard.writeText(robustUrl); 
+        console.log('[publish] URL copied to clipboard');
+      } catch (e) { 
+        console.warn('[publish] Could not copy to clipboard:', e);
+      }
+
+      // Open viewer URL (best-effort)
+      try {
+        window.open(robustUrl, '_blank', 'noopener');
+        console.log('[publish] Opened viewer URL in new tab');
+      } catch (e) {
+        console.warn('[publish] Could not open new tab:', e);
+      }
+    }catch(e){
+      console.warn(e);
+      alert('Publish-Fehler: ' + (e?.message || String(e)));
+    }
+  };
+})();
+
+async function previewDraft(){
+  const cfg = window.__AREA || {};
+  const EP  = (cfg.PUBLISH_ENDPOINT || '').trim();
+  const KEY = (cfg.PUBLISH_KEY || '').trim(); // beim Proxy i. d. R. leer
+  if (!EP) { alert('Draft-Preview ist nicht konfiguriert: window.__AREA.PUBLISH_ENDPOINT fehlt.'); return; }
+
+  // 1) Draft-ID bauen (einzigartig, kompakt)
+  const baseId = sanitizeId(projectName) || 'scene';
+  const sceneId = `${baseId}-draft-${Date.now().toString(36).slice(-5)}`;
+
+  try{
+    toast('Exportiere Szene für Draft…');
+
+    // 2) GLB exportieren (wie publish)
+    const mode = getAnchorSel();
+    const isAR = (mode === 'surface-webxr' || mode === 'image' || mode === 'native');
+    const glbBlob = await exportSceneGLB({ targetSizeMeters: isAR ? 1.0 : null });
+
+    // Magic bytes check (glTF)
+    {
+      const ab = await glbBlob.arrayBuffer();
+      const u8 = new Uint8Array(ab, 0, 4);
+      if (!(u8[0]===0x67 && u8[1]===0x6C && u8[2]===0x54 && u8[3]===0x46)) {
+        throw new Error('Exportierte Datei ist kein GLB (fehlende "glTF"-Magic-Bytes).');
+      }
+    }
+
+    // 3) FormData bauen
+    const form = new FormData();
+    form.append('sceneId', sceneId);
+    form.append('file', new File([glbBlob], 'scene.glb', { type:'model/gltf-binary' }));
+
+    const workerOrigin = (window.__AREA?.FILE_BASE || new URL(EP).origin);
+
+    if (mode === 'scene-viewer' || mode === 'surface-guided'){
+      // Poster beilegen: zuerst Custom, sonst Canvas-Snapshot
+      let posterBlob = customPosterBlob || null;
+      if (!posterBlob){
+        try { posterBlob = await capturePosterBlob(0.9); } catch {}
+      }
+      if (posterBlob){
+        form.append('file', new File([posterBlob], 'poster.jpg', { type:'image/jpeg' }));
+      }
+      // Scene-Viewer JSON (relative Pfade)
+      const sceneJsonSV = buildSceneViewerJSON_CF();
+      form.append('file', new File([JSON.stringify(sceneJsonSV, null, 2)], 'scene.json', { type:'application/json' }));
+    } else {
+      // --- NEU: USDZ-Upload (optional) einlesen
+      const usdzFile = document.getElementById('fileUsdz')?.files?.[0] || null;
+      if (usdzFile){
+        form.append('file', new File([usdzFile], 'scene.usdz', { type:'model/vnd.usdz+zip' }));
+      }
+
+      // WebXR / Image / Native JSON
+      const nativeGlb = val('nativeGlbUrl');
+      const nativeUsd = val('nativeUsdzUrl');
+
+      const glbUrl  = (mode === 'native' && nativeGlb)
+                        ? nativeGlb
+                        : `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.glb`;
+
+      const usdzUrl = (mode === 'native' && usdzFile)
+                        ? `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.usdz`
+                        : (mode === 'native' && nativeUsd ? nativeUsd : null);
+
+      const targetUrl = (mode === 'image' && (document.getElementById('imageTargetUrl')?.value||'').trim())
+                        ? document.getElementById('imageTargetUrl').value.trim()
+                        : null;
+
+      const sceneJson = buildSceneJSON({
+        sceneId,
+        title: projectName,
+        mode,
+        glbUrl,
+        usdzUrl,
+        targetUrl
+      });
+      form.append('file', new File([JSON.stringify(sceneJson, null, 2)], 'scene.json', { type:'application/json' }));
+    }
+
+    // Optionales Audio relativ beilegen
+    const a = findFirstAudio();
+if (a){
+  let audioBlob = null;
+  if (a.fromFile){
+    audioBlob = a.fromFile; // File direkt
+  } else if (a.fromDataUrl){
+    audioBlob = await dataUrlToBlob(a.fromDataUrl); // data: → Blob
+  } else if (a.fromBlobUrl){
+    // blob: → Blob (z. B. frisch importierte Datei)
+    audioBlob = await (await fetch(a.fromBlobUrl)).blob();
+  }
+  if (audioBlob){
+    form.append('file', new File([audioBlob], 'audio.mp3', { type:(audioBlob.type||'audio/mpeg') }));
+  }
+}
+
+
+    // 4) Draft-Flag mitsenden (Worker darf es ignorieren – ist nur ein Hint)
+    form.append('draft', '1');
+
+    toast('Draft hochladen…');
+    const headers = { 'Accept': 'application/json' };
+    if (KEY) headers['X-AREA-Key'] = KEY;
+
+    const res = await fetch(EP, { method:'POST', body: form, headers });
+    if (!res.ok){
+      const t = await res.text().catch(()=> '');
+      throw new Error(t || ('HTTP '+res.status));
+    }
+    const json = await res.json().catch(()=> ({}));
+
+    // 5) Viewer-URL aufbauen (wie publish), mit Cache-Bust
+    const viewerBase  = (cfg.VIEWER_BASE || 'https://area-viewer.pages.dev');
+    const entryByMode = {
+      'surface-webxr': '/surface-ar/webxr.html',
+      'native':        '/surface-ar/index.html',
+      'image':         '/image-ar/viewer.html',
+      'scene-viewer':  '/scene-viewer/index.html',
+      'surface-guided':'/surface-ar/guided.html',
+      'surface-area-viewer':'/surface-ar/area-viewer.html'
+    };
+    const entryDefault = entryByMode[mode] || '/surface-ar/webxr.html';
+
+    let url = `${viewerBase}${entryDefault}?scene=${encodeURIComponent(sceneId)}&base=${encodeURIComponent(workerOrigin)}&ts=${Date.now()}`;
+
+    // Worker-URL bevorzugen, wenn vorhanden – Pfad/Params korrigieren
+    const raw = (json.viewerUrl || '').trim();
+    if (raw){
+      try{
+        const u = new URL(raw, viewerBase);
+        const want = entryByMode[mode];
+        if (want && u.pathname !== want){
+          if (u.pathname === '/' || u.pathname.endsWith('/index.html') || u.pathname === '/webxr.html' || u.pathname === '/surface-ar/') {
+            u.pathname = want;
+          }
+        }
+        const b = (u.searchParams.get('base') || '').trim();
+        if (!b || b.startsWith('http://internal') || b.startsWith('https://internal')){
+          u.searchParams.set('base', workerOrigin);
+        }
+        if (mode === 'native') u.searchParams.set('force','native');
+        u.searchParams.set('ts', String(Date.now())); // Cache-Bust
+        url = u.toString();
+      }catch{}
+    }
+
+    window.open(url, '_blank', 'noopener');
+    toast('Draft-Preview geöffnet');
+  } catch(err){
+    console.error(err);
+    alert('Draft-Preview fehlgeschlagen: ' + (err?.message || err));
+  }
+}
+
+// … im Projektmenü-Hook:
+document.getElementById('btn-preview-draft')?.addEventListener('click', ()=>{
+  // Menü schließen wie bei den anderen Buttons:
+  document.getElementById('projectMenu')?.classList.remove('open');
+  document.getElementById('btn-project-menu')?.setAttribute('aria-expanded','false');
+  previewDraft();
+});
+
+
+
+// (duplicate autoscale/exportSceneGLB removed – unified version is defined above)   
+
+
+    // Hint FAB + Projektmenü
+    (function(){
+      const hint=$('.hint'); const fab=$('#hintFab'); if(!hint||!fab) return; let timer=null;
+      function open(){ if(timer){clearTimeout(timer);timer=null;} hint.classList.remove('hidden'); fab.setAttribute('aria-expanded','true'); fab.textContent='×'; }
+      function close(){ if(timer){clearTimeout(timer);timer=null;} hint.classList.add('hidden'); fab.setAttribute('aria-expanded','false'); fab.textContent='i'; }
+      fab.addEventListener('mouseenter', open);
+      fab.addEventListener('mouseleave', ()=>{ timer=setTimeout(()=>{ if(!hint.matches(':hover')) close(); },200); });
+      hint.addEventListener('mouseleave', ()=>{ timer=setTimeout(()=>{ if(!fab.matches(':hover')) close(); },100); });
+      hint.addEventListener('mouseenter', ()=>{ if(timer){clearTimeout(timer);timer=null;} });
+      fab.addEventListener('click', e=>{ e.preventDefault(); if(hint.classList.contains('hidden')) open(); else close(); }, {passive:false});
+    })();
+
+    (function(){
+      const menu=$('#projectMenu'); const btn=$('#btn-project-menu');
+      function close(){ menu.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
+      btn.addEventListener('click', e=>{ e.stopPropagation(); menu.classList.toggle('open'); btn.setAttribute('aria-expanded', menu.classList.contains('open')?'true':'false'); });
+      document.addEventListener('click', e=>{ if(!menu.contains(e.target)) close(); });
+      window.addEventListener('keydown', e=>{ if(e.key==='Escape') close(); });
+
+      $('#btn-new').addEventListener('click', ()=>{ close(); if(!confirm('Aktuelle Szene leeren und neues Projekt anlegen?')) return; setProjectName(prompt('Projektname:', 'Neues AR-Projekt')||'Unbenanntes Projekt'); $('#btn-clear').click(); });
+      $('#btn-save').addEventListener('click', ()=>{ close(); saveProject({saveAs:false}); });
+      $('#btn-save-as').addEventListener('click', ()=>{ close(); saveProject({saveAs:true}); });
+      $('#file-project').addEventListener('change', e=>{ close(); const f=e.target.files?.[0]; if(!f){ e.target.value=''; return;} importProjectFile(f); e.target.value=''; });
+      $('#btn-preview').addEventListener('click', ()=>{ close(); previewModules(); });
+      $('#btn-publish').addEventListener('click', ()=>{ close(); publish(); });
+    })();
+
+    // Render
+    const clock=new THREE.Clock();
+    function render(){
+      requestAnimationFrame(render);
+      const dt=clock.getDelta();
+      forEachRec(o=>{ if(o.mixer) o.mixer.update(dt); });
+      controls.update();
+      renderer.clear(); composer.render(); renderer.clearDepth(); renderer.render(overlayScene,camera);
+    }
+
+    // Start
+    setProjectName(projectName);
+    buildRoom(parseFloat($('#roomSize').value)||24);
+    let roomBuildRAF=0;
+    function scheduleRoomRebuild(){ if(roomBuildRAF) return; roomBuildRAF=requestAnimationFrame(()=>{ buildRoom(parseFloat($('#roomSize').value)||24); roomBuildRAF=0; }); }
+    $('#roomSize').addEventListener('input', scheduleRoomRebuild);
+    $('#gridIntensity').addEventListener('input', scheduleRoomRebuild);
+    $('#gridIntensity').addEventListener('change', scheduleRoomRebuild);
+    $('#gridVisible').addEventListener('change', ()=>{ const v=$('#gridVisible').checked; [gridNear,gridFar,axisX,axisZ].forEach(o=>o&&(o.visible=v)); });
+
+    requestAnimationFrame(()=> onResize());
+    updateToolButtons(); applySnap(); setSpace('local'); updateGroupButtons(); updateOutlineSelection();
+
+    window.addEventListener('keydown', (e)=>{
+      const t=e.target; if(t && (t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.isContentEditable)) return;
+      if(tcontrols?.dragging) return;
+      const k=e.key.toLowerCase();
+      if(k==='w') { tcontrols.setMode('translate'); updateToolButtons(); }
+      else if(k==='e') { tcontrols.setMode('rotate'); updateToolButtons(); }
+      else if(k==='r') { tcontrols.setMode('scale'); updateToolButtons(); }
+      else if(k==='d') { e.preventDefault(); $('#btn-duplicate').click(); }
+      else if(k==='f') { e.preventDefault(); $('#btn-floor').click(); }
+      else if(k>='1' && k<='5' && e.shiftKey){ saveBookmark(parseInt(k,10)-1); }
+      else if(k>='1' && k<='5' && !e.shiftKey){ recallBookmark(parseInt(k,10)-1); }
+      else if(k==='g' && (e.ctrlKey||e.metaKey) && !e.shiftKey){ e.preventDefault(); $('#btn-group').click(); }
+      else if(k==='g' && (e.ctrlKey||e.metaKey) && e.shiftKey){ e.preventDefault(); $('#btn-ungroup').click(); }
+    });
+
+   /* === Theme Toggle (Slate ↔ Aurora ↔ Nebula) === */
+(function(){
+  const html = document.documentElement;
+
+  const storage = (() => {
+    try { const s = localStorage; s.setItem('__t','1'); s.removeItem('__t'); return s; }
+    catch { return null; }
+  })();
+
+  // ... in deinem Theme-Block:
+const THEMES = ['theme-slate','theme-aurora','theme-nebula'];
+
+function setTheme(theme){
+  THEMES.forEach(t => html.classList.remove(t));
+  html.classList.add(theme);
+  try { storage?.setItem('theme', theme); } catch {}
+  requestAnimationFrame(() => {
+    window.__applyThemeToThree?.();
+    syncThemeToggleUI();       // <-- NEU: UI nachziehen
+  });
+}
+
+function syncThemeToggleUI(){
+  const cur = THEMES.find(t => html.classList.contains(t)) || 'theme-nebula';
+  const map = { 'theme-slate':'th-slate', 'theme-aurora':'th-aurora', 'theme-nebula':'th-nebula' };
+  const id = map[cur];
+  const el = document.getElementById(id);
+  if (el) el.checked = true;
+}
+
+// beim Start richtige Radio-Option setzen
+requestAnimationFrame(syncThemeToggleUI);
+
+// Change-Events binden
+document.querySelectorAll('.theme-toggle3 input[name="theme3"]').forEach(inp=>{
+  inp.addEventListener('change', (e)=> setTheme(e.target.value));
+});
+
+// Optional: Taste „T“ zum Durchschalten beibehalten (dein Code bleibt)
+
+
+  // Initial
+  const saved = storage?.getItem('theme');
+  setTheme(THEMES.includes(saved) ? saved : 'theme-nebula'); // ← Nebula als frischer Default
+  scheduleRoomRebuild(); // ← damit Grid-Farben zum Theme passen
+
+  const btn = document.getElementById('themeToggle');
+  const cycle = () => {
+    const current = THEMES.find(t => html.classList.contains(t)) || THEMES[0];
+    const next = THEMES[(THEMES.indexOf(current)+1) % THEMES.length];
+    setTheme(next);
+    scheduleRoomRebuild(); // Grid+Achsen neu einfärben für Nebula/Slate/Aurora
+    // Menü schließen (UX)
+    const menu = document.getElementById('projectMenu');
+    const menuBtn = document.getElementById('btn-project-menu');
+    menu?.classList.remove('open');
+    menuBtn?.setAttribute('aria-expanded','false');
+  };
+  btn?.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); cycle(); });
+
+  // Shortcut: Taste „T“ with guard (inputs/selects/contenteditable or inside #svBlock)
+  window.addEventListener('keydown', (e)=>{
+    if ((e.key||'').toLowerCase() !== 't' || e.ctrlKey || e.metaKey || e.altKey) return;
+    const el = e.target;
+    if (el && el.closest && el.closest('input,textarea,select,[contenteditable="true"],#svBlock')) return;
+    cycle();
+  });
+})();
+
+
+       render();
   </script>
 </body>
 </html>
