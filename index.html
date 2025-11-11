@@ -2611,59 +2611,76 @@ function resolvePathInClone(root, segments){
 
 // === Remap AnimationClips for cloned export tree ===
 function remapAnimationClipsForExport(allClips, clonedRoot){
-  // Build a fast name → nodes map in cloned tree for fallback lookup
+  // KRITISCH: Für Mixamo-/Standard-Rigs die ORIGINALEN Track-Namen beibehalten.
+  // Viele Viewer (inkl. ARea Viewer) erwarten name-basierte Bindings, nicht UUIDs.
+  if (!clonedRoot) {
+    console.warn('[remapAnimationClipsForExport] Kein clonedRoot übergeben – gebe Original-Clips zurück.');
+    return allClips || [];
+  }
+
+  // Hilfsmap: name → [nodes] (nur für Verifikation, wir ändern die Namen NICHT)
   const byName = new Map();
-  clonedRoot.traverse(n=>{ 
-    if (!n || !n.name) return; 
-    const arr = byName.get(n.name) || []; 
-    arr.push(n); 
-    byName.set(n.name, arr); 
+  clonedRoot.traverse(n => {
+    if (!n || !n.name) return;
+    const arr = byName.get(n.name) || [];
+    arr.push(n);
+    byName.set(n.name, arr);
   });
 
-  function findClonedForTrack(trackName){
-    // trackName like 'Armature/Bone.quaternion' or 'Armature|mixamo.com|Layer0/Bone.position'
-    const dot = trackName.lastIndexOf('.');
-    const targetPath = dot >= 0 ? trackName.slice(0, dot) : trackName;
-    
-    // Split path into segments (handles '/', '\\', and '|' for Mixamo)
-    const segments = splitPath(targetPath);
-    if (!segments.length) return null;
-    
-    // Try to resolve full path in cloned tree
-    let targetNode = resolvePathInClone(clonedRoot, segments);
-    
-    // Fallback: if full path fails, try just the last segment by name
-    if (!targetNode){
-      const lastName = segments[segments.length - 1];
-      const cand = lastName && byName.get(lastName);
-      targetNode = cand ? cand[0] : null;
+  function verifyTrackExists(trackName){
+    try{
+      // Zielname ohne Property-Suffix (".position", ".quaternion", ...)
+      const dot = trackName.lastIndexOf('.');
+      const targetPath = dot >= 0 ? trackName.slice(0, dot) : trackName;
+      // Pfadsegmente (z.B. "Armature/Hips"); Mixamo hat meist nur einen Namen ("mixamorig:Hips").
+      const segments = (typeof splitPath === 'function') ? splitPath(targetPath) : (targetPath ? [targetPath] : []);
+      if (!segments.length) return false;
+
+      // 1) Versuche Pfad-Auflösung über resolvePathInClone (falls vorhanden)
+      let targetNode = (typeof resolvePathInClone === 'function') ? resolvePathInClone(clonedRoot, segments) : null;
+
+      // 2) Fallback: letzter Segmentname per Map
+      if (!targetNode){
+        const lastName = segments[segments.length - 1];
+        const cand = lastName && byName.get(lastName);
+        targetNode = cand ? cand[0] : null;
+      }
+      return !!targetNode;
+    }catch(e){
+      console.warn('[remapAnimationClipsForExport] verifyTrackExists error', e);
+      return false;
     }
-    
-    return targetNode;
   }
 
   const remapped = [];
-  for (const clip of (allClips||[])){
+  const total = (allClips && allClips.length) || 0;
+  for (const clip of (allClips || [])){
     if (!clip || !Array.isArray(clip.tracks) || !clip.tracks.length) continue;
+
     const newTracks = [];
+    let verifiedTracks = 0;
+    let unverifiedTracks = 0;
+
     for (const tr of clip.tracks){
-      const targetNode = findClonedForTrack(tr.name);
-      if (!targetNode){
-        console.warn('[remapAnimationClipsForExport] Could not resolve track:', tr.name);
-        continue; // drop tracks we can't map
+      // WICHTIG: Track-Namen NICHT ändern – nur verifizieren & klonen
+      const exists = verifyTrackExists(tr.name);
+      if (exists) verifiedTracks++; else {
+        unverifiedTracks++;
+        console.warn('[remapAnimationClipsForExport] Zielknoten nicht gefunden, Track bleibt dennoch erhalten:', tr.name);
       }
-      const dot = tr.name.lastIndexOf('.');
-      const suffix = dot >= 0 ? tr.name.slice(dot+1) : '';
       const t = tr.clone();
-      t.name = targetNode.uuid + (suffix ? ('.'+suffix) : ''); // bind by UUID for robustness
       newTracks.push(t);
     }
-    if (newTracks.length){ 
-      remapped.push(new THREE.AnimationClip(clip.name, clip.duration, newTracks)); 
+
+    if (newTracks.length){
+      remapped.push(new THREE.AnimationClip(clip.name, clip.duration, newTracks));
+      console.log(\`[remapAnimationClipsForExport] Clip "\${clip.name}": \${verifiedTracks} ok, \${unverifiedTracks} unverified (behalten)\`);
     } else {
-      console.warn('[remapAnimationClipsForExport] Clip dropped (no tracks mapped):', clip.name);
+      console.warn('[remapAnimationClipsForExport] Clip ohne Tracks:', clip.name);
     }
   }
+
+  console.log(\`[remapAnimationClipsForExport] \${remapped.length} / \${total} Clips exportiert\`);
   return remapped;
 }
 
@@ -3330,5 +3347,96 @@ document.querySelectorAll('.theme-toggle3 input[name="theme3"]').forEach(inp=>{
 
        render();
   </script>
+
+
+<script>
+// === Publish Fetch-Wrapper: prüft GLB auf Animationen & nutzt Fallback falls nötig ===
+(() => {
+  const _origFetch = window.fetch.bind(window);
+
+  async function glbHasAnimationsFromArrayBuffer(buf){
+    try{
+      const dv = new DataView(buf);
+      // GLB v2 Header: magic(0), version(4), length(8)
+      const magic = dv.getUint32(0, true);
+      const version = dv.getUint32(4, true);
+      if (magic !== 0x46546C67 /*'glTF'*/ || version !== 2) return false;
+      // Erstes Chunk: json
+      const jsonChunkLength = dv.getUint32(12, true);
+      const jsonChunkType = dv.getUint32(16, true);
+      // 0x4E4F534A == 'JSON'
+      if (jsonChunkType !== 0x4E4F534A) return false;
+      const jsonBytes = new Uint8Array(buf, 20, jsonChunkLength);
+      const jsonText = new TextDecoder('utf-8').decode(jsonBytes);
+      const doc = JSON.parse(jsonText);
+      const has = !!(doc && doc.animations && Array.isArray(doc.animations) && doc.animations.length > 0);
+      return has;
+    }catch(e){
+      console.warn('[fetch-wrapper] GLB-Check Fehler:', e);
+      return false;
+    }
+  }
+
+  async function getFormDataCloneReplacingSceneGlb(fd, fallbackFile){
+    const newFd = new FormData();
+    // We will replace the entry that corresponds to scene.glb (by filename), regardless of key name
+    for (const [k, v] of fd.entries()){
+      if (v instanceof File){
+        if (v.name === 'scene.glb'){
+          // Replace with fallbackFile named 'scene.glb'
+          const fileToUse = new File([await fallbackFile.arrayBuffer()], 'scene.glb', { type: fallbackFile.type || 'model/gltf-binary' });
+          newFd.append(k, fileToUse);
+        } else {
+          newFd.append(k, v, v.name);
+        }
+      } else {
+        newFd.append(k, v);
+      }
+    }
+    return newFd;
+  }
+
+  window.fetch = async (input, init) => {
+    try{
+      const url = (typeof input === 'string') ? input : (input && input.url) || '';
+      const isPublish = /\/publish(\?|$|\/)/.test(url);
+      if (isPublish && init && init.method && String(init.method).toUpperCase() === 'POST' && init.body instanceof FormData){
+        const fd = init.body;
+        // Find exporter scene.glb and any other .glb in payload (potential fallback)
+        let exporterGlbFile = null;
+        const glbCandidates = [];
+        for (const [k,v] of fd.entries()){
+          if (v instanceof File && /\.glb$/i.test(v.name)){
+            glbCandidates.push({key:k, file:v});
+            if (v.name === 'scene.glb') exporterGlbFile = v;
+          }
+        }
+        if (exporterGlbFile){
+          const buf = await exporterGlbFile.arrayBuffer();
+          const ok = await glbHasAnimationsFromArrayBuffer(buf);
+          console.log('[fetch-wrapper] scene.glb Animations vorhanden?', ok);
+          if (!ok){
+            // Try fallback: pick another GLB in formdata if available
+            const fallback = glbCandidates.find(c => c.file !== exporterGlbFile);
+            if (fallback){
+              console.warn('[fetch-wrapper] Exporter-GLB ohne Animationen — nutze Fallback:', fallback.file.name);
+              const newFd = await getFormDataCloneReplacingSceneGlb(fd, fallback.file);
+              init = Object.assign({}, init, { body: newFd });
+            } else {
+              console.warn('[fetch-wrapper] Kein Fallback-GLB vorhanden — sende Exporter-GLB trotzdem.');
+            }
+          }
+        } else {
+          console.warn('[fetch-wrapper] Keine scene.glb im FormData gefunden.');
+        }
+      }
+    }catch(e){
+      console.warn('[fetch-wrapper] preflight Fehler:', e);
+    }
+    return _origFetch(input, init);
+  };
+})();
+</script>
+
 </body>
 </html>
