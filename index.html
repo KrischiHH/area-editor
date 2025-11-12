@@ -705,17 +705,44 @@ html, body { font-family: var(--ui-font); }
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
   AREA.__origGlb = null;
-  const fileGlbInput = document.getElementById('file-glb');
-  if (fileGlbInput) {
-    fileGlbInput.addEventListener('change', async (ev)=>{
-      try{
-        const f = ev.target.files && ev.target.files[0];
-        if (!f) return;
-        AREA.__origGlb = await f.arrayBuffer();
-        console.log('[editor] Original GLB gepuffert (Datei):', f.name, AREA.__origGlb.byteLength, 'Bytes');
-      }catch(e){ console.warn('[editor] GLB-Puffer fehlgeschlagen:', e); }
-    });
+  
+  /* PATCH: Helper functions to bind listeners idempotently */
+  function bindGlbInput() {
+    const fileGlbInput = document.getElementById('file-glb');
+    if (fileGlbInput && !fileGlbInput.__areaBound) {
+      fileGlbInput.__areaBound = true;
+      fileGlbInput.addEventListener('change', async (ev)=>{
+        try{
+          const f = ev.target.files && ev.target.files[0];
+          if (!f) return;
+          AREA.__origGlb = await f.arrayBuffer();
+          console.log('[editor] Original GLB gepuffert (Datei):', f.name, AREA.__origGlb.byteLength, 'Bytes');
+        }catch(e){ console.warn('[editor] GLB-Puffer fehlgeschlagen:', e); }
+      });
+    }
   }
+  
+  function bindResetButtons() {
+    const btnClear = document.getElementById('btn-clear');
+    if (btnClear && !btnClear.__areaBound) {
+      btnClear.__areaBound = true;
+      btnClear.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    }
+    const btnNew = document.getElementById('btn-new');
+    if (btnNew && !btnNew.__areaBound) {
+      btnNew.__areaBound = true;
+      btnNew.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    }
+  }
+  
+  /* PATCH: Call helpers immediately and on DOMContentLoaded for robustness */
+  bindGlbInput();
+  bindResetButtons();
+  document.addEventListener('DOMContentLoaded', ()=>{
+    bindGlbInput();
+    bindResetButtons();
+  });
+  
   AREA.rememberOriginalGlbFromUrl = async function(glbUrl){
     try{
       if (!/^https?:\/\//i.test(glbUrl)) return;
@@ -793,12 +820,6 @@ html, body { font-family: var(--ui-font); }
     }
     return _origFetch(input, init);
   };
-  try {
-    const btnClear = document.getElementById('btn-clear');
-    btnClear && btnClear.addEventListener('click', ()=>{ AREA.__origGlb = null; });
-    const btnNew = document.getElementById('btn-new');
-    btnNew && btnNew.addEventListener('click', ()=>{ AREA.__origGlb = null; });
-  }catch(_){}
 })();
 </script>
 
@@ -829,7 +850,8 @@ html, body { font-family: var(--ui-font); }
     const wl = (ui.welcome = ui.welcome || {});
 
     a.clipName   = (val('#animClip', '*') || '*').trim();
-    a.start      = (val('#animStart', 'onPlace') || 'onPlace');
+    /* PATCH: Changed from non-existing #animStart to #animStartMode, default to onStart */
+    a.start      = (document.getElementById('animStartMode')?.value || 'onStart');
 
     /* === PATCH (Mini-Fix) für loop & iterations === */
     const loopVal = document.getElementById('animLoop')?.value || 'repeat';
@@ -843,7 +865,7 @@ html, body { font-family: var(--ui-font); }
     wl.eyebrow   = val('#svEyebrow', '');
     wl.title     = val('#svTitle',  (s.meta?.title || 'ARea Scene'));
     wl.desc      = val('#svDesc',   'Tippe auf OK und platziere das 3D‑Objekt.');
-    wl.nativeCta = val('#nativeCta', 'ios-only') || 'ios-only';
+    /* PATCH: Removed wl.nativeCta assignment - field #nativeCta does not exist in HTML */
 
     const posterF = file('#file-poster');
     const audioF  = file('#file-audio');
@@ -856,7 +878,8 @@ html, body { font-family: var(--ui-font); }
 
     s.model = s.model || {};
     s.model.url = 'scene.glb';
-    if (usdzF) s.model.usdzUrl = 'model.usdz';
+    /* PATCH: Changed from 'model.usdz' to 'scene.usdz' to align with UI text */
+    if (usdzF) s.model.usdzUrl = 'scene.usdz';
     s.model.scale = (typeof s.model.scale === 'number') ? s.model.scale : 1.0;
 
     if (posterF) wl.poster = posterF.name;
@@ -1070,7 +1093,8 @@ window.previewDraft = previewDraft;
 <style id="patch-minstage">
 /* --- ARea Editor Runtime Patch: guard zero-sized stage/viewport --- */
 #stage { min-width: 320px; min-height: 240px; }
-#viewport { min-width: 320px; min-height: 240px; }
+/* PATCH: Changed from #viewport to .viewport to match actual DOM (class, not id) */
+.viewport { min-width: 320px; min-height: 240px; }
 canvas { display:block; }
 </style>
 
@@ -1425,7 +1449,8 @@ canvas { display:block; }
 </details>
 <!-- ▲▲▲ /Media-Section ▲▲▲ -->
 
-   
+  </div>
+  </div>
   </div><!-- /.wrap --> 
   
   <div class="toast" id="toast" aria-live="polite"></div>
