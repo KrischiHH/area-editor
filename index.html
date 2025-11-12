@@ -684,6 +684,7 @@ html, body { font-family: var(--ui-font); }
   };
 </script>
 
+  <!-- Importmap (erste Instanz beibehalten) -->
   <script type="importmap">
   {
     "imports": {
@@ -694,13 +695,25 @@ html, body { font-family: var(--ui-font); }
   }
   </script>
 
-<script>
-/* Original-GLB Passthrough für Publish */
+  <!-- NEU: QRCode global verfügbar machen (verhindert Fehler in showSharePanel) -->
+  <script type="module">
+    import QRCode from 'qrcode';
+    if (!('QRCode' in window)) window.QRCode = QRCode;
+  </script>
+
+  <script>
+/* Original-GLB Passthrough für Publish (mit Guard gegen Duplikate) */
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
-  AREA.__origGlb = null;
+  if (AREA.__fetchPatchApplied) return;              // Guard: Duplikate stoppen
+  AREA.__fetchPatchApplied = true;
+
+  // __origGlb nicht hart resetten, vorhandenen Puffer respektieren
+  if (typeof AREA.__origGlb === 'undefined') AREA.__origGlb = null;
+
   const fileGlbInput = document.getElementById('file-glb');
-  if (fileGlbInput) {
+  if (fileGlbInput && !AREA.__glbInputHooked) {
+    AREA.__glbInputHooked = true;
     fileGlbInput.addEventListener('change', async (ev)=>{
       try{
         const f = ev.target.files && ev.target.files[0];
@@ -710,7 +723,8 @@ html, body { font-family: var(--ui-font); }
       }catch(e){ console.warn('[editor] GLB-Puffer fehlgeschlagen:', e); }
     });
   }
-  AREA.rememberOriginalGlbFromUrl = async function(glbUrl){
+
+  AREA.rememberOriginalGlbFromUrl = AREA.rememberOriginalGlbFromUrl || (async function(glbUrl){
     try{
       if (!/^https?:\/\//i.test(glbUrl)) return;
       const r = await fetch(glbUrl, { mode:'cors', credentials:'omit' });
@@ -718,16 +732,17 @@ html, body { font-family: var(--ui-font); }
       AREA.__origGlb = await r.arrayBuffer();
       console.log('[editor] Original GLB gepuffert (URL):', glbUrl, AREA.__origGlb.byteLength, 'Bytes');
     }catch(e){ console.warn('[editor] GLB-URL Puffer fehlgeschlagen:', e); }
-  };
-  window.hasAnimationsInGlbBlob = async function(blob){
+  });
+
+  window.hasAnimationsInGlbBlob = window.hasAnimationsInGlbBlob || (async function(blob){
     try{
       const ab = await blob.arrayBuffer();
       const dv = new DataView(ab);
-      if (dv.getUint32(0, true) !== 0x46546c67) return false;
-      if (dv.getUint32(4, true) < 2) return false;
+      if (dv.getUint32(0, true) !== 0x46546c67) return false; // 'glTF'
+      if (dv.getUint32(4, true) < 2) return false; // version
       const jsonLength = dv.getUint32(12, true);
       const jsonType   = dv.getUint32(16, true);
-      if (jsonType !== 0x4E4F534A) return false;
+      if (jsonType !== 0x4E4F534A) return false; // 'JSON'
       const jsonStr = new TextDecoder().decode(new Uint8Array(ab, 20, jsonLength));
       try {
         const j = JSON.parse(jsonStr);
@@ -739,7 +754,8 @@ html, body { font-family: var(--ui-font); }
       console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
       return false;
     }
-  };
+  });
+
   const _origFetch = window.fetch.bind(window);
   window.fetch = async (input, init)=>{
     if (!init) init = {};
@@ -771,13 +787,8 @@ html, body { font-family: var(--ui-font); }
         console.log('[editor] Publish: Original scene.glb angehängt (', AREA.__origGlb.byteLength, 'Bytes )');
       } else {
         const hasAnim = await window.hasAnimationsInGlbBlob(exporterSceneGlb);
-        if (hasAnim){
-          chosenGlb = exporterSceneGlb;
-          console.log('[editor] Publish: Exporter-GLB mit animations[] verwendet.');
-        } else {
-          chosenGlb = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
-          console.log('[editor] Exportiertes GLB ohne animations[] – fallback auf Original-GLB.');
-        }
+        chosenGlb = hasAnim ? exporterSceneGlb : new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
+        console.log('[editor] Publish: ', hasAnim ? 'Exporter-GLB mit animations[]' : 'Fallback auf Original-GLB');
       }
       fdNew.append('file', chosenGlb, 'scene.glb');
       init = { ...init, body: fdNew };
@@ -787,33 +798,35 @@ html, body { font-family: var(--ui-font); }
     }
     return _origFetch(input, init);
   };
+
   try {
     const btnClear = document.getElementById('btn-clear');
-    btnClear && btnClear.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    if (btnClear && !AREA.__clearHooked){
+      AREA.__clearHooked = true;
+      btnClear.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    }
     const btnNew = document.getElementById('btn-new');
-    btnNew && btnNew.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    if (btnNew && !AREA.__newHooked){
+      AREA.__newHooked = true;
+      btnNew.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    }
   }catch(_){}
 })();
 </script>
 
 <script>
-/* scene.json Export / buildSceneJson (mit Patch für loop/repeats) */
+/* scene.json Export / buildSceneJson (Guard gegen Duplikate) */
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
+  if (AREA.__sceneJsonPatched) return; // Guard: nur erste Instanz
+  AREA.__sceneJsonPatched = true;
+
   AREA.scene = AREA.scene || {};
 
   function val(sel, def=''){ const el=document.querySelector(sel); return (el && 'value' in el) ? (el.value ?? def) : def; }
   function chk(sel, def=false){ const el=document.querySelector(sel); return (el && 'checked' in el) ? !!el.checked : def; }
   function num(sel, def){ const v = parseFloat(val(sel, String(def))); return Number.isFinite(v) ? v : def; }
   function file(sel){ return (document.querySelector(sel)?.files?.[0]) || null; }
-
-  function knownClipsCount(){
-    try {
-      if (Array.isArray(AREA.currentClips)) return AREA.currentClips.length;
-      if (Array.isArray(AREA.scene?.clips)) return AREA.scene.clips.length;
-    } catch {}
-    return undefined;
-  }
 
   window.buildSceneJson = function buildSceneJson(){
     const s  = (AREA.scene = AREA.scene || {});
@@ -825,7 +838,6 @@ html, body { font-family: var(--ui-font); }
     a.clipName   = (val('#animClip', '*') || '*').trim();
     a.start      = (val('#animStart', 'onPlace') || 'onPlace');
 
-    /* === PATCH (Mini-Fix) für loop & iterations === */
     const loopVal = document.getElementById('animLoop')?.value || 'repeat';
     a.loop       = (loopVal === 'repeat');
     a.iterations = Math.max(1, parseInt(document.getElementById('animRepeats')?.value || '9999', 10));
@@ -894,433 +906,6 @@ html, body { font-family: var(--ui-font); }
     const btn = document.getElementById('btn-publish');
     btn && btn.addEventListener('click', (ev)=>{ ev.preventDefault(); window.publishScene?.(); });
   }catch(_){}
-})();
-</script>
-
-<script>
-/* Anchor-abhängige UI (gekürzt) */
-(function(){
-  function byId(id){ return document.getElementById(id); }
-  const sel     = byId('anchorMode');
-  const svBlock = byId('svBlock');
-  const usdzRow = byId('usdzUploadRow');
-  const avAudio = byId('avAudioRow');
-
-  function norm(v){ return String(v||'').trim().toLowerCase(); }
-  function show(el,disp){ if(!el)return; el.hidden=false; el.style.display=disp; }
-  function hide(el){ if(!el)return; el.style.display='none'; }
-
-  function computeModes(){
-    const v = norm(sel?.value);
-    const txt = norm(sel?.options?.[sel.selectedIndex]?.textContent);
-    const both = v + ' ' + txt;
-    const isSceneViewer = v==='scene-viewer' || txt.includes('scene viewer') || txt.includes('szene viewer');
-    const isAreaViewer  = v==='surface-area-viewer' || v==='area-viewer' || v==='surface-area' || both.includes('area-viewer') || both.includes('area viewer');
-    const isGuided      = v==='surface-guided' || txt.includes('guided');
-    return { isSceneViewer, isAreaViewer, isGuided, raw:v, label:txt };
-  }
-  function apply(reason=''){
-    const { isSceneViewer, isAreaViewer } = computeModes();
-    if (svBlock) (isSceneViewer || isAreaViewer) ? show(svBlock,'block') : hide(svBlock);
-    if (usdzRow) isSceneViewer ? show(usdzRow,'') : hide(usdzRow);
-    /* ... weitere UI-Regeln ... */
-  }
-  sel?.addEventListener('change',()=>apply('change'));
-  apply('init');
-})();
-</script>
-
-<!-- ===================================================================== -->
-<!-- === PATCH BLÖCKE (Drop-In) ========================================= -->
-<!-- ===================================================================== -->
-
-<script type="module">
-/* === FINAL WIRING: Projekt-Menü, Buttons, Theme-Toggle, Three-Sync === */
-(() => {
-  const $ = s => document.querySelector(s);
-
-  // Projekt-Menü (öffnet nach unten) + Outside-Click
-  const menu = $('#projectMenu');
-  const btn  = $('#btn-project-menu');
-  function toggleMenu(e){ e?.preventDefault(); menu?.classList.toggle('open'); btn?.setAttribute('aria-expanded', String(menu?.classList.contains('open'))); }
-  btn?.addEventListener('click', toggleMenu);
-  document.addEventListener('click', (e)=>{ if(menu && btn && !menu.contains(e.target) && e.target!==btn){ menu.classList.remove('open'); btn.setAttribute('aria-expanded','false'); } });
-
-  // Menü-Buttons
-  $('#btn-new')?.addEventListener('click', ()=>{ 
-    if (confirm('Neues Projekt starten? Nicht gespeicherte Änderungen gehen verloren.')) { 
-      document.getElementById('btn-clear')?.click(); 
-      (window.setProjectName||(()=>{}))('Unbenanntes Projekt'); 
-    }
-  });
-  $('#file-project')?.addEventListener('change', (ev)=>{
-    const f = ev.target.files?.[0];
-    ev.target.value = '';
-    if (f) (window.importProjectFile||(()=>{}))(f);
-  });
-  $('#btn-save')?.addEventListener('click', ()=> (window.saveProject||(()=>{}))());
-  $('#btn-save-as')?.addEventListener('click', ()=> (window.saveProject||(()=>{}))({saveAs:true}));
-  $('#btn-preview')?.addEventListener('click', ()=> (window.previewModules||(()=>{}))());
-  $('#btn-preview-draft')?.addEventListener('click', ()=> (window.previewDraft||(()=>{}))());
-
-  // Theme-Toggle (3-Wege) inkl. Persistenz + Three-Sync
-  const radios = ['th-slate','th-aurora','th-nebula'].map(id=>document.getElementById(id));
-  function applyTheme(theme){
-    const html = document.documentElement;
-    ['theme-slate','theme-aurora','theme-nebula'].forEach(c=>html.classList.remove(c));
-    html.classList.add(theme);
-    try { localStorage.setItem('theme', theme); } catch {}
-    try { window.__applyThemeToThree?.(); } catch {}
-    const idx = { 'theme-slate':0, 'theme-aurora':1, 'theme-nebula':2 }[theme] ?? 0;
-    radios[idx] && (radios[idx].checked = true);
-  }
-  radios.forEach(r => r?.addEventListener('change', ()=> applyTheme(r.value)));
-
-  (function syncInitialTheme(){
-    const html = document.documentElement;
-    const cur = ['theme-nebula','theme-aurora','theme-slate'].find(c=>html.classList.contains(c)) || 'theme-nebula';
-    applyTheme(cur);
-  })();
-
-  // Taste "T" = Theme zyklisch wechseln (nur wenn Fokus nicht in Eingabe)
-  window.addEventListener('keydown', (e)=>{
-    if (e.key.toLowerCase() !== 't') return;
-    const el = document.activeElement;
-    const tag = (el?.tagName || '').toLowerCase();
-    if (el?.isContentEditable || ['input','textarea','select'].includes(tag)) return;
-    const order = ['theme-slate','theme-aurora','theme-nebula'];
-    const curIndex = order.findIndex(c=>document.documentElement.classList.contains(c));
-    applyTheme(order[(curIndex+1) % order.length]);
-  });
-
-  requestAnimationFrame(()=> window.__applyThemeToThree?.());
-})();
-</script>
-
-<script type="module">
-/* === previewDraft(): schnelle Vorschau via data:URL (ohne Upload) === */
-async function previewDraft(){
-  try{
-    const mode = document.getElementById('anchorMode')?.value || 'surface-webxr';
-    const viewerBase = (window.__AREA || {}).VIEWER_BASE || 'https://area-viewer.pages.dev';
-    const entryMap = {
-      'surface-webxr':'/surface-ar/webxr.html',
-      'native':'/surface-ar/index.html',
-      'image':'/image-ar/viewer.html',
-      'scene-viewer':'/scene-viewer/index.html',
-      'surface-guided':'/surface-ar/guided.html',
-      'surface-area-viewer':'/surface-ar/area-viewer.html'
-    };
-    const entry = entryMap[mode] || '/surface-ar/area-viewer.html';
-
-    const data = await (window.buildProjectData||(()=>({})))();
-    const src  = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data));
-    let url = `${viewerBase}${entry}?src=${encodeURIComponent(src)}&anchor=${encodeURIComponent(mode)}`;
-
-    const target = (document.getElementById('imageTargetUrl')?.value || '').trim();
-    if (mode === 'image' && target) url += `&target=${encodeURIComponent(target)}`;
-
-    const glb  = (document.getElementById('nativeGlbUrl')?.value || '').trim();
-    const usdz = (document.getElementById('nativeUsdzUrl')?.value || '').trim();
-    if (mode === 'native'){
-      if (glb)  url += `&glb=${encodeURIComponent(glb)}`;
-      if (usdz) url += `&usdz=${encodeURIComponent(usdz)}`;
-    }
-
-    window.open(url, '_blank', 'noopener');
-    (window.toast||console.log)('Schnell-Preview geöffnet');
-  }catch(e){
-    console.warn(e);
-    (window.toast||console.warn)('Preview fehlgeschlagen');
-  }
-}
-window.previewDraft = previewDraft;
-</script>
-
-<script type="module">
-/* Optionaler Publish-Patch: Modusabhängige JSON-Auswahl */
-(() => {
-  if (typeof window.publishScene === 'function'){
-    const orig = window.publishScene;
-    window.publishScene = async function(...args){
-      const mode = document.getElementById('anchorMode')?.value || 'surface-webxr';
-      const sceneJson = (mode === 'scene-viewer' || mode === 'surface-area-viewer')
-        ? (window.buildSceneViewerJSON_CF?.() || window.buildSceneJson())
-        : window.buildSceneJson();
-      // Temporär buildSceneJson überschreiben falls Original intern erneut aufruft
-      const backup = window.buildSceneJson;
-      window.buildSceneJson = () => sceneJson;
-      try {
-        return await orig.apply(this, args);
-      } finally {
-        window.buildSceneJson = backup;
-      }
-    };
-  }
-})();
-</script>
-
-
-<style id="patch-minstage">
-/* --- ARea Editor Runtime Patch: guard zero-sized stage/viewport --- */
-#stage { min-width: 320px; min-height: 240px; }
-#viewport { min-width: 320px; min-height: 240px; }
-canvas { display:block; }
-</style>
-
-  <!-- Minimal Config -->
-<script>
-  window.__AREA = {
-    PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish",
-    FILE_BASE:       "https://area-publish.area-webar.workers.dev",
-    PUBLISH_KEY: "",
-    VIEWER_BASE: "https://area-viewer.pages.dev"
-  };
-</script>
-
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-      "qrcode": "https://esm.sh/qrcode@1.5.3"
-    }
-  }
-  </script>
-
-<script>
-/* Original-GLB Passthrough für Publish */
-(function(){
-  const AREA = (window.__AREA = window.__AREA || {});
-  AREA.__origGlb = null;
-  const fileGlbInput = document.getElementById('file-glb');
-  if (fileGlbInput) {
-    fileGlbInput.addEventListener('change', async (ev)=>{
-      try{
-        const f = ev.target.files && ev.target.files[0];
-        if (!f) return;
-        AREA.__origGlb = await f.arrayBuffer();
-        console.log('[editor] Original GLB gepuffert (Datei):', f.name, AREA.__origGlb.byteLength, 'Bytes');
-      }catch(e){ console.warn('[editor] GLB-Puffer fehlgeschlagen:', e); }
-    });
-  }
-  AREA.rememberOriginalGlbFromUrl = async function(glbUrl){
-    try{
-      if (!/^https?:\/\//i.test(glbUrl)) return;
-      const r = await fetch(glbUrl, { mode:'cors', credentials:'omit' });
-      if (!r.ok){ console.warn('[editor] GLB-URL fetch fehlgeschlagen:', r.status, r.statusText); return; }
-      AREA.__origGlb = await r.arrayBuffer();
-      console.log('[editor] Original GLB gepuffert (URL):', glbUrl, AREA.__origGlb.byteLength, 'Bytes');
-    }catch(e){ console.warn('[editor] GLB-URL Puffer fehlgeschlagen:', e); }
-  };
-  window.hasAnimationsInGlbBlob = async function(blob){
-    try{
-      const ab = await blob.arrayBuffer();
-      const dv = new DataView(ab);
-      if (dv.getUint32(0, true) !== 0x46546c67) return false;
-      if (dv.getUint32(4, true) < 2) return false;
-      const jsonLength = dv.getUint32(12, true);
-      const jsonType   = dv.getUint32(16, true);
-      if (jsonType !== 0x4E4F534A) return false;
-      const jsonStr = new TextDecoder().decode(new Uint8Array(ab, 20, jsonLength));
-      try {
-        const j = JSON.parse(jsonStr);
-        return Array.isArray(j.animations) && j.animations.length > 0;
-      } catch {
-        return /"animations"\s*:\s*\[/.test(jsonStr);
-      }
-    }catch(e){
-      console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
-      return false;
-    }
-  };
-  const _origFetch = window.fetch.bind(window);
-  window.fetch = async (input, init)=>{
-    if (!init) init = {};
-    const method = init.method ? String(init.method).toUpperCase() : 'GET';
-    if (method !== 'POST') return _origFetch(input, init);
-    if (!(init.body instanceof FormData)) return _origFetch(input, init);
-    if (!AREA.__origGlb) return _origFetch(input, init);
-    try{
-      let urlString = '';
-      if (typeof input === 'string') urlString = input;
-      else if (input && typeof input.url === 'string') urlString = input.url;
-      else return _origFetch(input, init);
-      const urlObj = new URL(urlString, location.href);
-      if (urlObj.pathname !== '/publish') return _origFetch(input, init);
-
-      const fdOld = init.body;
-      const fdNew = new FormData();
-      let exporterSceneGlb = null;
-      for (const [k,v] of fdOld.entries()){
-        if (k === 'file' && v && typeof v.name === 'string' && /scene\.glb$/i.test(v.name||'')){
-          exporterSceneGlb = v;
-          continue;
-        }
-        fdNew.append(k,v);
-      }
-      let chosenGlb;
-      if (!exporterSceneGlb){
-        chosenGlb = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
-        console.log('[editor] Publish: Original scene.glb angehängt (', AREA.__origGlb.byteLength, 'Bytes )');
-      } else {
-        const hasAnim = await window.hasAnimationsInGlbBlob(exporterSceneGlb);
-        if (hasAnim){
-          chosenGlb = exporterSceneGlb;
-          console.log('[editor] Publish: Exporter-GLB mit animations[] verwendet.');
-        } else {
-          chosenGlb = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
-          console.log('[editor] Exportiertes GLB ohne animations[] – fallback auf Original-GLB.');
-        }
-      }
-      fdNew.append('file', chosenGlb, 'scene.glb');
-      init = { ...init, body: fdNew };
-    }catch(e){
-      console.warn('[editor] fetch wrapper warn:', e);
-      return _origFetch(input, init);
-    }
-    return _origFetch(input, init);
-  };
-  try {
-    const btnClear = document.getElementById('btn-clear');
-    btnClear && btnClear.addEventListener('click', ()=>{ AREA.__origGlb = null; });
-    const btnNew = document.getElementById('btn-new');
-    btnNew && btnNew.addEventListener('click', ()=>{ AREA.__origGlb = null; });
-  }catch(_){}
-})();
-</script>
-
-<script>
-/* scene.json Export / buildSceneJson (mit Patch für loop/repeats) */
-(function(){
-  const AREA = (window.__AREA = window.__AREA || {});
-  AREA.scene = AREA.scene || {};
-
-  function val(sel, def=''){ const el=document.querySelector(sel); return (el && 'value' in el) ? (el.value ?? def) : def; }
-  function chk(sel, def=false){ const el=document.querySelector(sel); return (el && 'checked' in el) ? !!el.checked : def; }
-  function num(sel, def){ const v = parseFloat(val(sel, String(def))); return Number.isFinite(v) ? v : def; }
-  function file(sel){ return (document.querySelector(sel)?.files?.[0]) || null; }
-
-  function knownClipsCount(){
-    try {
-      if (Array.isArray(AREA.currentClips)) return AREA.currentClips.length;
-      if (Array.isArray(AREA.scene?.clips)) return AREA.scene.clips.length;
-    } catch {}
-    return undefined;
-  }
-
-  window.buildSceneJson = function buildSceneJson(){
-    const s  = (AREA.scene = AREA.scene || {});
-    const a  = (s.animation = s.animation || {});
-    const au = (s.audio = s.audio || {});
-    const ui = (s.ui = s.ui || {});
-    const wl = (ui.welcome = ui.welcome || {});
-
-    a.clipName   = (val('#animClip', '*') || '*').trim();
-    a.start      = (val('#animStart', 'onPlace') || 'onPlace');
-
-    /* === PATCH (Mini-Fix) für loop & iterations === */
-    const loopVal = document.getElementById('animLoop')?.value || 'repeat';
-    a.loop       = (loopVal === 'repeat');
-    a.iterations = Math.max(1, parseInt(document.getElementById('animRepeats')?.value || '9999', 10));
-
-    au.autoplay  = val('#audioAutoplay', 'withAnimation') || 'withAnimation';
-    au.loop      = (document.querySelector('#audioLoop') ? chk('#audioLoop', true) : true);
-    au.volume    = Math.max(0, Math.min(1, document.querySelector('#audioVolume') ? num('#audioVolume', 0.85) : 0.85));
-
-    wl.eyebrow   = val('#svEyebrow', '');
-    wl.title     = val('#svTitle',  (s.meta?.title || 'ARea Scene'));
-    wl.desc      = val('#svDesc',   'Tippe auf OK und platziere das 3D‑Objekt.');
-    wl.nativeCta = val('#nativeCta', 'ios-only') || 'ios-only';
-
-    const posterF = file('#file-poster');
-    const audioF  = file('#file-audio');
-    const usdzF   = file('#fileUsdz');
-
-    s.meta = s.meta || {};
-    s.meta.title = wl.title;
-    s.meta.description = wl.desc;
-    s.meta.mode = 'area-viewer';
-
-    s.model = s.model || {};
-    s.model.url = 'scene.glb';
-    if (usdzF) s.model.usdzUrl = 'model.usdz';
-    s.model.scale = (typeof s.model.scale === 'number') ? s.model.scale : 1.0;
-
-    if (posterF) wl.poster = posterF.name;
-    if (audioF)  au.url    = audioF.name;
-
-    s.animation = a;
-    s.audio = au;
-    s.ui = ui;
-
-    return JSON.parse(JSON.stringify(s));
-  };
-
-  if (typeof buildViewerEntryForMode !== 'function') {
-    window.buildViewerEntryForMode = function(mode){
-      const map = {
-        'surface-webxr':      '/surface-ar/webxr.html',
-        'native':             '/surface-ar/index.html',
-        'image':              '/image-ar/viewer.html',
-        'scene-viewer':       '/scene-viewer/index.html',
-        'surface-guided':     '/surface-ar/guided.html',
-        'surface-area-viewer':'/surface-ar/area-viewer.html'
-      };
-      return map[mode] || '/surface-ar/area-viewer.html';
-    };
-  }
-
-  if (typeof buildRobustViewerUrl !== 'function') {
-    window.buildRobustViewerUrl = function({ mode, sceneId, workerOrigin, viewerBase }){
-      const entry = buildViewerEntryForMode(mode);
-      const u = new URL(entry, viewerBase);
-      const glbUrl = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.glb`;
-      u.searchParams.set('glb', glbUrl);
-      u.searchParams.set('scene', sceneId);
-      u.searchParams.set('base', workerOrigin);
-      if (mode === 'native') u.searchParams.set('force','native');
-      return u.toString();
-    };
-  }
-
-  try {
-    const btn = document.getElementById('btn-publish');
-    btn && btn.addEventListener('click', (ev)=>{ ev.preventDefault(); window.publishScene?.(); });
-  }catch(_){}
-})();
-</script>
-
-<script>
-/* Anchor-abhängige UI (gekürzt) */
-(function(){
-  function byId(id){ return document.getElementById(id); }
-  const sel     = byId('anchorMode');
-  const svBlock = byId('svBlock');
-  const usdzRow = byId('usdzUploadRow');
-  const avAudio = byId('avAudioRow');
-
-  function norm(v){ return String(v||'').trim().toLowerCase(); }
-  function show(el,disp){ if(!el)return; el.hidden=false; el.style.display=disp; }
-  function hide(el){ if(!el)return; el.style.display='none'; }
-
-  function computeModes(){
-    const v = norm(sel?.value);
-    const txt = norm(sel?.options?.[sel.selectedIndex]?.textContent);
-    const both = v + ' ' + txt;
-    const isSceneViewer = v==='scene-viewer' || txt.includes('scene viewer') || txt.includes('szene viewer');
-    const isAreaViewer  = v==='surface-area-viewer' || v==='area-viewer' || v==='surface-area' || both.includes('area-viewer') || both.includes('area viewer');
-    const isGuided      = v==='surface-guided' || txt.includes('guided');
-    return { isSceneViewer, isAreaViewer, isGuided, raw:v, label:txt };
-  }
-  function apply(reason=''){
-    const { isSceneViewer, isAreaViewer } = computeModes();
-    if (svBlock) (isSceneViewer || isAreaViewer) ? show(svBlock,'block') : hide(svBlock);
-    if (usdzRow) isSceneViewer ? show(usdzRow,'') : hide(usdzRow);
-    /* ... weitere UI-Regeln ... */
-  }
-  sel?.addEventListener('change',()=>apply('change'));
-  apply('init');
 })();
 </script>
 
@@ -1432,23 +1017,19 @@ canvas { display:block; }
   };
 </script>
 
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-      "qrcode": "https://esm.sh/qrcode@1.5.3"
-    }
-  }
-  </script>
-
 <script>
-/* Original-GLB Passthrough für Publish */
+/* Original-GLB Passthrough für Publish (mit Guard gegen Duplikate) */
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
-  AREA.__origGlb = null;
+  if (AREA.__fetchPatchApplied) return;              // Guard: Duplikate stoppen
+  AREA.__fetchPatchApplied = true;
+
+  // __origGlb nicht hart resetten, vorhandenen Puffer respektieren
+  if (typeof AREA.__origGlb === 'undefined') AREA.__origGlb = null;
+
   const fileGlbInput = document.getElementById('file-glb');
-  if (fileGlbInput) {
+  if (fileGlbInput && !AREA.__glbInputHooked) {
+    AREA.__glbInputHooked = true;
     fileGlbInput.addEventListener('change', async (ev)=>{
       try{
         const f = ev.target.files && ev.target.files[0];
@@ -1458,7 +1039,8 @@ canvas { display:block; }
       }catch(e){ console.warn('[editor] GLB-Puffer fehlgeschlagen:', e); }
     });
   }
-  AREA.rememberOriginalGlbFromUrl = async function(glbUrl){
+
+  AREA.rememberOriginalGlbFromUrl = AREA.rememberOriginalGlbFromUrl || (async function(glbUrl){
     try{
       if (!/^https?:\/\//i.test(glbUrl)) return;
       const r = await fetch(glbUrl, { mode:'cors', credentials:'omit' });
@@ -1466,16 +1048,17 @@ canvas { display:block; }
       AREA.__origGlb = await r.arrayBuffer();
       console.log('[editor] Original GLB gepuffert (URL):', glbUrl, AREA.__origGlb.byteLength, 'Bytes');
     }catch(e){ console.warn('[editor] GLB-URL Puffer fehlgeschlagen:', e); }
-  };
-  window.hasAnimationsInGlbBlob = async function(blob){
+  });
+
+  window.hasAnimationsInGlbBlob = window.hasAnimationsInGlbBlob || (async function(blob){
     try{
       const ab = await blob.arrayBuffer();
       const dv = new DataView(ab);
-      if (dv.getUint32(0, true) !== 0x46546c67) return false;
-      if (dv.getUint32(4, true) < 2) return false;
+      if (dv.getUint32(0, true) !== 0x46546c67) return false; // 'glTF'
+      if (dv.getUint32(4, true) < 2) return false; // version
       const jsonLength = dv.getUint32(12, true);
       const jsonType   = dv.getUint32(16, true);
-      if (jsonType !== 0x4E4F534A) return false;
+      if (jsonType !== 0x4E4F534A) return false; // 'JSON'
       const jsonStr = new TextDecoder().decode(new Uint8Array(ab, 20, jsonLength));
       try {
         const j = JSON.parse(jsonStr);
@@ -1487,7 +1070,8 @@ canvas { display:block; }
       console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
       return false;
     }
-  };
+  });
+
   const _origFetch = window.fetch.bind(window);
   window.fetch = async (input, init)=>{
     if (!init) init = {};
@@ -1519,13 +1103,8 @@ canvas { display:block; }
         console.log('[editor] Publish: Original scene.glb angehängt (', AREA.__origGlb.byteLength, 'Bytes )');
       } else {
         const hasAnim = await window.hasAnimationsInGlbBlob(exporterSceneGlb);
-        if (hasAnim){
-          chosenGlb = exporterSceneGlb;
-          console.log('[editor] Publish: Exporter-GLB mit animations[] verwendet.');
-        } else {
-          chosenGlb = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
-          console.log('[editor] Exportiertes GLB ohne animations[] – fallback auf Original-GLB.');
-        }
+        chosenGlb = hasAnim ? exporterSceneGlb : new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
+        console.log('[editor] Publish: ', hasAnim ? 'Exporter-GLB mit animations[]' : 'Fallback auf Original-GLB');
       }
       fdNew.append('file', chosenGlb, 'scene.glb');
       init = { ...init, body: fdNew };
@@ -1535,33 +1114,35 @@ canvas { display:block; }
     }
     return _origFetch(input, init);
   };
+
   try {
     const btnClear = document.getElementById('btn-clear');
-    btnClear && btnClear.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    if (btnClear && !AREA.__clearHooked){
+      AREA.__clearHooked = true;
+      btnClear.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    }
     const btnNew = document.getElementById('btn-new');
-    btnNew && btnNew.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    if (btnNew && !AREA.__newHooked){
+      AREA.__newHooked = true;
+      btnNew.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    }
   }catch(_){}
 })();
 </script>
 
 <script>
-/* scene.json Export / buildSceneJson (mit Patch für loop/repeats) */
+/* scene.json Export / buildSceneJson (Guard gegen Duplikate) */
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
+  if (AREA.__sceneJsonPatched) return; // Guard: nur erste Instanz
+  AREA.__sceneJsonPatched = true;
+
   AREA.scene = AREA.scene || {};
 
   function val(sel, def=''){ const el=document.querySelector(sel); return (el && 'value' in el) ? (el.value ?? def) : def; }
   function chk(sel, def=false){ const el=document.querySelector(sel); return (el && 'checked' in el) ? !!el.checked : def; }
   function num(sel, def){ const v = parseFloat(val(sel, String(def))); return Number.isFinite(v) ? v : def; }
   function file(sel){ return (document.querySelector(sel)?.files?.[0]) || null; }
-
-  function knownClipsCount(){
-    try {
-      if (Array.isArray(AREA.currentClips)) return AREA.currentClips.length;
-      if (Array.isArray(AREA.scene?.clips)) return AREA.scene.clips.length;
-    } catch {}
-    return undefined;
-  }
 
   window.buildSceneJson = function buildSceneJson(){
     const s  = (AREA.scene = AREA.scene || {});
@@ -1573,7 +1154,6 @@ canvas { display:block; }
     a.clipName   = (val('#animClip', '*') || '*').trim();
     a.start      = (val('#animStart', 'onPlace') || 'onPlace');
 
-    /* === PATCH (Mini-Fix) für loop & iterations === */
     const loopVal = document.getElementById('animLoop')?.value || 'repeat';
     a.loop       = (loopVal === 'repeat');
     a.iterations = Math.max(1, parseInt(document.getElementById('animRepeats')?.value || '9999', 10));
@@ -1642,39 +1222,6 @@ canvas { display:block; }
     const btn = document.getElementById('btn-publish');
     btn && btn.addEventListener('click', (ev)=>{ ev.preventDefault(); window.publishScene?.(); });
   }catch(_){}
-})();
-</script>
-
-<script>
-/* Anchor-abhängige UI (gekürzt) */
-(function(){
-  function byId(id){ return document.getElementById(id); }
-  const sel     = byId('anchorMode');
-  const svBlock = byId('svBlock');
-  const usdzRow = byId('usdzUploadRow');
-  const avAudio = byId('avAudioRow');
-
-  function norm(v){ return String(v||'').trim().toLowerCase(); }
-  function show(el,disp){ if(!el)return; el.hidden=false; el.style.display=disp; }
-  function hide(el){ if(!el)return; el.style.display='none'; }
-
-  function computeModes(){
-    const v = norm(sel?.value);
-    const txt = norm(sel?.options?.[sel.selectedIndex]?.textContent);
-    const both = v + ' ' + txt;
-    const isSceneViewer = v==='scene-viewer' || txt.includes('scene viewer') || txt.includes('szene viewer');
-    const isAreaViewer  = v==='surface-area-viewer' || v==='area-viewer' || v==='surface-area' || both.includes('area-viewer') || both.includes('area viewer');
-    const isGuided      = v==='surface-guided' || txt.includes('guided');
-    return { isSceneViewer, isAreaViewer, isGuided, raw:v, label:txt };
-  }
-  function apply(reason=''){
-    const { isSceneViewer, isAreaViewer } = computeModes();
-    if (svBlock) (isSceneViewer || isAreaViewer) ? show(svBlock,'block') : hide(svBlock);
-    if (usdzRow) isSceneViewer ? show(usdzRow,'') : hide(usdzRow);
-    /* ... weitere UI-Regeln ... */
-  }
-  sel?.addEventListener('change',()=>apply('change'));
-  apply('init');
 })();
 </script>
 
@@ -1786,23 +1333,19 @@ canvas { display:block; }
   };
 </script>
 
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-      "qrcode": "https://esm.sh/qrcode@1.5.3"
-    }
-  }
-  </script>
-
 <script>
-/* Original-GLB Passthrough für Publish */
+/* Original-GLB Passthrough für Publish (mit Guard gegen Duplikate) */
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
-  AREA.__origGlb = null;
+  if (AREA.__fetchPatchApplied) return;              // Guard: Duplikate stoppen
+  AREA.__fetchPatchApplied = true;
+
+  // __origGlb nicht hart resetten, vorhandenen Puffer respektieren
+  if (typeof AREA.__origGlb === 'undefined') AREA.__origGlb = null;
+
   const fileGlbInput = document.getElementById('file-glb');
-  if (fileGlbInput) {
+  if (fileGlbInput && !AREA.__glbInputHooked) {
+    AREA.__glbInputHooked = true;
     fileGlbInput.addEventListener('change', async (ev)=>{
       try{
         const f = ev.target.files && ev.target.files[0];
@@ -1812,7 +1355,8 @@ canvas { display:block; }
       }catch(e){ console.warn('[editor] GLB-Puffer fehlgeschlagen:', e); }
     });
   }
-  AREA.rememberOriginalGlbFromUrl = async function(glbUrl){
+
+  AREA.rememberOriginalGlbFromUrl = AREA.rememberOriginalGlbFromUrl || (async function(glbUrl){
     try{
       if (!/^https?:\/\//i.test(glbUrl)) return;
       const r = await fetch(glbUrl, { mode:'cors', credentials:'omit' });
@@ -1820,16 +1364,17 @@ canvas { display:block; }
       AREA.__origGlb = await r.arrayBuffer();
       console.log('[editor] Original GLB gepuffert (URL):', glbUrl, AREA.__origGlb.byteLength, 'Bytes');
     }catch(e){ console.warn('[editor] GLB-URL Puffer fehlgeschlagen:', e); }
-  };
-  window.hasAnimationsInGlbBlob = async function(blob){
+  });
+
+  window.hasAnimationsInGlbBlob = window.hasAnimationsInGlbBlob || (async function(blob){
     try{
       const ab = await blob.arrayBuffer();
       const dv = new DataView(ab);
-      if (dv.getUint32(0, true) !== 0x46546c67) return false;
-      if (dv.getUint32(4, true) < 2) return false;
+      if (dv.getUint32(0, true) !== 0x46546c67) return false; // 'glTF'
+      if (dv.getUint32(4, true) < 2) return false; // version
       const jsonLength = dv.getUint32(12, true);
       const jsonType   = dv.getUint32(16, true);
-      if (jsonType !== 0x4E4F534A) return false;
+      if (jsonType !== 0x4E4F534A) return false; // 'JSON'
       const jsonStr = new TextDecoder().decode(new Uint8Array(ab, 20, jsonLength));
       try {
         const j = JSON.parse(jsonStr);
@@ -1841,7 +1386,8 @@ canvas { display:block; }
       console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
       return false;
     }
-  };
+  });
+
   const _origFetch = window.fetch.bind(window);
   window.fetch = async (input, init)=>{
     if (!init) init = {};
@@ -1873,13 +1419,8 @@ canvas { display:block; }
         console.log('[editor] Publish: Original scene.glb angehängt (', AREA.__origGlb.byteLength, 'Bytes )');
       } else {
         const hasAnim = await window.hasAnimationsInGlbBlob(exporterSceneGlb);
-        if (hasAnim){
-          chosenGlb = exporterSceneGlb;
-          console.log('[editor] Publish: Exporter-GLB mit animations[] verwendet.');
-        } else {
-          chosenGlb = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
-          console.log('[editor] Exportiertes GLB ohne animations[] – fallback auf Original-GLB.');
-        }
+        chosenGlb = hasAnim ? exporterSceneGlb : new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
+        console.log('[editor] Publish: ', hasAnim ? 'Exporter-GLB mit animations[]' : 'Fallback auf Original-GLB');
       }
       fdNew.append('file', chosenGlb, 'scene.glb');
       init = { ...init, body: fdNew };
@@ -1889,33 +1430,35 @@ canvas { display:block; }
     }
     return _origFetch(input, init);
   };
+
   try {
     const btnClear = document.getElementById('btn-clear');
-    btnClear && btnClear.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    if (btnClear && !AREA.__clearHooked){
+      AREA.__clearHooked = true;
+      btnClear.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    }
     const btnNew = document.getElementById('btn-new');
-    btnNew && btnNew.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    if (btnNew && !AREA.__newHooked){
+      AREA.__newHooked = true;
+      btnNew.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    }
   }catch(_){}
 })();
 </script>
 
 <script>
-/* scene.json Export / buildSceneJson (mit Patch für loop/repeats) */
+/* scene.json Export / buildSceneJson (Guard gegen Duplikate) */
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
+  if (AREA.__sceneJsonPatched) return; // Guard: nur erste Instanz
+  AREA.__sceneJsonPatched = true;
+
   AREA.scene = AREA.scene || {};
 
   function val(sel, def=''){ const el=document.querySelector(sel); return (el && 'value' in el) ? (el.value ?? def) : def; }
   function chk(sel, def=false){ const el=document.querySelector(sel); return (el && 'checked' in el) ? !!el.checked : def; }
   function num(sel, def){ const v = parseFloat(val(sel, String(def))); return Number.isFinite(v) ? v : def; }
   function file(sel){ return (document.querySelector(sel)?.files?.[0]) || null; }
-
-  function knownClipsCount(){
-    try {
-      if (Array.isArray(AREA.currentClips)) return AREA.currentClips.length;
-      if (Array.isArray(AREA.scene?.clips)) return AREA.scene.clips.length;
-    } catch {}
-    return undefined;
-  }
 
   window.buildSceneJson = function buildSceneJson(){
     const s  = (AREA.scene = AREA.scene || {});
@@ -1927,7 +1470,6 @@ canvas { display:block; }
     a.clipName   = (val('#animClip', '*') || '*').trim();
     a.start      = (val('#animStart', 'onPlace') || 'onPlace');
 
-    /* === PATCH (Mini-Fix) für loop & iterations === */
     const loopVal = document.getElementById('animLoop')?.value || 'repeat';
     a.loop       = (loopVal === 'repeat');
     a.iterations = Math.max(1, parseInt(document.getElementById('animRepeats')?.value || '9999', 10));
@@ -1996,39 +1538,6 @@ canvas { display:block; }
     const btn = document.getElementById('btn-publish');
     btn && btn.addEventListener('click', (ev)=>{ ev.preventDefault(); window.publishScene?.(); });
   }catch(_){}
-})();
-</script>
-
-<script>
-/* Anchor-abhängige UI (gekürzt) */
-(function(){
-  function byId(id){ return document.getElementById(id); }
-  const sel     = byId('anchorMode');
-  const svBlock = byId('svBlock');
-  const usdzRow = byId('usdzUploadRow');
-  const avAudio = byId('avAudioRow');
-
-  function norm(v){ return String(v||'').trim().toLowerCase(); }
-  function show(el,disp){ if(!el)return; el.hidden=false; el.style.display=disp; }
-  function hide(el){ if(!el)return; el.style.display='none'; }
-
-  function computeModes(){
-    const v = norm(sel?.value);
-    const txt = norm(sel?.options?.[sel.selectedIndex]?.textContent);
-    const both = v + ' ' + txt;
-    const isSceneViewer = v==='scene-viewer' || txt.includes('scene viewer') || txt.includes('szene viewer');
-    const isAreaViewer  = v==='surface-area-viewer' || v==='area-viewer' || v==='surface-area' || both.includes('area-viewer') || both.includes('area viewer');
-    const isGuided      = v==='surface-guided' || txt.includes('guided');
-    return { isSceneViewer, isAreaViewer, isGuided, raw:v, label:txt };
-  }
-  function apply(reason=''){
-    const { isSceneViewer, isAreaViewer } = computeModes();
-    if (svBlock) (isSceneViewer || isAreaViewer) ? show(svBlock,'block') : hide(svBlock);
-    if (usdzRow) isSceneViewer ? show(usdzRow,'') : hide(usdzRow);
-    /* ... weitere UI-Regeln ... */
-  }
-  sel?.addEventListener('change',()=>apply('change'));
-  apply('init');
 })();
 </script>
 
@@ -2140,23 +1649,19 @@ canvas { display:block; }
   };
 </script>
 
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-      "qrcode": "https://esm.sh/qrcode@1.5.3"
-    }
-  }
-  </script>
-
 <script>
-/* Original-GLB Passthrough für Publish */
+/* Original-GLB Passthrough für Publish (mit Guard gegen Duplikate) */
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
-  AREA.__origGlb = null;
+  if (AREA.__fetchPatchApplied) return;              // Guard: Duplikate stoppen
+  AREA.__fetchPatchApplied = true;
+
+  // __origGlb nicht hart resetten, vorhandenen Puffer respektieren
+  if (typeof AREA.__origGlb === 'undefined') AREA.__origGlb = null;
+
   const fileGlbInput = document.getElementById('file-glb');
-  if (fileGlbInput) {
+  if (fileGlbInput && !AREA.__glbInputHooked) {
+    AREA.__glbInputHooked = true;
     fileGlbInput.addEventListener('change', async (ev)=>{
       try{
         const f = ev.target.files && ev.target.files[0];
@@ -2166,7 +1671,8 @@ canvas { display:block; }
       }catch(e){ console.warn('[editor] GLB-Puffer fehlgeschlagen:', e); }
     });
   }
-  AREA.rememberOriginalGlbFromUrl = async function(glbUrl){
+
+  AREA.rememberOriginalGlbFromUrl = AREA.rememberOriginalGlbFromUrl || (async function(glbUrl){
     try{
       if (!/^https?:\/\//i.test(glbUrl)) return;
       const r = await fetch(glbUrl, { mode:'cors', credentials:'omit' });
@@ -2174,16 +1680,17 @@ canvas { display:block; }
       AREA.__origGlb = await r.arrayBuffer();
       console.log('[editor] Original GLB gepuffert (URL):', glbUrl, AREA.__origGlb.byteLength, 'Bytes');
     }catch(e){ console.warn('[editor] GLB-URL Puffer fehlgeschlagen:', e); }
-  };
-  window.hasAnimationsInGlbBlob = async function(blob){
+  });
+
+  window.hasAnimationsInGlbBlob = window.hasAnimationsInGlbBlob || (async function(blob){
     try{
       const ab = await blob.arrayBuffer();
       const dv = new DataView(ab);
-      if (dv.getUint32(0, true) !== 0x46546c67) return false;
-      if (dv.getUint32(4, true) < 2) return false;
+      if (dv.getUint32(0, true) !== 0x46546c67) return false; // 'glTF'
+      if (dv.getUint32(4, true) < 2) return false; // version
       const jsonLength = dv.getUint32(12, true);
       const jsonType   = dv.getUint32(16, true);
-      if (jsonType !== 0x4E4F534A) return false;
+      if (jsonType !== 0x4E4F534A) return false; // 'JSON'
       const jsonStr = new TextDecoder().decode(new Uint8Array(ab, 20, jsonLength));
       try {
         const j = JSON.parse(jsonStr);
@@ -2195,7 +1702,8 @@ canvas { display:block; }
       console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
       return false;
     }
-  };
+  });
+
   const _origFetch = window.fetch.bind(window);
   window.fetch = async (input, init)=>{
     if (!init) init = {};
@@ -2227,13 +1735,8 @@ canvas { display:block; }
         console.log('[editor] Publish: Original scene.glb angehängt (', AREA.__origGlb.byteLength, 'Bytes )');
       } else {
         const hasAnim = await window.hasAnimationsInGlbBlob(exporterSceneGlb);
-        if (hasAnim){
-          chosenGlb = exporterSceneGlb;
-          console.log('[editor] Publish: Exporter-GLB mit animations[] verwendet.');
-        } else {
-          chosenGlb = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
-          console.log('[editor] Exportiertes GLB ohne animations[] – fallback auf Original-GLB.');
-        }
+        chosenGlb = hasAnim ? exporterSceneGlb : new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
+        console.log('[editor] Publish: ', hasAnim ? 'Exporter-GLB mit animations[]' : 'Fallback auf Original-GLB');
       }
       fdNew.append('file', chosenGlb, 'scene.glb');
       init = { ...init, body: fdNew };
@@ -2243,33 +1746,35 @@ canvas { display:block; }
     }
     return _origFetch(input, init);
   };
+
   try {
     const btnClear = document.getElementById('btn-clear');
-    btnClear && btnClear.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    if (btnClear && !AREA.__clearHooked){
+      AREA.__clearHooked = true;
+      btnClear.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    }
     const btnNew = document.getElementById('btn-new');
-    btnNew && btnNew.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    if (btnNew && !AREA.__newHooked){
+      AREA.__newHooked = true;
+      btnNew.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    }
   }catch(_){}
 })();
 </script>
 
 <script>
-/* scene.json Export / buildSceneJson (mit Patch für loop/repeats) */
+/* scene.json Export / buildSceneJson (Guard gegen Duplikate) */
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
+  if (AREA.__sceneJsonPatched) return; // Guard: nur erste Instanz
+  AREA.__sceneJsonPatched = true;
+
   AREA.scene = AREA.scene || {};
 
   function val(sel, def=''){ const el=document.querySelector(sel); return (el && 'value' in el) ? (el.value ?? def) : def; }
   function chk(sel, def=false){ const el=document.querySelector(sel); return (el && 'checked' in el) ? !!el.checked : def; }
   function num(sel, def){ const v = parseFloat(val(sel, String(def))); return Number.isFinite(v) ? v : def; }
   function file(sel){ return (document.querySelector(sel)?.files?.[0]) || null; }
-
-  function knownClipsCount(){
-    try {
-      if (Array.isArray(AREA.currentClips)) return AREA.currentClips.length;
-      if (Array.isArray(AREA.scene?.clips)) return AREA.scene.clips.length;
-    } catch {}
-    return undefined;
-  }
 
   window.buildSceneJson = function buildSceneJson(){
     const s  = (AREA.scene = AREA.scene || {});
@@ -2281,7 +1786,6 @@ canvas { display:block; }
     a.clipName   = (val('#animClip', '*') || '*').trim();
     a.start      = (val('#animStart', 'onPlace') || 'onPlace');
 
-    /* === PATCH (Mini-Fix) für loop & iterations === */
     const loopVal = document.getElementById('animLoop')?.value || 'repeat';
     a.loop       = (loopVal === 'repeat');
     a.iterations = Math.max(1, parseInt(document.getElementById('animRepeats')?.value || '9999', 10));
@@ -2350,39 +1854,6 @@ canvas { display:block; }
     const btn = document.getElementById('btn-publish');
     btn && btn.addEventListener('click', (ev)=>{ ev.preventDefault(); window.publishScene?.(); });
   }catch(_){}
-})();
-</script>
-
-<script>
-/* Anchor-abhängige UI (gekürzt) */
-(function(){
-  function byId(id){ return document.getElementById(id); }
-  const sel     = byId('anchorMode');
-  const svBlock = byId('svBlock');
-  const usdzRow = byId('usdzUploadRow');
-  const avAudio = byId('avAudioRow');
-
-  function norm(v){ return String(v||'').trim().toLowerCase(); }
-  function show(el,disp){ if(!el)return; el.hidden=false; el.style.display=disp; }
-  function hide(el){ if(!el)return; el.style.display='none'; }
-
-  function computeModes(){
-    const v = norm(sel?.value);
-    const txt = norm(sel?.options?.[sel.selectedIndex]?.textContent);
-    const both = v + ' ' + txt;
-    const isSceneViewer = v==='scene-viewer' || txt.includes('scene viewer') || txt.includes('szene viewer');
-    const isAreaViewer  = v==='surface-area-viewer' || v==='area-viewer' || v==='surface-area' || both.includes('area-viewer') || both.includes('area viewer');
-    const isGuided      = v==='surface-guided' || txt.includes('guided');
-    return { isSceneViewer, isAreaViewer, isGuided, raw:v, label:txt };
-  }
-  function apply(reason=''){
-    const { isSceneViewer, isAreaViewer } = computeModes();
-    if (svBlock) (isSceneViewer || isAreaViewer) ? show(svBlock,'block') : hide(svBlock);
-    if (usdzRow) isSceneViewer ? show(usdzRow,'') : hide(usdzRow);
-    /* ... weitere UI-Regeln ... */
-  }
-  sel?.addEventListener('change',()=>apply('change'));
-  apply('init');
 })();
 </script>
 
@@ -2494,23 +1965,19 @@ canvas { display:block; }
   };
 </script>
 
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-      "qrcode": "https://esm.sh/qrcode@1.5.3"
-    }
-  }
-  </script>
-
 <script>
-/* Original-GLB Passthrough für Publish */
+/* Original-GLB Passthrough für Publish (mit Guard gegen Duplikate) */
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
-  AREA.__origGlb = null;
+  if (AREA.__fetchPatchApplied) return;              // Guard: Duplikate stoppen
+  AREA.__fetchPatchApplied = true;
+
+  // __origGlb nicht hart resetten, vorhandenen Puffer respektieren
+  if (typeof AREA.__origGlb === 'undefined') AREA.__origGlb = null;
+
   const fileGlbInput = document.getElementById('file-glb');
-  if (fileGlbInput) {
+  if (fileGlbInput && !AREA.__glbInputHooked) {
+    AREA.__glbInputHooked = true;
     fileGlbInput.addEventListener('change', async (ev)=>{
       try{
         const f = ev.target.files && ev.target.files[0];
@@ -2520,7 +1987,8 @@ canvas { display:block; }
       }catch(e){ console.warn('[editor] GLB-Puffer fehlgeschlagen:', e); }
     });
   }
-  AREA.rememberOriginalGlbFromUrl = async function(glbUrl){
+
+  AREA.rememberOriginalGlbFromUrl = AREA.rememberOriginalGlbFromUrl || (async function(glbUrl){
     try{
       if (!/^https?:\/\//i.test(glbUrl)) return;
       const r = await fetch(glbUrl, { mode:'cors', credentials:'omit' });
@@ -2528,16 +1996,17 @@ canvas { display:block; }
       AREA.__origGlb = await r.arrayBuffer();
       console.log('[editor] Original GLB gepuffert (URL):', glbUrl, AREA.__origGlb.byteLength, 'Bytes');
     }catch(e){ console.warn('[editor] GLB-URL Puffer fehlgeschlagen:', e); }
-  };
-  window.hasAnimationsInGlbBlob = async function(blob){
+  });
+
+  window.hasAnimationsInGlbBlob = window.hasAnimationsInGlbBlob || (async function(blob){
     try{
       const ab = await blob.arrayBuffer();
       const dv = new DataView(ab);
-      if (dv.getUint32(0, true) !== 0x46546c67) return false;
-      if (dv.getUint32(4, true) < 2) return false;
+      if (dv.getUint32(0, true) !== 0x46546c67) return false; // 'glTF'
+      if (dv.getUint32(4, true) < 2) return false; // version
       const jsonLength = dv.getUint32(12, true);
       const jsonType   = dv.getUint32(16, true);
-      if (jsonType !== 0x4E4F534A) return false;
+      if (jsonType !== 0x4E4F534A) return false; // 'JSON'
       const jsonStr = new TextDecoder().decode(new Uint8Array(ab, 20, jsonLength));
       try {
         const j = JSON.parse(jsonStr);
@@ -2549,7 +2018,8 @@ canvas { display:block; }
       console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
       return false;
     }
-  };
+  });
+
   const _origFetch = window.fetch.bind(window);
   window.fetch = async (input, init)=>{
     if (!init) init = {};
@@ -2579,6 +2049,536 @@ canvas { display:block; }
       if (!exporterSceneGlb){
         chosenGlb = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
         console.log('[editor] Publish: Original scene.glb angehängt (', AREA.__origGlb.byteLength, 'Bytes )');
+      } else {
+        const hasAnim = await window.hasAnimationsInGlbBlob(exporterSceneGlb);
+        chosenGlb = hasAnim ? exporterSceneGlb : new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
+        console.log('[editor] Publish: ', hasAnim ? 'Exporter-GLB mit animations[]' : 'Fallback auf Original-GLB');
+      }
+      fdNew.append('file', chosenGlb, 'scene.glb');
+      init = { ...init, body: fdNew };
+    }catch(e){
+      console.warn('[editor] fetch wrapper warn:', e);
+      return _origFetch(input, init);
+    }
+    return _origFetch(input, init);
+  };
+
+  try {
+    const btnClear = document.getElementById('btn-clear');
+    if (btnClear && !AREA.__clearHooked){
+      AREA.__clearHooked = true;
+      btnClear.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    }
+    const btnNew = document.getElementById('btn-new');
+    if (btnNew && !AREA.__newHooked){
+      AREA.__newHooked = true;
+      btnNew.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    }
+  }catch(_){}
+})();
+</script>
+
+<script>
+/* scene.json Export / buildSceneJson (Guard gegen Duplikate) */
+(function(){
+  const AREA = (window.__AREA = window.__AREA || {});
+  if (AREA.__sceneJsonPatched) return; // Guard: nur erste Instanz
+  AREA.__sceneJsonPatched = true;
+
+  AREA.scene = AREA.scene || {};
+
+  function val(sel, def=''){ const el=document.querySelector(sel); return (el && 'value' in el) ? (el.value ?? def) : def; }
+  function chk(sel, def=false){ const el=document.querySelector(sel); return (el && 'checked' in el) ? !!el.checked : def; }
+  function num(sel, def){ const v = parseFloat(val(sel, String(def))); return Number.isFinite(v) ? v : def; }
+  function file(sel){ return (document.querySelector(sel)?.files?.[0]) || null; }
+
+  window.buildSceneJson = function buildSceneJson(){
+    const s  = (AREA.scene = AREA.scene || {});
+    const a  = (s.animation = s.animation || {});
+    const au = (s.audio = s.audio || {});
+    const ui = (s.ui = s.ui || {});
+    const wl = (ui.welcome = ui.welcome || {});
+
+    a.clipName   = (val('#animClip', '*') || '*').trim();
+    a.start      = (val('#animStart', 'onPlace') || 'onPlace');
+
+    const loopVal = document.getElementById('animLoop')?.value || 'repeat';
+    a.loop       = (loopVal === 'repeat');
+    a.iterations = Math.max(1, parseInt(document.getElementById('animRepeats')?.value || '9999', 10));
+
+    au.autoplay  = val('#audioAutoplay', 'withAnimation') || 'withAnimation';
+    au.loop      = (document.querySelector('#audioLoop') ? chk('#audioLoop', true) : true);
+    au.volume    = Math.max(0, Math.min(1, document.querySelector('#audioVolume') ? num('#audioVolume', 0.85) : 0.85));
+
+    wl.eyebrow   = val('#svEyebrow', '');
+    wl.title     = val('#svTitle',  (s.meta?.title || 'ARea Scene'));
+    wl.desc      = val('#svDesc',   'Tippe auf OK und platziere das 3D‑Objekt.');
+    wl.nativeCta = val('#nativeCta', 'ios-only') || 'ios-only';
+
+    const posterF = file('#file-poster');
+    const audioF  = file('#file-audio');
+    const usdzF   = file('#fileUsdz');
+
+    s.meta = s.meta || {};
+    s.meta.title = wl.title;
+    s.meta.description = wl.desc;
+    s.meta.mode = 'area-viewer';
+
+    s.model = s.model || {};
+    s.model.url = 'scene.glb';
+    if (usdzF) s.model.usdzUrl = 'model.usdz';
+    s.model.scale = (typeof s.model.scale === 'number') ? s.model.scale : 1.0;
+
+    if (posterF) wl.poster = posterF.name;
+    if (audioF)  au.url    = audioF.name;
+
+    s.animation = a;
+    s.audio = au;
+    s.ui = ui;
+
+    return JSON.parse(JSON.stringify(s));
+  };
+
+  if (typeof buildViewerEntryForMode !== 'function') {
+    window.buildViewerEntryForMode = function(mode){
+      const map = {
+        'surface-webxr':      '/surface-ar/webxr.html',
+        'native':             '/surface-ar/index.html',
+        'image':              '/image-ar/viewer.html',
+        'scene-viewer':       '/scene-viewer/index.html',
+        'surface-guided':     '/surface-ar/guided.html',
+        'surface-area-viewer':'/surface-ar/area-viewer.html'
+      };
+      return map[mode] || '/surface-ar/area-viewer.html';
+    };
+  }
+
+  if (typeof buildRobustViewerUrl !== 'function') {
+    window.buildRobustViewerUrl = function({ mode, sceneId, workerOrigin, viewerBase }){
+      const entry = buildViewerEntryForMode(mode);
+      const u = new URL(entry, viewerBase);
+      const glbUrl = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.glb`;
+      u.searchParams.set('glb', glbUrl);
+      u.searchParams.set('scene', sceneId);
+      u.searchParams.set('base', workerOrigin);
+      if (mode === 'native') u.searchParams.set('force','native');
+      return u.toString();
+    };
+  }
+
+  try {
+    const btn = document.getElementById('btn-publish');
+    btn && btn.addEventListener('click', (ev)=>{ ev.preventDefault(); window.publishScene?.(); });
+  }catch(_){}
+})();
+</script>
+
+<!-- ===================================================================== -->
+<!-- === PATCH BLÖCKE (Drop-In) ========================================= -->
+<!-- ===================================================================== -->
+
+<script type="module">
+/* === FINAL WIRING: Projekt-Menü, Buttons, Theme-Toggle, Three-Sync === */
+(() => {
+  const $ = s => document.querySelector(s);
+
+  // Projekt-Menü (öffnet nach unten) + Outside-Click
+  const menu = $('#projectMenu');
+  const btn  = $('#btn-project-menu');
+  function toggleMenu(e){ e?.preventDefault(); menu?.classList.toggle('open'); btn?.setAttribute('aria-expanded', String(menu?.classList.contains('open'))); }
+  btn?.addEventListener('click', toggleMenu);
+  document.addEventListener('click', (e)=>{ if(menu && btn && !menu.contains(e.target) && e.target!==btn){ menu.classList.remove('open'); btn.setAttribute('aria-expanded','false'); } });
+
+  // Menü-Buttons
+  $('#btn-new')?.addEventListener('click', ()=>{ 
+    if (confirm('Neues Projekt starten? Nicht gespeicherte Änderungen gehen verloren.')) { 
+      document.getElementById('btn-clear')?.click(); 
+      (window.setProjectName||(()=>{}))('Unbenanntes Projekt'); 
+    }
+  });
+  $('#file-project')?.addEventListener('change', (ev)=>{
+    const f = ev.target.files?.[0];
+    ev.target.value = '';
+    if (f) (window.importProjectFile||(()=>{}))(f);
+  });
+  $('#btn-save')?.addEventListener('click', ()=> (window.saveProject||(()=>{}))());
+  $('#btn-save-as')?.addEventListener('click', ()=> (window.saveProject||(()=>{}))({saveAs:true}));
+  $('#btn-preview')?.addEventListener('click', ()=> (window.previewModules||(()=>{}))());
+  $('#btn-preview-draft')?.addEventListener('click', ()=> (window.previewDraft||(()=>{}))());
+
+  // Theme-Toggle (3-Wege) inkl. Persistenz + Three-Sync
+  const radios = ['th-slate','th-aurora','th-nebula'].map(id=>document.getElementById(id));
+  function applyTheme(theme){
+    const html = document.documentElement;
+    ['theme-slate','theme-aurora','theme-nebula'].forEach(c=>html.classList.remove(c));
+    html.classList.add(theme);
+    try { localStorage.setItem('theme', theme); } catch {}
+    try { window.__applyThemeToThree?.(); } catch {}
+    const idx = { 'theme-slate':0, 'theme-aurora':1, 'theme-nebula':2 }[theme] ?? 0;
+    radios[idx] && (radios[idx].checked = true);
+  }
+  radios.forEach(r => r?.addEventListener('change', ()=> applyTheme(r.value)));
+
+  (function syncInitialTheme(){
+    const html = document.documentElement;
+    const cur = ['theme-nebula','theme-aurora','theme-slate'].find(c=>html.classList.contains(c)) || 'theme-nebula';
+    applyTheme(cur);
+  })();
+
+  // Taste "T" = Theme zyklisch wechseln (nur wenn Fokus nicht in Eingabe)
+  window.addEventListener('keydown', (e)=>{
+    if (e.key.toLowerCase() !== 't') return;
+    const el = document.activeElement;
+    const tag = (el?.tagName || '').toLowerCase();
+    if (el?.isContentEditable || ['input','textarea','select'].includes(tag)) return;
+    const order = ['theme-slate','theme-aurora','theme-nebula'];
+    const curIndex = order.findIndex(c=>document.documentElement.classList.contains(c));
+    applyTheme(order[(curIndex+1) % order.length]);
+  });
+
+  requestAnimationFrame(()=> window.__applyThemeToThree?.());
+})();
+</script>
+
+<script type="module">
+/* Optionaler Publish-Patch: Modusabhängige JSON-Auswahl */
+(() => {
+  if (typeof window.publishScene === 'function'){
+    const orig = window.publishScene;
+    window.publishScene = async function(...args){
+      const mode = document.getElementById('anchorMode')?.value || 'surface-webxr';
+      const sceneJson = (mode === 'scene-viewer' || mode === 'surface-area-viewer')
+        ? (window.buildSceneViewerJSON_CF?.() || window.buildSceneJson())
+        : window.buildSceneJson();
+      // Temporär buildSceneJson überschreiben falls Original intern erneut aufruft
+      const backup = window.buildSceneJson;
+      window.buildSceneJson = () => sceneJson;
+      try {
+        return await orig.apply(this, args);
+      } finally {
+        window.buildSceneJson = backup;
+      }
+    };
+  }
+})();
+</script>
+
+
+<style id="patch-minstage">
+/* --- ARea Editor Runtime Patch: guard zero-sized stage/viewport --- */
+#stage { min-width: 320px; min-height: 240px; }
+#viewport { min-width: 320px; min-height: 240px; }
+canvas { display:block; }
+</style>
+
+  <!-- Minimal Config -->
+<script>
+  window.__AREA = {
+    PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish",
+    FILE_BASE:       "https://area-publish.area-webar.workers.dev",
+    PUBLISH_KEY: "",
+    VIEWER_BASE: "https://area-viewer.pages.dev"
+  };
+</script>
+
+<script>
+/* Original-GLB Passthrough für Publish (mit Guard gegen Duplikate) */
+(function(){
+  const AREA = (window.__AREA = window.__AREA || {});
+  if (AREA.__fetchPatchApplied) return;              // Guard: Duplikate stoppen
+  AREA.__fetchPatchApplied = true;
+
+  // __origGlb nicht hart resetten, vorhandenen Puffer respektieren
+  if (typeof AREA.__origGlb === 'undefined') AREA.__origGlb = null;
+
+  const fileGlbInput = document.getElementById('file-glb');
+  if (fileGlbInput && !AREA.__glbInputHooked) {
+    AREA.__glbInputHooked = true;
+    fileGlbInput.addEventListener('change', async (ev)=>{
+      try{
+        const f = ev.target.files && ev.target.files[0];
+        if (!f) return;
+        AREA.__origGlb = await f.arrayBuffer();
+        console.log('[editor] Original GLB gepuffert (Datei):', f.name, AREA.__origGlb.byteLength, 'Bytes');
+      }catch(e){ console.warn('[editor] GLB-Puffer fehlgeschlagen:', e); }
+    });
+  }
+
+  AREA.rememberOriginalGlbFromUrl = AREA.rememberOriginalGlbFromUrl || (async function(glbUrl){
+    try{
+      if (!/^https?:\/\//i.test(glbUrl)) return;
+      const r = await fetch(glbUrl, { mode:'cors', credentials:'omit' });
+      if (!r.ok){ console.warn('[editor] GLB-URL fetch fehlgeschlagen:', r.status, r.statusText); return; }
+      AREA.__origGlb = await r.arrayBuffer();
+      console.log('[editor] Original GLB gepuffert (URL):', glbUrl, AREA.__origGlb.byteLength, 'Bytes');
+    }catch(e){ console.warn('[editor] GLB-URL Puffer fehlgeschlagen:', e); }
+  });
+
+  window.hasAnimationsInGlbBlob = window.hasAnimationsInGlbBlob || (async function(blob){
+    try{
+      const ab = await blob.arrayBuffer();
+      const dv = new DataView(ab);
+      if (dv.getUint32(0, true) !== 0x46546c67) return false; // 'glTF'
+      if (dv.getUint32(4, true) < 2) return false; // version
+      const jsonLength = dv.getUint32(12, true);
+      const jsonType   = dv.getUint32(16, true);
+      if (jsonType !== 0x4E4F534A) return false; // 'JSON'
+      const jsonStr = new TextDecoder().decode(new Uint8Array(ab, 20, jsonLength));
+      try {
+        const j = JSON.parse(jsonStr);
+        return Array.isArray(j.animations) && j.animations.length > 0;
+      } catch {
+        return /"animations"\s*:\s*\[/.test(jsonStr);
+      }
+    }catch(e){
+      console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
+      return false;
+    }
+  });
+
+  const _origFetch = window.fetch.bind(window);
+  window.fetch = async (input, init)=>{
+    if (!init) init = {};
+    const method = init.method ? String(init.method).toUpperCase() : 'GET';
+    if (method !== 'POST') return _origFetch(input, init);
+    if (!(init.body instanceof FormData)) return _origFetch(input, init);
+    if (!AREA.__origGlb) return _origFetch(input, init);
+    try{
+      let urlString = '';
+      if (typeof input === 'string') urlString = input;
+      else if (input && typeof input.url === 'string') urlString = input.url;
+      else return _origFetch(input, init);
+      const urlObj = new URL(urlString, location.href);
+      if (urlObj.pathname !== '/publish') return _origFetch(input, init);
+
+      const fdOld = init.body;
+      const fdNew = new FormData();
+      let exporterSceneGlb = null;
+      for (const [k,v] of fdOld.entries()){
+        if (k === 'file' && v && typeof v.name === 'string' && /scene\.glb$/i.test(v.name||'')){
+          exporterSceneGlb = v;
+          continue;
+        }
+        fdNew.append(k,v);
+      }
+      let chosenGlb;
+      if (!exporterSceneGlb){
+        chosenGlb = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
+        console.log('[editor] Publish: Original scene.glb angehängt (', AREA.__origGlb.byteLength, 'Bytes )');
+      } else {
+        const hasAnim = await window.hasAnimationsInGlbBlob(exporterSceneGlb);
+        chosenGlb = hasAnim ? exporterSceneGlb : new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
+        console.log('[editor] Publish: ', hasAnim ? 'Exporter-GLB mit animations[]' : 'Fallback auf Original-GLB');
+      }
+      fdNew.append('file', chosenGlb, 'scene.glb');
+      init = { ...init, body: fdNew };
+    }catch(e){
+      console.warn('[editor] fetch wrapper warn:', e);
+      return _origFetch(input, init);
+    }
+    return _origFetch(input, init);
+  };
+
+  try {
+    const btnClear = document.getElementById('btn-clear');
+    if (btnClear && !AREA.__clearHooked){
+      AREA.__clearHooked = true;
+      btnClear.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    }
+    const btnNew = document.getElementById('btn-new');
+    if (btnNew && !AREA.__newHooked){
+      AREA.__newHooked = true;
+      btnNew.addEventListener('click', ()=>{ AREA.__origGlb = null; });
+    }
+  }catch(_){}
+})();
+</script>
+
+<script>
+/* scene.json Export / buildSceneJson (Guard gegen Duplikate) */
+(function(){
+  const AREA = (window.__AREA = window.__AREA || {});
+  if (AREA.__sceneJsonPatched) return; // Guard: nur erste Instanz
+  AREA.__sceneJsonPatched = true;
+
+  AREA.scene = AREA.scene || {};
+
+  function val(sel, def=''){ const el=document.querySelector(sel); return (el && 'value' in el) ? (el.value ?? def) : def; }
+  function chk(sel, def=false){ const el=document.querySelector(sel); return (el && 'checked' in el) ? !!el.checked : def; }
+  function num(sel, def){ const v = parseFloat(val(sel, String(def))); return Number.isFinite(v) ? v : def; }
+  function file(sel){ return (document.querySelector(sel)?.files?.[0]) || null; }
+
+  window.buildSceneJson = function buildSceneJson(){
+    const s  = (AREA.scene = AREA.scene || {});
+    const a  = (s.animation = s.animation || {});
+    const au = (s.audio = s.audio || {});
+    const ui = (s.ui = s.ui || {});
+    const wl = (ui.welcome = ui.welcome || {});
+
+    a.clipName   = (val('#animClip', '*') || '*').trim();
+    a.start      = (val('#animStart', 'onPlace') || 'onPlace');
+
+    const loopVal = document.getElementById('animLoop')?.value || 'repeat';
+    a.loop       = (loopVal === 'repeat');
+    a.iterations = Math.max(1, parseInt(document.getElementById('animRepeats')?.value || '9999', 10));
+
+    au.autoplay  = val('#audioAutoplay', 'withAnimation') || 'withAnimation';
+    au.loop      = (document.querySelector('#audioLoop') ? chk('#audioLoop', true) : true);
+    au.volume    = Math.max(0, Math.min(1, document.querySelector('#audioVolume') ? num('#audioVolume', 0.85) : 0.85));
+
+    wl.eyebrow   = val('#svEyebrow', '');
+    wl.title     = val('#svTitle',  (s.meta?.title || 'ARea Scene'));
+    wl.desc      = val('#svDesc',   'Tippe auf OK und platziere das 3D‑Objekt.');
+    wl.nativeCta = val('#nativeCta', 'ios-only') || 'ios-only';
+
+    const posterF = file('#file-poster');
+    const audioF  = file('#file-audio');
+    const usdzF   = file('#fileUsdz');
+
+    s.meta = s.meta || {};
+    s.meta.title = wl.title;
+    s.meta.description = wl.desc;
+    s.meta.mode = 'area-viewer';
+
+    s.model = s.model || {};
+    s.model.url = 'scene.glb';
+    if (usdzF) s.model.usdzUrl = 'model.usdz';
+    s.model.scale = (typeof s.model.scale === 'number') ? s.model.scale : 1.0;
+
+    if (posterF) wl.poster = posterF.name;
+    if (audioF)  au.url    = audioF.name;
+
+    s.animation = a;
+    s.audio = au;
+    s.ui = ui;
+
+    return JSON.parse(JSON.stringify(s));
+  };
+
+  if (typeof buildViewerEntryForMode !== 'function') {
+    window.buildViewerEntryForMode = function(mode){
+      const map = {
+        'surface-webxr':      '/surface-ar/webxr.html',
+        'native':             '/surface-ar/index.html',
+        'image':              '/image-ar/viewer.html',
+        'scene-viewer':       '/scene-viewer/index.html',
+        'surface-guided':     '/surface-ar/guided.html',
+        'surface-area-viewer':'/surface-ar/area-viewer.html'
+      };
+      return map[mode] || '/surface-ar/area-viewer.html';
+    };
+  }
+
+  if (typeof buildRobustViewerUrl !== 'function') {
+    window.buildRobustViewerUrl = function({ mode, sceneId, workerOrigin, viewerBase }){
+      const entry = buildViewerEntryForMode(mode);
+      const u = new URL(entry, viewerBase);
+      const glbUrl = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.glb`;
+      u.searchParams.set('glb', glbUrl);
+      u.searchParams.set('scene', sceneId);
+      u.searchParams.set('base', workerOrigin);
+      if (mode === 'native') u.searchParams.set('force','native');
+      return u.toString();
+    };
+  }
+
+  try {
+    const btn = document.getElementById('btn-publish');
+    btn && btn.addEventListener('click', (ev)=>{ ev.preventDefault(); window.publishScene?.(); });
+  }catch(_){}
+})();
+</script>
+
+<!-- ===================================================================== -->
+<!-- === PATCH BLÖCKE (Drop-In) ========================================= -->
+<!-- ===================================================================== -->
+
+<script type="module">
+/* === FINAL WIRING: Projekt-Menü, Buttons, Theme-Toggle, Three-Sync === */
+(() => {
+  const $ = s => document.querySelector(s);
+
+  // Projekt-Menü (öffnet nach unten) + Outside-Click
+  const menu = $('#projectMenu');
+  const btn  = $('#btn-project-menu');
+  function toggleMenu(e){ e?.preventDefault(); menu?.classList.toggle('open'); btn?.setAttribute('aria-expanded', String(menu?.classList.contains('open'))); }
+  btn?.addEventListener('click', toggleMenu);
+  document.addEventListener('click', (e)=>{ if(menu && btn && !menu.contains(e.target) && e.target!==btn){ menu.classList.remove('open'); btn.setAttribute('aria-expanded','false'); } });
+
+  // Menü-Buttons
+  $('#btn-new')?.addEventListener('click', ()=>{ 
+    if (confirm('Neues Projekt starten? Nicht gespeicherte Änderungen gehen verloren.')) { 
+      document.getElementById('btn-clear')?.click(); 
+      (window.setProjectName||(()=>{}))('Unbenanntes Projekt'); 
+    }
+  });
+  $('#file-project')?.addEventListener('change', (ev)=>{
+    const f = ev.target.files?.[0];
+    ev.target.value = '';
+    if (f) (window.importProjectFile||(()=>{}))(f);
+  });
+  $('#btn-save')?.addEventListener('click', ()=> (window.saveProject||(()=>{}))());
+  $('#btn-save-as')?.addEventListener('click', ()=> (window.saveProject||(()=>{}))({saveAs:true}));
+  $('#btn-preview')?.addEventListener('click', ()=> (window.previewModules||(()=>{}))());
+  $('#btn-preview-draft')?.addEventListener('click', ()=> (window.previewDraft||(()=>{}))());
+
+  // Theme-Toggle (3-Wege) inkl. Persistenz + Three-Sync
+  const radios = ['th-slate','th-aurora','th-nebula'].map(id=>document.getElementById(id));
+  function applyTheme(theme){
+    const html = document.documentElement;
+    ['theme-slate','theme-aurora','theme-nebula'].forEach(c=>html.classList.remove(c));
+    html.classList.add(theme);
+    try { localStorage.setItem('theme', theme); } catch {}
+    try { window.__applyThemeToThree?.(); } catch {}
+    const idx = { 'theme-slate':0, 'theme-aurora':1, 'theme-nebula':2 }[theme] ?? 0;
+    radios[idx] && (radios[idx].checked = true);
+  }
+  radios.forEach(r => r?.addEventListener('change', ()=> applyTheme(r.value)));
+
+  (function syncInitialTheme(){
+    const html = document.documentElement;
+    const cur = ['theme-nebula','theme-aurora','theme-slate'].find(c=>html.classList.contains(c)) || 'theme-nebula';
+    applyTheme(cur);
+  })();
+
+  // Taste "T" = Theme zyklisch wechseln (nur wenn Fokus nicht in Eingabe)
+  window.addEventListener('keydown', (e)=>{
+    if (e.key.toLowerCase() !== 't') return;
+    const el = document.activeElement;
+    const tag = (el?.tagName || '').toLowerCase();
+    if (el?.isContentEditable || ['input','textarea','select'].includes(tag)) return;
+    const order = ['theme-slate','theme-aurora','theme-nebula'];
+    const curIndex = order.findIndex(c=>document.documentElement.classList.contains(c));
+    applyTheme(order[(curIndex+1) % order.length]);
+  });
+
+  requestAnimationFrame(()=> window.__applyThemeToThree?.());
+})();
+</script>
+
+<script type="module">
+/* Optionaler Publish-Patch: Modusabhängige JSON-Auswahl */
+(() => {
+  if (typeof window.publishScene === 'function'){
+    const orig = window.publishScene;
+    window.publishScene = async function(...args){
+      const mode = document.getElementById('anchorMode')?.value || 'surface-webxr';
+      const sceneJson = (mode === 'scene-viewer' || mode === 'surface-area-viewer')
+        ? (window.buildSceneViewerJSON_CF?.() || window.buildSceneJson())
+        : window.buildSceneJson();
+      // Temporär buildSceneJson überschreiben falls Original intern erneut aufruft
+      const backup = window.buildSceneJson;
+      window.buildSceneJson = () => sceneJson;
+      try {
+        return await orig.apply(this, args);
+      } finally {
+        window.buildSceneJson = backup;
+      }
+    };
+  }
+})();
+</script>
+
       } else {
         const hasAnim = await window.hasAnimationsInGlbBlob(exporterSceneGlb);
         if (hasAnim){
