@@ -183,10 +183,6 @@ html, body { font-family: var(--ui-font); }
             mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer_icon.svg") no-repeat center / contain;
   }
 }
-
-<!-- Füge diesen CSS-Block in dein bestehendes <style>-Tag ein -->
-
-<style>
 /* ===================== FEHLENDE STYLES FÜR MENÜ & VIEWPORT ===================== */
 
 /* Viewport Container */
@@ -2726,33 +2722,22 @@ canvas { display:block; }
 
   function computeModes(){
     const v = norm(sel?.value);
+    const txt = norm(sel?.options?.[sel.selectedIndex]?.textContent);
+    const both = v + ' ' + txt;
+    const isSceneViewer = v==='scene-viewer' || txt.includes('scene viewer') || txt.includes('szene viewer');
+    const isAreaViewer  = v==='surface-area-viewer' || v==='area-viewer' || v==='surface-area' || both.includes('area-viewer') || both.includes('area viewer');
+    const isGuided      = v==='surface-guided' || txt.includes('guided');
+    return { isSceneViewer, isAreaViewer, isGuided, raw:v, label:txt };
   }
-  if (remappedClips.length > 0 && remappedClips[0]?.tracks?.length > 0){
-    console.log('[exportSceneGLB] Remapped first track:', remappedClips[0].tracks[0].name);
+  function apply(reason=''){
+    const { isSceneViewer, isAreaViewer } = computeModes();
+    if (svBlock) (isSceneViewer || isAreaViewer) ? show(svBlock,'block') : hide(svBlock);
+    if (usdzRow) isSceneViewer ? show(usdzRow,'') : hide(usdzRow);
+    /* ... weitere UI-Regeln ... */
   }
-
-  return new Promise((resolve, reject)=>{
-    exporter.parse(
-      exportRoot,
-      async (result)=>{
-        try{
-          let glbBlob;
-          if (result instanceof ArrayBuffer || ArrayBuffer.isView(result)){
-            const ab = (result instanceof ArrayBuffer) ? result : result.buffer;
-            glbBlob = new Blob([ab], { type:'model/gltf-binary' });
-          } else {
-            glbBlob = makeGLBFromJSON(result);
-          }
-          // Check if animations are present in the exported GLB
-          const hasAnim = await window.hasAnimationsInGlbBlob(glbBlob);
-          console.log('[exportSceneGLB] Exported GLB has animations:', hasAnim);
-          resolve(glbBlob);
-        }catch(e){ reject(e); }
-      },
-      { binary:true, onlyVisible:true, embedImages:true, animations: remappedClips }
-    );
-  });
-}
+  sel?.addEventListener('change',()=>apply('change'));
+  apply('init');
+})();
 
 /* === Audio-Helper: erstes Audioobjekt in der Szene finden === */
 function findFirstAudio(){
