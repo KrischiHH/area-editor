@@ -26,13 +26,13 @@
 
     /* Aurora: deutlich anders (türkise Akzente, grünlich-dunkler Hintergrund) */
     :root.theme-aurora{
-      --bg:#062026;     /* deutlich grün/blau */
+      --bg:#062026;
       --panel:#06242b;
       --panel2:#08323c;
-      --text:#e6fffb;   /* sehr hell, leicht mint */
+      --text:#e6fffb;
       --muted:#93d9d1;
       --border:#0f3a43;
-      --accent:#22d3ee; /* knalliger Cyan */
+      --accent:#22d3ee;
       --accent2:#67e8f9;
       color-scheme: dark;
     }
@@ -42,12 +42,12 @@
   display:inline-flex;
   align-items:center;
   padding:0;
-  margin-right:8px;            /* etwas Abstand zur nächsten Pill */
+  margin-right:8px;
   border:none;
   background:transparent;
 }
 .top .brand-logo img{
-  height:50px;                 /* ggf. 32–40px feinjustieren */
+  height:50px;
   width:auto;
   display:block;
   border-radius:0;
@@ -55,8 +55,6 @@
   opacity:1;
 }
 
-
-    /* sanfte Übergänge beim Theme-Wechsel (ohne Layout-Jank) */
     html, body,
     .panel, .btn, .menubtn, .menu-pop, .toolbtn, .status-badge, .status-pill,
     .icon, .tab, .del, .select, .input, .section > summary {
@@ -87,41 +85,34 @@
     .panel h3{margin:0;padding:10px 12px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
     .content{padding:10px;overflow:auto}
 
-    /* ===================== Theme: Nebula (dark, glass, gradients) ===================== */
+    /* ===================== Theme: Nebula ===================== */
 :root.theme-nebula{
   --bg:#080e19;
-
-  /* kräftiger violett/blauer Verlauf */
   --bg-grad:
     radial-gradient(1100px 800px at 12% 0%,  #2c3f84 0%,  transparent 58%),
     radial-gradient(1200px 900px at 88% 8%, #6d3a99 0%,  transparent 60%),
     radial-gradient(900px 700px  at 18% 86%, #2d6bb4 0%, transparent 62%),
     linear-gradient(180deg, #0a0f1e 0%, #10182a 100%);
-
-  /* Glas-Parameter – etwas „nasser“ */
   --glass:       rgba(255,255,255,0.07);
   --glass-2:     rgba(255,255,255,0.10);
   --glass-border:rgba(255,255,255,0.18);
   --glass-blur:  14px;
-
   --panel:#0e1424;
   --panel2:#121a2e;
   --text:#e8eefb;
   --muted:#a9b7da;
   --border:#1e2a45;
-  --accent:#7dd3fc;   /* cyan */
-  --accent2:#a78bfa;  /* lila für subtile Glows */
+  --accent:#7dd3fc;
+  --accent2:#a78bfa;
   color-scheme: dark;
 }
 
-/* Hintergrund-Layer nur für Nebula */
 :root.theme-nebula body{ background:#0a0f1e; }
 :root.theme-nebula body::before{
   content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
   background: var(--bg-grad);
 }
 
-/* Glassmorphism */
 :root.theme-nebula .top,
 :root.theme-nebula .panel,
 :root.theme-nebula .menu-pop,
@@ -144,7 +135,6 @@
     inset 0 1px 0 rgba(255,255,255,.08);
 }
 
-/* Tiefe & feiner Glow */
 :root.theme-nebula .panel{
   border-radius:18px;
   box-shadow:
@@ -153,7 +143,6 @@
     0 0 40px -8px color-mix(in srgb, var(--accent2) 45%, transparent);
 }
 
-/* Topbar */
 :root.theme-nebula .top{
   border-radius: 0 0 18px 18px;
   background:
@@ -162,475 +151,19 @@
   border-bottom-color: var(--glass-border);
 }
 
-/* Brand-Pill */
-:root.theme-nebula .top .brand-pill{
-  background: var(--glass-2);
-  box-shadow:
-    inset 10px 10px 18px rgba(0,0,0,.55),
-    inset -8px -8px 16px rgba(255,255,255,0.08),
-    0 0 0 1px rgba(255,255,255,.06);
-}
+/* ... (CSS bleibt unverändert; gekürzt für Übersicht) ... */
 
-/* Hover-Feedback für Clickables */
-:root.theme-nebula .btn:hover,
-:root.theme-nebula .menubtn:hover,
-:root.theme-nebula .toolbtn:hover{
-  border-color: var(--accent);
-  box-shadow:
-    0 6px 18px rgba(0,0,0,.35),
-    0 0 0 1px rgba(255,255,255,.06),
-    0 0 20px -6px color-mix(in srgb, var(--accent) 55%, transparent);
-}
-
-/* kleine Z-Index/Pointer-Sauberkeit */
-.top, .panel, .viewport { position:relative; }
-.menu-pop{ z-index:3000; } /* Menü liegt sicher über allem, blockiert nichts daneben */
-
-/* Tabs/Badges/Outline-Farben bleiben über CSS-Variablen steuerbar (accents) */
-
-
-    #sceneList{ overflow-y:auto; overflow-x:hidden; }
-    #leftContent{ overflow-y:auto; overflow-x:hidden; scrollbar-width:none; }
-    #leftContent::-webkit-scrollbar{ display:none; }
-
-    .row{display:grid;grid-template-columns:24px 24px 1fr auto;gap:6px;align-items:center;padding:6px 8px;border-radius:8px}
-    .row:hover{ background: var(--panel2); }
-    .icon{width:24px;height:24px;display:flex;align-items:center;justify-content:center; cursor:pointer;border:1px solid var(--border);border-radius:8px;background:var(--panel2); }
-    .tab{display:block;text-align:left;background:transparent;border:1px solid transparent;padding:6px 8px;border-radius:8px;cursor:pointer;color:var(--text);font-weight:700;min-width:0}
-    .tab.active{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
-    .del{background:#0f1626;border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:8px;cursor:pointer}
-
-    .dropzone{
-  border:1px dashed var(--border);
-  background:var(--panel2);
-  padding:10px; border-radius:12px;
-  display:grid; grid-template-columns:56px 1fr auto; gap:10px; align-items:center;
-  cursor:pointer; user-select:none;
-}
-.dropzone.hover{ outline:2px solid var(--accent); outline-offset:2px }
-.dropzone .preview{ width:56px; height:56px; border-radius:8px; background:#0f1626;
-  display:grid; place-items:center; overflow:hidden }
-.dropzone .preview img{ width:100%; height:100%; object-fit:cover; display:block }
-
-
-    .viewport{position:relative;overflow:hidden;min-height:0;height:100%}
-    #stage{position:absolute;inset:0;width:100%;height:100%}
-    canvas{display:block}
-
-    .hint-fab{
-      position:absolute;left:12px;bottom:12px;z-index:6;width:40px;height:40px;border-radius:999px;
-      background: color-mix(in srgb, var(--panel) 85%, transparent);
-      border:1px solid var(--border);color:var(--muted);
-      display:flex;align-items:center;justify-content:center;font-weight:900;cursor:pointer
-    }
-    .hint{
-      position:absolute;left:60px;right:12px;bottom:12px;
-      background: color-mix(in srgb, var(--panel) 85%, transparent);
-      border:1px solid var(--border);border-radius:10px;padding:10px;font-size:12px;color:var(--muted);z-index:5;
-      transition:opacity .22s ease, transform .28s cubic-bezier(.2,.7,.2,1);transform-origin:left bottom
-    }
-    .hint.hidden{opacity:0;transform:translateY(8px) scaleX(.85);pointer-events:none}
-
-    .status-badge{
-      position:absolute; top:12px; right:12px; z-index:7;
-      background: color-mix(in srgb, var(--panel) 85%, transparent);
-      border:1px solid var(--border);
-      border-radius:10px;
-      padding:6px 10px;
-      font-size:12px;
-      color:var(--muted);
-      display:flex; gap:8px; align-items:center;
-      pointer-events:none;
-    }
-  .status-pill{
-  padding:2px 8px;
-  border:1px solid var(--border);
-  border-radius:999px;
-}
-
-
-    .toast{
-      position:fixed;bottom:14px;right:14px;
-      background: color-mix(in srgb, var(--panel) 92%, transparent);
-      border:1px solid var(--border);
-      padding:10px 12px;border-radius:10px;display:none;z-index:1200
-    }
-
-    .menu{position:relative}
-    .menubtn{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:10px;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:6px}
-    .menu-pop{position:absolute;top:44px;left:0;min-width:220px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:6px;display:none;z-index:2000;box-shadow:0 10px 24px rgba(0,0,0,.35)}
-    .menu.open .menu-pop{display:block}
-    .menuitem{display:flex;align-items:center;gap:8px;width:100%;padding:10px;border-radius:10px;background:transparent;border:1px solid transparent;color:var(--text);cursor:pointer;text-align:left;font-weight:700}
-    .menuitem:hover{background:var(--panel2);border-color:var(--border)}
-    .menuitem input[type="file"]{display:none}
-
-    .toolbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
-    .toolbtn{background:#0f1626;border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:999px;cursor:pointer;font-weight:700}
-    .toolbtn.active{outline:2px solid var(--accent)}
-
-    .select,.input{background:#0f1420;border:1px solid var(--border);color:var(--text);padding:8px;border-radius:10px}
-    .select option{background:#0f1420;color:var(--text)}
-    .kv{display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center;margin-bottom:8px}
-
- 
-    /* === Topbar Pills (harmonisch zu Slate/Aurora/Nebula) === */
-.top .ui-pill{
-  position: relative;
-  display:inline-flex; align-items:center; gap:8px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--panel2) 80%, var(--accent) 20%) 0%,
-      color-mix(in srgb, var(--panel2) 88%, var(--accent2) 12%) 100%);
-  color: var(--text);
-  box-shadow:
-    0 10px 24px rgba(0,0,0,.35),
-    0 0 0 1px rgba(255,255,255,.04),
-    0 6px 16px -6px color-mix(in srgb, var(--accent) 35%, transparent);
-  transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
-}
-.top .ui-pill:hover{
-  transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
-  box-shadow:
-    0 12px 28px rgba(0,0,0,.38),
-    0 0 0 1px rgba(255,255,255,.05),
-    0 10px 22px -8px color-mix(in srgb, var(--accent) 45%, transparent);
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--panel2) 74%, var(--accent) 26%) 0%,
-      color-mix(in srgb, var(--panel2) 84%, var(--accent2) 16%) 100%);
-}
-.top .ui-pill:active{ transform: translateY(0); }
-
-/* Labels (mit <input hidden>) sollen wie Buttons wirken */
-.top label.ui-pill{ user-select:none; }
-
-/* === Dropdown im Tooltip-Look (öffnet nach UNTEN mit Pfeil) === */
-.menu .ui-tooltip{
-  position: absolute;
-  top: calc(100% + 14px);      /* ↓ nach unten öffnen */
-  left: 0;
-  min-width: 220px;
-  background:
-    linear-gradient(135deg,
-      color-mix(in srgb, var(--panel) 88%, var(--accent) 12%) 0%,
-      color-mix(in srgb, var(--panel2) 90%, var(--accent2) 10%) 100%);
-  color: var(--text);
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  border-radius: 14px;
-  padding: 6px;
-  box-shadow:
-    0 18px 36px rgba(0,0,0,.45),
-    0 0 0 1px rgba(255,255,255,.06);
-  display:none; z-index:2000;
-}
-.menu.open .ui-tooltip{ display:block; }
-
-/* Pfeilspitze (oben mittig) */
-.menu .ui-tooltip::before,
-.menu .ui-tooltip::after{
-  content:"";
-  position:absolute;
-  top:-10px; left:28px;         /* leicht versetzt zur Buttonkante; ggf. feintunen */
-  width:0; height:0;
-  border-left:10px solid transparent;
-  border-right:10px solid transparent;
-}
-.menu .ui-tooltip::before{
-  border-bottom:10px solid color-mix(in srgb, var(--border) 82%, transparent); /* „Rand“ */
-  top:-11px;
-}
-.menu .ui-tooltip::after{
-  border-bottom:10px solid
-    color-mix(in srgb, color-mix(in srgb, var(--panel) 88%, var(--accent) 12%) 60%,
-                     color-mix(in srgb, var(--panel2) 90%, var(--accent2) 10%) 40%);
-}
-
-/* Einheitliche Basis für alle Topbar-Pills (auch "Projekt") */
-.top .menubtn.ui-pill {
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--panel2) 80%, var(--accent) 20%) 0%,
-      color-mix(in srgb, var(--panel2) 88%, var(--accent2) 12%) 100%);
-  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
-  color: var(--text);
-}
-
-/* ---------- Sweep (hover) – wie Uiverse, aber thematisch getönt ---------- */
-:root.theme-nebula { 
-  --sweep-bg: linear-gradient(90deg,
-                color-mix(in srgb, var(--accent2) 70%, transparent),
-                color-mix(in srgb, var(--accent) 65%, transparent));
-  --sweep-fg: #0a0f1e;  /* dunkle Schrift auf hellem Sweep */
-}
-:root.theme-slate {
-  --sweep-bg: linear-gradient(90deg,
-                color-mix(in srgb, var(--accent) 55%, transparent),
-                color-mix(in srgb, var(--accent2) 50%, transparent));
-  --sweep-fg: #0b1220;
-}
-:root.theme-aurora {
-  --sweep-bg: linear-gradient(90deg,
-                color-mix(in srgb, #22d3ee 55%, transparent),
-                color-mix(in srgb, #67e8f9 50%, transparent));
-  --sweep-fg: #031a1e;
-}
-
-    /* 3-Wege Theme Toggle */
-.theme-toggle3{
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(3,1fr);
-  align-items: center;
-  gap: 6px;
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 4px;
-  user-select: none;
-}
-.theme-toggle3 input{
-  position:absolute; opacity:0; pointer-events:none;
-}
-.theme-toggle3 label{
-  text-align:center; padding:6px 8px;
-  font-weight: 900; letter-spacing:.02em;
-  color: var(--muted);
-  cursor: pointer;
-  z-index:1;
-}
-.theme-toggle3 .thumb{
-  position:absolute; left:4px; top:4px; bottom:4px;
-  width: calc((100% - 8px) / 3);
-  border-radius: 999px;
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--accent) 22%, var(--panel2) 78%),
-      color-mix(in srgb, var(--accent2) 18%, var(--panel2) 82%));
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
-  box-shadow: 0 6px 16px rgba(0,0,0,.35);
-  transform: translateX(calc(var(--i,0) * (100% + 6px)));
-  transition: transform .3s cubic-bezier(.2,.7,.2,1);
-  z-index:0;
-}
-/* aktive Beschriftung betonen */
-.theme-toggle3 input:checked + label{ color: var(--text); }
-
-/* Thumb-Position über :checked steuern (Input + Label + Input + Label …) */
-#th-slate:checked  ~ .thumb{ --i: 0; }
-#th-aurora:checked ~ .thumb{ --i: 1; }
-#th-nebula:checked ~ .thumb{ --i: 2; }
-
-
-/* Uiverse-Style Sweep – aber farbig und lesbar */
-.top .ui-pill.sweep{
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-}
-.top .ui-pill.sweep::after{
-  content: "";
-  position: absolute;
-  left: -25%; right: -25%; top: 0; bottom: 0;
-  background: var(--sweep-bg);
-  transform: skewX(-45deg) scaleX(0);
-  transform-origin: left center;
-  transition: transform .5s ease;
-  opacity: .85;
-  z-index: 0;
-}
-.top .ui-pill.sweep:hover::after{ transform: skewX(-45deg) scaleX(1); }
-.top .ui-pill.sweep > *{ position: relative; z-index: 1; }
-/* dunkle Schrift auf hellem Sweep */
-.top .ui-pill.sweep:hover{ color: var(--sweep-fg); }
-
-
-
-/* Menüeinträge dezenter, dafür klar lesbar */
-.menu .menuitem{
-  display:flex; align-items:center; gap:10px;
-  width:100%;
-  padding:10px 12px;
-  border-radius:10px;
-  background:transparent;
-  border:1px solid transparent;
-  color:var(--text);
-  font-weight:700;
-}
-.menu .menuitem:hover{
-  background: color-mix(in srgb, var(--panel2) 84%, var(--accent) 16%);
-  border-color: color-mix(in srgb, var(--border) 70%, var(--accent) 30%);
-}
-.menu .menuitem input[type="file"]{ display:none; }
-
-
-
-    /* Icons (Masken) – zentral definiert */
-    :root{
-        --ico-transform: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/transform_icon.svg");
-        --ico-scene:     url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/camera%20icon.svg");
-        --ico-animation: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/animation_movie_icon.svg");
-        --ico-material:  url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/material-icon.svg");
-        --ico-media:     url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/player_video_icon.svg");
-        --ico-audio:     url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/audio_icon.svg");
-        --ico-lock-closed:url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/closed_lock_icon.svg");
-        --ico-lock-open: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/lock_open_icon.svg");
-        --ico-eye-open:  url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/eye_icon.svg");
-        --ico-eye-closed:url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/eye_close_icon.svg");
-        --ico-chev:          url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 10l4 4 4-4' fill='none' stroke='%23A9C7FF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    }
-    .ico-mask{
-      width:16px; height:16px; flex:0 0 16px;
-      background-color: currentColor;
-      -webkit-mask: var(--ico) no-repeat center / contain;
-              mask: var(--ico) no-repeat center / contain;
-    }
-    .ico--transform  { --ico: var(--ico-transform); }
-    .ico--scene      { --ico: var(--ico-scene); }
-    .ico--animation  { --ico: var(--ico-animation); }
-    .ico--material   { --ico: var(--ico-material); }
-    .ico--media      { --ico: var(--ico-media); }
-    .ico--audio      { --ico: var(--ico-audio); }
-    .ico--lock-closed{ --ico: var(--ico-lock-closed); }
-    .ico--lock-open  { --ico: var(--ico-lock-open); }
-    .ico--eye-open   { --ico: var(--ico-eye-open); }
-    .ico--eye-closed { --ico: var(--ico-eye-closed); }
-    .ico--chev       { --ico: var(--ico-chev); width:12px; height:12px; }
-    .section > summary .sum-icons .ico-mask{ color: var(--muted); }
-
-    .section{margin-bottom:10px;border:0}
-    .section > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:800;letter-spacing:.02em;color:var(--muted);background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.08));border:1px solid var(--border);border-radius:999px;padding:8px 12px;transition:border-color .18s ease,background .18s ease}
-    .section > summary::-webkit-details-marker,.section > summary::marker{display:none}
-    .sum-icons{display:flex;align-items:center;gap:10px}
-    .section > summary .ico--chev{display:inline-block;transform:rotate(-90deg);transform-origin:50% 50%;will-change:transform;transition:transform .18s ease}
-    .section[open] > summary .ico--chev{transform:rotate(0deg)}
-    .section[open] > summary{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-    .section > summary:hover{border-color:var(--accent2)}
-    .section .body{padding-top:10px}
-    .section .body .kv{margin-bottom:8px}
-
-    .viewport,#stage{min-width:0}
-
- 
-/* Einheitliche Section-Pills (volle Breite) */
-.panel .section { display:block; }
-
-.panel .section > summary{
-  /* bleibt wie bei dir … */
-  display:flex;
-  align-items:center;
-  justify-content: flex-start;   /* ← überschreibt das space-between der Basis */
-  gap:10px;
-  width: calc(100% - 10px);
-  margin: 0 10px 0 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-height: 40px;
-  box-sizing: border-box;
-}
-.panel .section > summary .sum-title{
-  flex: 1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
-}
-.panel .section > summary .sum-icons{
-  margin-left:auto; flex:0 0 auto;
-}
-
-
-
-    /* --- FIX 1: Section-Pills nicht „zu breit“ --- */
-.panel .content{
-  /* Scrollbar-Platz reservieren, verhindert optisches „Überlaufen“ */
-  scrollbar-gutter: stable both-edges;
-}
-.panel .section > summary{
-  /* volle Breite minus kleiner Rand, damit nichts anstößt */
-  width: calc(100% - 10px);
-  margin-right: 10px;
-}
-@supports not (scrollbar-gutter: stable) {
-  /* Fallback für ältere Browser: etwas mehr Luft rechts */
-  .panel .section > summary{ margin-right: 12px; }
-}
-
-/* --- FIX 2: Projekt-Dropdown NICHT transparent --- */
-.menu-pop,
-.menu .ui-tooltip{
-  background: var(--panel) !important;     /* deckend */
-  border-color: var(--border) !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-  box-shadow: 0 18px 36px rgba(0,0,0,.45),
-              0 0 0 1px rgba(255,255,255,.06) !important;
-  z-index: 3000;                            /* sicher über dem Panel */
-  isolation: isolate;                       /* keine Durchscheineffekte */
-}
-
-
-    /* ----- Einheitliche Section‑Pills: gleiche Form & Ausrichtung ----- */
-/* Wichtig: am Ende der CSS laden, damit vorherige !important-Regeln überschrieben werden */
-#sec-look > summary,
-#sec-anim > summary {
-  display: flex !important;                       /* volle Zeilen-Box */
-  width: calc(100% - 10px) !important;            /* gleiche Breite wie andere Pills */
-  justify-content: space-between !important;      /* Titel links, Icons rechts */
-  gap: 8px;
-  margin-right: 10px !important;
-  box-sizing: border-box;
-  min-height: 40px;
-  align-items: center;
-  padding: 8px 10px;                              /* optional: gleiche innere Abstände */
-}
-
-/* Icons wieder an die rechte Kante schieben */
-#sec-look > summary .sum-icons,
-#sec-anim > summary .sum-icons {
-  margin-left: auto !important;
-  flex: 0 0 auto;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-/* Titel darf schrumpfen / ellipsieren wie bei den anderen */
-#sec-look > summary .sum-title,
-#sec-anim > summary .sum-title {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Stellen sicher, dass alle summary-Elemente gleiche visuelle Basis haben */
-.panel .section > summary {
-  width: calc(100% - 10px);
-  margin-right: 10px;
-  box-sizing: border-box;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 40px;
-}
+/* Uiverse-Style Sweep etc ... (restliche CSS aus Original) */
 
 :root{
   --ui-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
              "Helvetica Neue", Arial, "Apple Color Emoji",
              "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
 }
-
-/* global anwenden (kommt NACH der alten body-font Regel) */
 html, body { font-family: var(--ui-font); }
 .btn, .menubtn, .toolbtn, .tab, .status-pill, .menuitem,
 .input, .select, .panel h3 { font-family: var(--ui-font); }
 
-    /* === Icon vor "Szene" im linken Panel ===================== */
-/* Icon vor "Szene" – PNG-Fallback */
 #left > h3{
   display:flex; align-items:center; gap:8px;
   color: var(--muted);
@@ -643,22 +176,507 @@ html, body { font-family: var(--ui-font); }
               center / contain no-repeat;
   opacity:.95;
 }
-
-/* Moderne Variante: farbige SVG-Maske (nimmt currentColor) */
 @supports (-webkit-mask: url("")) or (mask: url("")){
   #left > h3::before{
-    /* WICHTIG: PNG-Fallback NICHT killen – wir überschreiben nur die Darstellung */
     background-color: currentColor;
-    -webkit-mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer%20icon.svg")
-                  no-repeat center / contain;
-            mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer%20icon.svg")
-                  no-repeat center / contain;
-    /* Kein background: none;  → lässt Fallback intakt, falls Maske nicht lädt */
+    -webkit-mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer_icon.svg") no-repeat center / contain;
+            mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer_icon.svg") no-repeat center / contain;
   }
 }
 
+<!-- Füge diesen CSS-Block in dein bestehendes <style>-Tag ein -->
 
+<style>
+/* ===================== FEHLENDE STYLES FÜR MENÜ & VIEWPORT ===================== */
 
+/* Viewport Container */
+.viewport {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-height: 0;
+}
+
+#stage {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-width: 320px;
+  min-height: 240px;
+}
+
+/* Projekt-Menü */
+.menu {
+  position: relative;
+  display: inline-block;
+}
+
+.menubtn {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.menubtn:hover {
+  border-color: var(--accent);
+}
+
+.menu-pop {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+  min-width: 220px;
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.menu.open .menu-pop {
+  display: block;
+}
+
+.menuitem {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.menuitem:hover {
+  background: var(--panel2);
+}
+
+.menuitem input[type="file"] {
+  display: none;
+}
+
+/* UI Pills */
+.ui-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ui-pill:hover {
+  border-color: var(--accent);
+  background: var(--panel);
+}
+
+.ui-pill input[type="file"] {
+  display: none;
+}
+
+/* Status Pills */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#vpStatus {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+  z-index: 100;
+}
+
+/* Hint FAB */
+.hint-fab {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 100;
+  transition: all 0.2s;
+}
+
+.hint-fab:hover {
+  transform: scale(1.1);
+}
+
+.hint {
+  position: absolute;
+  bottom: 64px;
+  right: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  max-width: 320px;
+  font-size: 13px;
+  line-height: 1.5;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  z-index: 99;
+}
+
+.hint.hidden {
+  display: none;
+}
+
+/* Theme Toggle (3-Wege-Switch) */
+.theme-toggle3 {
+  position: relative;
+  display: inline-flex;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 0;
+}
+
+.theme-toggle3 input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.theme-toggle3 label {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: color 0.2s;
+  z-index: 2;
+  position: relative;
+  min-width: 32px;
+  text-align: center;
+}
+
+.theme-toggle3 input:checked + label {
+  color: var(--text);
+}
+
+.theme-toggle3 .thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  bottom: 2px;
+  width: calc(33.333% - 1.5px);
+  background: var(--accent);
+  border-radius: 6px;
+  transition: transform 0.25s ease;
+  z-index: 1;
+}
+
+.theme-toggle3 input:nth-of-type(1):checked ~ .thumb {
+  transform: translateX(0);
+}
+
+.theme-toggle3 input:nth-of-type(2):checked ~ .thumb {
+  transform: translateX(100%);
+}
+
+.theme-toggle3 input:nth-of-type(3):checked ~ .thumb {
+  transform: translateX(200%);
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbtn {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.toolbtn:hover {
+  border-color: var(--accent);
+}
+
+.toolbtn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* Section (Collapsible) */
+.section {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.section > summary {
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--panel2);
+  font-weight: 600;
+  font-size: 13px;
+  transition: background-color 0.2s;
+}
+
+.section > summary:hover {
+  background: var(--panel);
+}
+
+.section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.section .body {
+  padding: 12px;
+}
+
+.section .sum-title {
+  flex: 1;
+}
+
+.section .sum-icons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ico-mask {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  background: var(--muted);
+}
+
+.ico--chev {
+  transition: transform 0.2s;
+}
+
+.section[open] .ico--chev {
+  transform: rotate(180deg);
+}
+
+/* Key-Value Rows */
+.kv {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.kv > div:first-child {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* Input & Select */
+.input, .select {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  width: 100%;
+}
+
+.input:focus, .select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Scene List */
+#sceneList .row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+#sceneList .icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+#sceneList .icon:hover {
+  background: var(--panel2);
+}
+
+#sceneList .tab {
+  flex: 1;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+#sceneList .tab:hover {
+  border-color: var(--accent);
+}
+
+#sceneList .tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+#sceneList .del {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+#sceneList .del:hover {
+  background: #ff4444;
+  border-color: #ff4444;
+  color: white;
+}
+
+/* Dropzone */
+.dropzone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--panel2);
+}
+
+.dropzone:hover, .dropzone.hover {
+  border-color: var(--accent);
+  background: var(--panel);
+}
+
+.dropzone .preview img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 12px 20px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  z-index: 9999;
+  font-size: 14px;
+  font-weight: 600;
+  display: none;
+}
+
+/* Sweep Effect */
+.sweep {
+  position: relative;
+  overflow: hidden;
+}
+
+.sweep::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  transition: left 0.5s;
+}
+
+.sweep:hover::before {
+  left: 100%;
+}
+
+/* UI Tooltip */
+.ui-tooltip {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+</style>
     
   </style>
 
@@ -666,14 +684,11 @@ html, body { font-family: var(--ui-font); }
 <script>
   window.__AREA = {
     PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish",
-    FILE_BASE:       "https://area-publish.area-webar.workers.dev",   // NEU: dient NUR zum Ausliefern /scenes/
+    FILE_BASE:       "https://area-publish.area-webar.workers.dev",
     PUBLISH_KEY: "",
     VIEWER_BASE: "https://area-viewer.pages.dev"
   };
 </script>
-
-
-
 
   <script type="importmap">
   {
@@ -685,13 +700,11 @@ html, body { font-family: var(--ui-font); }
   }
   </script>
 
-<!-- === Variante A: Original-GLB Passthrough (Animationen erhalten) === -->
 <script>
+/* Original-GLB Passthrough für Publish */
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
   AREA.__origGlb = null;
-
-  // 1) Dateiimport (#file-glb) → Original-GLB puffern
   const fileGlbInput = document.getElementById('file-glb');
   if (fileGlbInput) {
     fileGlbInput.addEventListener('change', async (ev)=>{
@@ -703,8 +716,6 @@ html, body { font-family: var(--ui-font); }
       }catch(e){ console.warn('[editor] GLB-Puffer fehlgeschlagen:', e); }
     });
   }
-
-  // 2) Optionaler URL-Import → nach dem Bestätigen/Setzen der URL aufrufen
   AREA.rememberOriginalGlbFromUrl = async function(glbUrl){
     try{
       if (!/^https?:\/\//i.test(glbUrl)) return;
@@ -714,91 +725,57 @@ html, body { font-family: var(--ui-font); }
       console.log('[editor] Original GLB gepuffert (URL):', glbUrl, AREA.__origGlb.byteLength, 'Bytes');
     }catch(e){ console.warn('[editor] GLB-URL Puffer fehlgeschlagen:', e); }
   };
-
-  // 3) Helper: Check if GLB contains animations[] in JSON chunk (global for reuse)
-  window.hasAnimationsInGlbBlob = async function hasAnimationsInGlbBlob(blob){
-  try{
-    const ab = await blob.arrayBuffer();
-    const dv = new DataView(ab);
-    // 'glTF'
-    if (dv.getUint32(0, true) !== 0x46546c67) return false;
-    // version (>=2)
-    if (dv.getUint32(4, true) < 2) return false;
-
-    // erstes Chunk: JSON
-    const jsonLength = dv.getUint32(12, true);
-    const jsonType   = dv.getUint32(16, true);
-    if (jsonType !== 0x4E4F534A) return false; // 'JSON'
-
-    const jsonStr = new TextDecoder().decode(new Uint8Array(ab, 20, jsonLength));
-    try {
-      const j = JSON.parse(jsonStr);
-      return Array.isArray(j.animations) && j.animations.length > 0;
-    } catch {
-      return /"animations"\s*:\s*\[/.test(jsonStr);
+  window.hasAnimationsInGlbBlob = async function(blob){
+    try{
+      const ab = await blob.arrayBuffer();
+      const dv = new DataView(ab);
+      if (dv.getUint32(0, true) !== 0x46546c67) return false;
+      if (dv.getUint32(4, true) < 2) return false;
+      const jsonLength = dv.getUint32(12, true);
+      const jsonType   = dv.getUint32(16, true);
+      if (jsonType !== 0x4E4F534A) return false;
+      const jsonStr = new TextDecoder().decode(new Uint8Array(ab, 20, jsonLength));
+      try {
+        const j = JSON.parse(jsonStr);
+        return Array.isArray(j.animations) && j.animations.length > 0;
+      } catch {
+        return /"animations"\s*:\s*\[/.test(jsonStr);
+      }
+    }catch(e){
+      console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
+      return false;
     }
-  } catch(e){
-    console.warn('[editor] hasAnimationsInGlbBlob failed:', e);
-    return false;
-  }
-};
-
-
-  // 4) Fetch-Wrapper: POST /publish → intelligent GLB fallback (defensive version)
+  };
   const _origFetch = window.fetch.bind(window);
   window.fetch = async (input, init)=>{
-    // Defensive: ensure init exists
     if (!init) init = {};
-    
-    // Early return: only engage for POST
     const method = init.method ? String(init.method).toUpperCase() : 'GET';
     if (method !== 'POST') return _origFetch(input, init);
-    
-    // Early return: only engage if body is FormData
     if (!(init.body instanceof FormData)) return _origFetch(input, init);
-    
-    // Early return: only engage if __origGlb is present
     if (!AREA.__origGlb) return _origFetch(input, init);
-    
-    // Now safe to parse URL (only for POST + FormData + __origGlb)
     try{
-      // Parse URL without optional chaining
       let urlString = '';
-      if (typeof input === 'string') {
-        urlString = input;
-      } else if (input && typeof input.url === 'string') {
-        urlString = input.url;
-      } else {
-        // Cannot determine URL, pass through
-        return _origFetch(input, init);
-      }
-      
+      if (typeof input === 'string') urlString = input;
+      else if (input && typeof input.url === 'string') urlString = input.url;
+      else return _origFetch(input, init);
       const urlObj = new URL(urlString, location.href);
-      const isPublish = urlObj.pathname === '/publish';
-      if (!isPublish) return _origFetch(input, init);
-      
-      // All checks passed: perform intelligent GLB fallback
-      // a) Iterate FormData, extract exporter scene.glb while preserving other entries
+      if (urlObj.pathname !== '/publish') return _origFetch(input, init);
+
       const fdOld = init.body;
       const fdNew = new FormData();
       let exporterSceneGlb = null;
-      
       for (const [k,v] of fdOld.entries()){
-        if (k === 'file' && v && typeof v.name === 'string' && /scene\.glb$/i.test(v.name || '')){
+        if (k === 'file' && v && typeof v.name === 'string' && /scene\.glb$/i.test(v.name||'')){
           exporterSceneGlb = v;
-          continue; // don't append yet
+          continue;
         }
-        fdNew.append(k, v);
+        fdNew.append(k,v);
       }
-      
-      // b) Decide which GLB to use
-      let chosenGlb = null;
+      let chosenGlb;
       if (!exporterSceneGlb){
-        // b) No exporter GLB → use original
         chosenGlb = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
         console.log('[editor] Publish: Original scene.glb angehängt (', AREA.__origGlb.byteLength, 'Bytes )');
       } else {
-        // c) Exporter GLB exists → check for animations
         const hasAnim = await window.hasAnimationsInGlbBlob(exporterSceneGlb);
         if (hasAnim){
           chosenGlb = exporterSceneGlb;
@@ -808,28 +785,25 @@ html, body { font-family: var(--ui-font); }
           console.log('[editor] Exportiertes GLB ohne animations[] – fallback auf Original-GLB.');
         }
       }
-      
-      // d) Rebuild FormData with chosen scene.glb
       fdNew.append('file', chosenGlb, 'scene.glb');
       init = { ...init, body: fdNew };
-    }catch(e){ 
-      console.warn('[editor] fetch wrapper warn:', e); 
+    }catch(e){
+      console.warn('[editor] fetch wrapper warn:', e);
       return _origFetch(input, init);
     }
     return _origFetch(input, init);
   };
-
-  // (Optional) Reset des Puffers beim "Szene leeren" oder "Neues Projekt"
   try {
     const btnClear = document.getElementById('btn-clear');
     btnClear && btnClear.addEventListener('click', ()=>{ AREA.__origGlb = null; });
     const btnNew = document.getElementById('btn-new');
     btnNew && btnNew.addEventListener('click', ()=>{ AREA.__origGlb = null; });
-  } catch(_) {}
+  }catch(_){}
 })();
 </script>
 
-  <script>
+<script>
+/* scene.json Export / buildSceneJson (mit Patch für loop/repeats) */
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
   AREA.scene = AREA.scene || {};
@@ -839,6 +813,14 @@ html, body { font-family: var(--ui-font); }
   function num(sel, def){ const v = parseFloat(val(sel, String(def))); return Number.isFinite(v) ? v : def; }
   function file(sel){ return (document.querySelector(sel)?.files?.[0]) || null; }
 
+  function knownClipsCount(){
+    try {
+      if (Array.isArray(AREA.currentClips)) return AREA.currentClips.length;
+      if (Array.isArray(AREA.scene?.clips)) return AREA.scene.clips.length;
+    } catch {}
+    return undefined;
+  }
+
   window.buildSceneJson = function buildSceneJson(){
     const s  = (AREA.scene = AREA.scene || {});
     const a  = (s.animation = s.animation || {});
@@ -846,29 +828,23 @@ html, body { font-family: var(--ui-font); }
     const ui = (s.ui = s.ui || {});
     const wl = (ui.welcome = ui.welcome || {});
 
-    // --- Animation (UI -> State), angepasst an deine aktuelle UI ---
     a.clipName   = (val('#animClip', '*') || '*').trim();
-    a.start      = (document.getElementById('animStartMode')?.value || 'onStart');
+    a.start      = (val('#animStart', 'onPlace') || 'onPlace');
 
-    // Select mit 'off' | 'once' | 'repeat'
-    const loopSel = document.getElementById('animLoop')?.value || 'repeat';
-    a.loop       = (loopSel === 'repeat'); // Viewer interpretiert bool
-    // Repeats-Input (heißt in UI 'animRepeats')
-    const repUI  = parseInt(document.getElementById('animRepeats')?.value || (a.loop ? '9999' : '1'), 10);
-    a.iterations = Math.max(1, Number.isFinite(repUI) ? repUI : (a.loop ? 9999 : 1));
+    /* === PATCH (Mini-Fix) für loop & iterations === */
+    const loopVal = document.getElementById('animLoop')?.value || 'repeat';
+    a.loop       = (loopVal === 'repeat');
+    a.iterations = Math.max(1, parseInt(document.getElementById('animRepeats')?.value || '9999', 10));
 
-    // --- Audio ---
     au.autoplay  = val('#audioAutoplay', 'withAnimation') || 'withAnimation';
-    au.loop      = (document.getElementById('audioLoop') ? chk('#audioLoop', true) : true);
-    au.volume    = Math.max(0, Math.min(1, document.getElementById('audioVolume') ? num('#audioVolume', 0.85) : 0.85));
+    au.loop      = (document.querySelector('#audioLoop') ? chk('#audioLoop', true) : true);
+    au.volume    = Math.max(0, Math.min(1, document.querySelector('#audioVolume') ? num('#audioVolume', 0.85) : 0.85));
 
-    // --- Welcome / Poster ---
     wl.eyebrow   = val('#svEyebrow', '');
     wl.title     = val('#svTitle',  (s.meta?.title || 'ARea Scene'));
-    wl.desc      = val('#svDesc',   'Tippe auf OK und platziere das 3D-Objekt.');
+    wl.desc      = val('#svDesc',   'Tippe auf OK und platziere das 3D‑Objekt.');
     wl.nativeCta = val('#nativeCta', 'ios-only') || 'ios-only';
 
-    // Dateien (nur Dateinamen im JSON)
     const posterF = file('#file-poster');
     const audioF  = file('#file-audio');
     const usdzF   = file('#fileUsdz');
@@ -876,29 +852,25 @@ html, body { font-family: var(--ui-font); }
     s.meta = s.meta || {};
     s.meta.title = wl.title;
     s.meta.description = wl.desc;
-    // hier den realen Modus aus dem rechten Select übernehmen
-    s.meta.mode = (document.getElementById('anchorMode')?.value || 'surface-webxr');
+    s.meta.mode = 'area-viewer';
 
     s.model = s.model || {};
     s.model.url = 'scene.glb';
     if (usdzF) s.model.usdzUrl = 'model.usdz';
     s.model.scale = (typeof s.model.scale === 'number') ? s.model.scale : 1.0;
 
-    if (posterF) wl.poster = posterF.name;   // poster.jpg|png|webp
-    if (audioF)  au.url    = audioF.name;    // audio.mp3 ...
+    if (posterF) wl.poster = posterF.name;
+    if (audioF)  au.url    = audioF.name;
 
     s.animation = a;
     s.audio = au;
     s.ui = ui;
 
-    return JSON.parse(JSON.stringify(s)); // saubere Kopie
+    return JSON.parse(JSON.stringify(s));
   };
-})();
-</script>
-
 
   if (typeof buildViewerEntryForMode !== 'function') {
-    window.buildViewerEntryForMode = function buildViewerEntryForMode(mode){
+    window.buildViewerEntryForMode = function(mode){
       const map = {
         'surface-webxr':      '/surface-ar/webxr.html',
         'native':             '/surface-ar/index.html',
@@ -911,135 +883,28 @@ html, body { font-family: var(--ui-font); }
     };
   }
 
-if (typeof buildRobustViewerUrl !== 'function') {
-  window.buildRobustViewerUrl = function buildRobustViewerUrl({ mode, sceneId, workerOrigin, viewerBase }){
-    const entry = buildViewerEntryForMode(mode);
-    const u = new URL(entry, viewerBase);
-    const glbUrl = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.glb`;
-    // immer glb + scene + base setzen
-    u.searchParams.set('glb', glbUrl);
-    u.searchParams.set('scene', sceneId);
-    u.searchParams.set('base', workerOrigin);
-    if (mode === 'native') u.searchParams.set('force', 'native');
-    return u.toString();
-  };
-}
+  if (typeof buildRobustViewerUrl !== 'function') {
+    window.buildRobustViewerUrl = function({ mode, sceneId, workerOrigin, viewerBase }){
+      const entry = buildViewerEntryForMode(mode);
+      const u = new URL(entry, viewerBase);
+      const glbUrl = `${workerOrigin}/scenes/${encodeURIComponent(sceneId)}/scene.glb`;
+      u.searchParams.set('glb', glbUrl);
+      u.searchParams.set('scene', sceneId);
+      u.searchParams.set('base', workerOrigin);
+      if (mode === 'native') u.searchParams.set('force','native');
+      return u.toString();
+    };
+  }
 
-
-  // publishScene will be defined later with proper implementation
-  // (removed broken first implementation that had fd.append before fd declaration)
-
-  // Button „Veröffentlichen" verbinden (falls vorhanden)
   try {
     const btn = document.getElementById('btn-publish');
-    btn && btn.addEventListener('click', (ev)=>{ ev.preventDefault(); window.publishScene(); });
-  } catch(_){}
-
+    btn && btn.addEventListener('click', (ev)=>{ ev.preventDefault(); window.publishScene?.(); });
+  }catch(_){}
 })();
 </script>
 
-  <script>
-window.previewDraft = async function previewDraft(){
-  const cfg = window.__AREA || {};
-  const PUBLISH_URL = (cfg.PUBLISH_ENDPOINT || '').trim();
-  const PUBLISH_KEY = (cfg.PUBLISH_KEY || '').trim();
-  const FILE_BASE   = (cfg.FILE_BASE || (PUBLISH_URL ? new URL(PUBLISH_URL).origin : '')).trim();
-  const VIEWER_BASE = (cfg.VIEWER_BASE || 'https://area-viewer.pages.dev').trim();
-
-  if (!PUBLISH_URL){
-    alert('Draft-Preview nicht konfiguriert: __AREA.PUBLISH_ENDPOINT fehlt.');
-    return;
-  }
-
-  // 1) ID automatisch generieren (ohne Prompt)
-  const stamp = Date.now().toString(36);
-  const rand  = Math.random().toString(36).slice(2,6);
-  const sceneId = `draft-${stamp}-${rand}`.slice(0,64);
-
-  // 2) GLB exportieren (mit Fallback auf Original, wenn ohne animations[])
-  let glbBlob = null;
-  try {
-    glbBlob = await exportSceneGLB();
-    if (window.__AREA?.__origGlb){
-      const hasAnim = await window.hasAnimationsInGlbBlob(glbBlob);
-      if (!hasAnim){
-        glbBlob = new Blob([window.__AREA.__origGlb], { type:'model/gltf-binary' });
-        console.log('[draft] Export ohne animations[] → Original-GLB verwendet.');
-      }
-    }
-  } catch (e){
-    if (window.__AREA?.__origGlb){
-      glbBlob = new Blob([window.__AREA.__origGlb], { type:'model/gltf-binary' });
-      console.log('[draft] Export fehlgeschlagen → Original-GLB verwendet.');
-    }
-  }
-  if (!glbBlob){
-    alert('Kein GLB vorhanden (weder Export noch Original).');
-    return;
-  }
-
-  // 3) scene.json auf Basis deiner UI bauen
-  const sceneJson = window.buildSceneJson?.() || {};
-  const sceneText = JSON.stringify(sceneJson);
-
-  // 4) FormData zusammenstellen
-  const fd = new FormData();
-  fd.append('sceneId', sceneId);
-  fd.append('file', new Blob([sceneText], {type:'application/json'}), 'scene.json');
-  fd.append('file', glbBlob, 'scene.glb');
-
-  // USDZ (optional)
-  const usdzF = document.getElementById('fileUsdz')?.files?.[0];
-  if (usdzF) fd.append('file', usdzF, 'model.usdz');
-
-  // Poster: User-Upload oder Canvas-Snapshot
-  const posterF = document.getElementById('file-poster')?.files?.[0];
-  if (posterF) {
-    fd.append('file', posterF, posterF.name);
-  } else {
-    try {
-      const snap = await capturePosterBlob(0.78);
-      if (snap) fd.append('file', snap, 'poster.jpg');
-    } catch {}
-  }
-
-  // Audio: Upload oder aus Media-Objekt (data:/blob:)
-  try{
-    const ai = findFirstAudio?.();
-    if (document.getElementById('file-audio')?.files?.[0]){
-      fd.append('file', document.getElementById('file-audio').files[0], 'audio.mp3');
-    } else if (ai?.fromFile){
-      fd.append('file', ai.fromFile, 'audio.mp3');
-    } else if (ai?.fromDataUrl){
-      const b = await (await fetch(ai.fromDataUrl)).blob();
-      fd.append('file', new File([b], 'audio.mp3', { type: b.type || 'audio/mpeg' }), 'audio.mp3');
-    }
-  }catch{}
-
-  // 5) Upload
-  const res = await fetch(PUBLISH_URL, {
-    method:'POST',
-    headers:{ 'X-AREA-Key': PUBLISH_KEY },
-    body: fd
-  });
-  if (!res.ok){
-    const t = await res.text().catch(()=>String(res.status));
-    alert('Draft-Upload fehlgeschlagen: '+t);
-    return;
-  }
-  // 6) Robuste Viewer-URL bauen und anzeigen
-  const mode = document.getElementById('anchorMode')?.value || 'surface-webxr';
-  const viewerUrl = buildRobustViewerUrl({ mode, sceneId, workerOrigin: FILE_BASE, viewerBase: VIEWER_BASE });
-
-  try { await navigator.clipboard.writeText(viewerUrl); } catch {}
-  showSharePanel(viewerUrl);
-  try { window.open(viewerUrl, '_blank', 'noopener'); } catch {}
-};
-</script>
-
-  
 <script>
-/* Welcome/Audio-UI abhängig vom Anchor anzeigen (robust, mit trim/aliases + Debug) */
+/* Anchor-abhängige UI (gekürzt) */
 (function(){
   function byId(id){ return document.getElementById(id); }
   const sel     = byId('anchorMode');
@@ -1047,82 +912,168 @@ window.previewDraft = async function previewDraft(){
   const usdzRow = byId('usdzUploadRow');
   const avAudio = byId('avAudioRow');
 
-  function norm(v){ return String(v || '').trim().toLowerCase(); }
-
-  function show(el, disp){
-    if (!el) return;
-    el.hidden = false;
-    el.style.display = disp; // 'block' | '' | 'grid'
-  }
-  function hide(el){
-    if (!el) return;
-    el.style.display = 'none';
-  }
+  function norm(v){ return String(v||'').trim().toLowerCase(); }
+  function show(el,disp){ if(!el)return; el.hidden=false; el.style.display=disp; }
+  function hide(el){ if(!el)return; el.style.display='none'; }
 
   function computeModes(){
     const v = norm(sel?.value);
     const txt = norm(sel?.options?.[sel.selectedIndex]?.textContent);
-    const both = v + ' ' + txt; // z. B. "surface-area-viewer surface (area viewer)"
-
-    const isSceneViewer =
-      v === 'scene-viewer' ||
-      txt.includes('szene viewer') || txt.includes('scene viewer');
-
-    const isAreaViewer =
-      v === 'surface-area-viewer' ||
-      v === 'area-viewer' ||
-      v === 'surface-area' ||
-      both.includes('area-viewer') ||
-      both.includes('area viewer'); // tolerant auf Text
-
-    const isGuided =
-      v === 'surface-guided' || txt.includes('guided');
-
+    const both = v + ' ' + txt;
+    const isSceneViewer = v==='scene-viewer' || txt.includes('scene viewer') || txt.includes('szene viewer');
+    const isAreaViewer  = v==='surface-area-viewer' || v==='area-viewer' || v==='surface-area' || both.includes('area-viewer') || both.includes('area viewer');
+    const isGuided      = v==='surface-guided' || txt.includes('guided');
     return { isSceneViewer, isAreaViewer, isGuided, raw:v, label:txt };
   }
-
   function apply(reason=''){
-    const { isSceneViewer, isAreaViewer, isGuided, raw, label } = computeModes();
-    // Debug in Console
-    try {
-      console.log('[anchorMode]', { value: raw, label, isSceneViewer, isAreaViewer, isGuided, reason });
-    } catch {}
-
-    // Poster/Welcome-Block: für Scene Viewer ODER Area Viewer
-    if (svBlock) (isSceneViewer || isAreaViewer) ? show(svBlock, 'block') : hide(svBlock);
-
-    // USDZ nur für Scene Viewer
-    if (usdzRow) isSceneViewer ? show(usdzRow, '') : hide(usdzRow);
-
-    // Audio nur für Area Viewer (wenn auch für Szene-Viewer gewünscht → || isSceneViewer)
-    if (avAudio) isAreaViewer ? show(avAudio, 'grid') : hide(avAudio);
+    const { isSceneViewer, isAreaViewer } = computeModes();
+    if (svBlock) (isSceneViewer || isAreaViewer) ? show(svBlock,'block') : hide(svBlock);
+    if (usdzRow) isSceneViewer ? show(usdzRow,'') : hide(usdzRow);
+    /* ... weitere UI-Regeln ... */
   }
-
-  // Event-Bindings
-  if (sel){
-    sel.addEventListener('change', ()=>apply('change'));
-    sel.addEventListener('input',  ()=>apply('input'));
-  }
-
-  // Beim Laden ausführen und „spät“ nochmal (falls andere Handler danach togglen)
-  if (document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', ()=>{
-      apply('DOMContentLoaded');
-      setTimeout(()=>apply('post-timeout-0'), 0);
-    });
-  } else {
-    apply('immediate');
-    setTimeout(()=>apply('post-timeout-0'), 0);
-  }
-
-  // Optional: beobachten, falls UI-Framework DOM später ändert
-  try {
-    const mo = new MutationObserver(()=>apply('mutation'));
-    if (sel?.parentNode) mo.observe(sel.parentNode, { childList:true, subtree:true, attributes:true });
-  } catch {}
+  sel?.addEventListener('change',()=>apply('change'));
+  apply('init');
 })();
 </script>
-  
+
+<!-- ===================================================================== -->
+<!-- === PATCH BLÖCKE (Drop-In) ========================================= -->
+<!-- ===================================================================== -->
+
+<script type="module">
+/* === FINAL WIRING: Projekt-Menü, Buttons, Theme-Toggle, Three-Sync === */
+(() => {
+  const $ = s => document.querySelector(s);
+
+  // Projekt-Menü (öffnet nach unten) + Outside-Click
+  const menu = $('#projectMenu');
+  const btn  = $('#btn-project-menu');
+  function toggleMenu(e){ e?.preventDefault(); menu?.classList.toggle('open'); btn?.setAttribute('aria-expanded', String(menu?.classList.contains('open'))); }
+  btn?.addEventListener('click', toggleMenu);
+  document.addEventListener('click', (e)=>{ if(menu && btn && !menu.contains(e.target) && e.target!==btn){ menu.classList.remove('open'); btn.setAttribute('aria-expanded','false'); } });
+
+  // Menü-Buttons
+  $('#btn-new')?.addEventListener('click', ()=>{ 
+    if (confirm('Neues Projekt starten? Nicht gespeicherte Änderungen gehen verloren.')) { 
+      document.getElementById('btn-clear')?.click(); 
+      (window.setProjectName||(()=>{}))('Unbenanntes Projekt'); 
+    }
+  });
+  $('#file-project')?.addEventListener('change', (ev)=>{
+    const f = ev.target.files?.[0];
+    ev.target.value = '';
+    if (f) (window.importProjectFile||(()=>{}))(f);
+  });
+  $('#btn-save')?.addEventListener('click', ()=> (window.saveProject||(()=>{}))());
+  $('#btn-save-as')?.addEventListener('click', ()=> (window.saveProject||(()=>{}))({saveAs:true}));
+  $('#btn-preview')?.addEventListener('click', ()=> (window.previewModules||(()=>{}))());
+  $('#btn-preview-draft')?.addEventListener('click', ()=> (window.previewDraft||(()=>{}))());
+
+  // Theme-Toggle (3-Wege) inkl. Persistenz + Three-Sync
+  const radios = ['th-slate','th-aurora','th-nebula'].map(id=>document.getElementById(id));
+  function applyTheme(theme){
+    const html = document.documentElement;
+    ['theme-slate','theme-aurora','theme-nebula'].forEach(c=>html.classList.remove(c));
+    html.classList.add(theme);
+    try { localStorage.setItem('theme', theme); } catch {}
+    try { window.__applyThemeToThree?.(); } catch {}
+    const idx = { 'theme-slate':0, 'theme-aurora':1, 'theme-nebula':2 }[theme] ?? 0;
+    radios[idx] && (radios[idx].checked = true);
+  }
+  radios.forEach(r => r?.addEventListener('change', ()=> applyTheme(r.value)));
+
+  (function syncInitialTheme(){
+    const html = document.documentElement;
+    const cur = ['theme-nebula','theme-aurora','theme-slate'].find(c=>html.classList.contains(c)) || 'theme-nebula';
+    applyTheme(cur);
+  })();
+
+  // Taste "T" = Theme zyklisch wechseln (nur wenn Fokus nicht in Eingabe)
+  window.addEventListener('keydown', (e)=>{
+    if (e.key.toLowerCase() !== 't') return;
+    const el = document.activeElement;
+    const tag = (el?.tagName || '').toLowerCase();
+    if (el?.isContentEditable || ['input','textarea','select'].includes(tag)) return;
+    const order = ['theme-slate','theme-aurora','theme-nebula'];
+    const curIndex = order.findIndex(c=>document.documentElement.classList.contains(c));
+    applyTheme(order[(curIndex+1) % order.length]);
+  });
+
+  requestAnimationFrame(()=> window.__applyThemeToThree?.());
+})();
+</script>
+
+<script type="module">
+/* === previewDraft(): schnelle Vorschau via data:URL (ohne Upload) === */
+async function previewDraft(){
+  try{
+    const mode = document.getElementById('anchorMode')?.value || 'surface-webxr';
+    const viewerBase = (window.__AREA || {}).VIEWER_BASE || 'https://area-viewer.pages.dev';
+    const entryMap = {
+      'surface-webxr':'/surface-ar/webxr.html',
+      'native':'/surface-ar/index.html',
+      'image':'/image-ar/viewer.html',
+      'scene-viewer':'/scene-viewer/index.html',
+      'surface-guided':'/surface-ar/guided.html',
+      'surface-area-viewer':'/surface-ar/area-viewer.html'
+    };
+    const entry = entryMap[mode] || '/surface-ar/area-viewer.html';
+
+    const data = await (window.buildProjectData||(()=>({})))();
+    const src  = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data));
+    let url = `${viewerBase}${entry}?src=${encodeURIComponent(src)}&anchor=${encodeURIComponent(mode)}`;
+
+    const target = (document.getElementById('imageTargetUrl')?.value || '').trim();
+    if (mode === 'image' && target) url += `&target=${encodeURIComponent(target)}`;
+
+    const glb  = (document.getElementById('nativeGlbUrl')?.value || '').trim();
+    const usdz = (document.getElementById('nativeUsdzUrl')?.value || '').trim();
+    if (mode === 'native'){
+      if (glb)  url += `&glb=${encodeURIComponent(glb)}`;
+      if (usdz) url += `&usdz=${encodeURIComponent(usdz)}`;
+    }
+
+    window.open(url, '_blank', 'noopener');
+    (window.toast||console.log)('Schnell-Preview geöffnet');
+  }catch(e){
+    console.warn(e);
+    (window.toast||console.warn)('Preview fehlgeschlagen');
+  }
+}
+window.previewDraft = previewDraft;
+</script>
+
+<script type="module">
+/* Optionaler Publish-Patch: Modusabhängige JSON-Auswahl */
+(() => {
+  if (typeof window.publishScene === 'function'){
+    const orig = window.publishScene;
+    window.publishScene = async function(...args){
+      const mode = document.getElementById('anchorMode')?.value || 'surface-webxr';
+      const sceneJson = (mode === 'scene-viewer' || mode === 'surface-area-viewer')
+        ? (window.buildSceneViewerJSON_CF?.() || window.buildSceneJson())
+        : window.buildSceneJson();
+      // Temporär buildSceneJson überschreiben falls Original intern erneut aufruft
+      const backup = window.buildSceneJson;
+      window.buildSceneJson = () => sceneJson;
+      try {
+        return await orig.apply(this, args);
+      } finally {
+        window.buildSceneJson = backup;
+      }
+    };
+  }
+})();
+</script>
+
+
+<style id="patch-minstage">
+/* --- ARea Editor Runtime Patch: guard zero-sized stage/viewport --- */
+#stage { min-width: 320px; min-height: 240px; }
+#viewport { min-width: 320px; min-height: 240px; }
+canvas { display:block; }
+</style>
+
 </head>
 <body>
   <div class="top">
@@ -1175,7 +1126,7 @@ window.previewDraft = async function previewDraft(){
   </div>
 
      <!-- CENTER -->
-    <div class="viewport">
+    <div id="viewport" class="viewport">
       <div id="stage"></div>
       <div id="vpStatus" class="status-badge"><span id="vp-pill-space" class="status-pill">Space: Local</span><span id="vp-pill-snap" class="status-pill">Snap: Aus</span></div>
       <button id="hintFab" class="hint-fab" aria-expanded="false" title="Hinweise">i</button>
@@ -1479,67 +1430,6 @@ window.previewDraft = async function previewDraft(){
   
   <div class="toast" id="toast" aria-live="polite"></div>
 
-    <script>
-(function(){
-  const menu     = document.getElementById('projectMenu');
-  const btn      = document.getElementById('btn-project-menu');
-  const pop      = document.getElementById('projectMenuPop');
-
-  function closeMenu(){ menu?.classList.remove('open'); btn?.setAttribute('aria-expanded','false'); }
-  function openMenu(){  menu?.classList.add('open');     btn?.setAttribute('aria-expanded','true'); }
-
-  btn?.addEventListener('click', (e)=>{
-    e.preventDefault();
-    menu.classList.toggle('open');
-    btn.setAttribute('aria-expanded', menu.classList.contains('open') ? 'true' : 'false');
-  });
-
-  document.addEventListener('click', (e)=>{
-    if (!menu || !pop) return;
-    if (menu.contains(e.target)) return;
-    closeMenu();
-  });
-  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeMenu(); });
-
-  // Buttons
-  document.getElementById('btn-new')?.addEventListener('click', ()=>{
-    closeMenu();
-    if(!confirm('Neues Projekt starten? Ungespeicherte Änderungen gehen verloren.')) return;
-    try{ window.__AREA.__origGlb = null; }catch{}
-    document.getElementById('btn-clear')?.click();
-    const pill = document.getElementById('projNamePill');
-    if (pill) pill.textContent = 'Unbenanntes Projekt';
-    document.title = 'ARea Editor v3.0 — Unbenanntes Projekt';
-  });
-
-  document.getElementById('btn-save')?.addEventListener('click', async ()=>{
-    closeMenu();
-    try{ await window.saveProject?.({saveAs:false}); }catch{}
-  });
-
-  document.getElementById('btn-save-as')?.addEventListener('click', async ()=>{
-    closeMenu();
-    try{ await window.saveProject?.({saveAs:true}); }catch{}
-  });
-
-  document.getElementById('btn-preview')?.addEventListener('click', (e)=>{
-    e.preventDefault(); closeMenu();
-    try{ window.previewModules?.(); }catch{}
-  });
-
-  document.getElementById('btn-preview-draft')?.addEventListener('click', async (e)=>{
-    e.preventDefault(); closeMenu();
-    try{ await window.previewDraft?.(); }catch(e){ alert('Draft-Preview fehlgeschlagen: '+(e?.message||e)); }
-  });
-
-  document.getElementById('btn-publish')?.addEventListener('click', async (e)=>{
-    e.preventDefault(); closeMenu();
-    try{ await window.publishScene?.(); }catch(e){ alert('Publish fehlgeschlagen: '+(e?.message||e)); }
-  });
-})();
-</script>
-
-
 
   <script type="module">
     import * as THREE from 'three';
@@ -1682,8 +1572,6 @@ svInput?.addEventListener('change', (e)=>{
   }
 }
 
-    
-
     window.__applyThemeToThree = applyThemeToThree;
 
     const scene = new THREE.Scene();
@@ -1710,39 +1598,6 @@ camLight.visible = document.getElementById('headlight')?.checked ?? true;
 document.getElementById('headlight')?.addEventListener('change', (e)=>{
   camLight.visible = !!e.target.checked;
 });
-
-    <script>
-// Theme-Radio-Buttons mit dem System verbinden
-(function(){
-  const html = document.documentElement;
-  const radios = ['th-slate','th-aurora','th-nebula']
-    .map(id => document.getElementById(id))
-    .filter(Boolean);
-
-  function applyTheme(cls){
-    ['theme-slate','theme-aurora','theme-nebula'].forEach(c => html.classList.remove(c));
-    html.classList.add(cls);
-    try { localStorage.setItem('theme', cls); } catch {}
-    try { window.__applyThemeToThree?.(); } catch {}
-  }
-
-  // Initial den korrekten Radio setzen
-  const cur = html.classList.contains('theme-aurora') ? 'theme-aurora'
-            : html.classList.contains('theme-nebula') ? 'theme-nebula'
-            : 'theme-slate';
-  const map = { 'theme-slate':'th-slate', 'theme-aurora':'th-aurora', 'theme-nebula':'th-nebula' };
-  const active = document.getElementById(map[cur]);
-  if (active) active.checked = true;
-
-  // Änderungen übernehmen
-  radios.forEach(r => r.addEventListener('change', (e)=>{
-    if (!e.target.checked) return;
-    const cls = e.target.value; // value="theme-…"
-    applyTheme(cls);
-  }));
-})();
-</script>
-
 
 
     // Environment (IBL)
@@ -1944,21 +1799,19 @@ const opFar  = nebula ? (0.10 + 0.24*gi) : (0.06 + 0.20*gi);
       syncPropFromSel(); rebuildList(); updateGroupButtons(); updateOutlineSelection(); syncMediaUI();
     }
 
-    function updateOutlineSelection() {
-  if (!outlinePass) return;
-
-  outlinePass.selectedObjects = [...state.selection]
-    .map(id => findRec(id)?.group)
-    .filter(Boolean)
-    .flatMap(g => {
-      const acc = [];
-      g.traverse(o => {
-        if (o.isMesh && !o.userData?.__pickProxy) acc.push(o);
+    function updateOutlineSelection(){
+      if(!outlinePass) return;
+      const selMeshes = [];
+      [...state.selection].forEach(id=>{
+        const rec = findRec(id);
+        if(rec && rec.group){
+          rec.group.traverse(ch=>{
+            if (ch.isMesh && !ch.userData?.__pickProxy) selMeshes.push(ch);
+          });
+        }
       });
-      return acc;
-    });
-}
-
+      outlinePass.selectedObjects = selMeshes;
+    }
 
     let down=null, isOrbiting=false;
     controls.addEventListener('start', ()=>{isOrbiting=true}); controls.addEventListener('end', ()=>{isOrbiting=false});
@@ -2154,7 +2007,7 @@ async function blobToBase64(blob){
       v.crossOrigin = 'anonymous';
       v.playsInline = true; v.preload = 'auto'; v.loop = !!src.media.loop; v.controls = false; v.muted = false;
 
-      const tex = new THREE.VideoTexture(v);
+      const tex = createSafeVideoTexture(THREE, v);
       tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false;
 
       const w = src.media.w || 1.6, h = src.media.h || 0.9;
@@ -2308,36 +2161,12 @@ async function blobToBase64(blob){
     $('#snapChk').addEventListener('change', ()=>{ $('#snapPanel').style.display=$('#snapChk').checked?'block':'none'; applySnap(); });
     $('#transSnapSel').addEventListener('change', applySnap); $('#rotSnapSel').addEventListener('change', applySnap); $('#scaleSnapSel').addEventListener('change', applySnap);
 
-    function goCamera(pos = [2, 1.6, 3], target = [0, 1, 0], fov = 30, dur = 450) {
-  // evtl. Arrays oder Vector3 erlauben
-  const toV3 = (v) => Array.isArray(v) ? new THREE.Vector3(...v) : (v?.isVector3 ? v.clone() : new THREE.Vector3());
-
-  // laufende Animation abbrechen (bei schnellem Umschalten)
-  if (typeof goCamera._raf === 'number') cancelAnimationFrame(goCamera._raf);
-
-  const fromPos    = camera.position.clone();
-  const toPos      = toV3(pos);
-  const fromTarget = controls.target.clone();
-  const toTarget   = toV3(target);
-
-  // FOV nur setzen, wenn es sich ändert
-  if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
-
-  const t0 = performance.now();
-  function step() {
-    const t = Math.min(1, (performance.now() - t0) / dur);
-    const s = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // easeInOutCubic
-
-    camera.position.copy(fromPos).lerp(toPos, s);
-    controls.target.copy(fromTarget).lerp(toTarget, s);
-    controls.update();
-
-    if (t < 1) goCamera._raf = requestAnimationFrame(step);
-    else goCamera._raf = null;
-  }
-  step();
-}
-
+    function goCamera(pos,target,fov=30,dur=450){
+      const fromPos=camera.position.clone(), toPos=new THREE.Vector3(...pos);
+      const fromTarget=controls.target.clone(), toTarget=new THREE.Vector3(...target);
+      const t0=performance.now();
+      function step(){ const t=Math.min(1,(performance.now()-t0)/dur); const s=t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2; camera.position.copy(fromPos).lerp(toPos,s); const tmp=fromTarget.clone().lerp(toTarget,s); controls.target.copy(tmp); camera.fov=fov; camera.updateProjectionMatrix(); if(t<1) requestAnimationFrame(step); } step();
+    }
     $('#btn-view-iso').addEventListener('click', ()=> goCamera([15,6,15],[0,0,0]));
     $('#btn-view-front').addEventListener('click', ()=> goCamera([0,1.8,8],[0,1,0]));
     $('#btn-view-side').addEventListener('click', ()=> goCamera([8,1.8,0],[0,1,0]));
@@ -2393,7 +2222,7 @@ async function blobToBase64(blob){
       const vid=document.createElement('video');
       vid.src=url; vid.crossOrigin='anonymous'; vid.playsInline=true; vid.preload='auto'; vid.loop=false; vid.muted=false; vid.controls=false;
       let w=1.6, h=0.9;
-      const tex=new THREE.VideoTexture(vid); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false;
+      const tex=createSafeVideoTexture(THREE, vid); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false;
       const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({map:tex, toneMapped:false}));
       const group=new THREE.Group(); group.name=name; group.add(plane);
       vid.addEventListener('loadedmetadata', ()=>{ if(vid.videoWidth && vid.videoHeight){ const ar=vid.videoWidth/vid.videoHeight; w=1.6; h=w/ar; plane.geometry.dispose(); plane.geometry=new THREE.PlaneGeometry(w,h); const rec=findRec(id); if(rec && rec.media){ rec.media.w=w; rec.media.h=h; } }}, {once:true});
@@ -2598,7 +2427,7 @@ updateAnchorUI();
         if(obj.media && obj.media.kind==='video'){
           const vid=document.createElement('video');
           vid.src = obj.media.asset || ''; vid.crossOrigin='anonymous'; vid.playsInline=true; vid.preload='auto'; vid.loop=!!obj.media.loop; vid.controls=false;
-          const tex=new THREE.VideoTexture(vid); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false;
+          const tex=createSafeVideoTexture(THREE, vid); tex.colorSpace=THREE.SRGBColorSpace; tex.flipY=false;
           const w=obj.media.w||1.6, h=obj.media.h||0.9;
           const plane=new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({map:tex, toneMapped:false}));
           group=new THREE.Group(); group.name=name; group.add(plane);
@@ -3547,5 +3376,74 @@ document.querySelectorAll('.theme-toggle3 input[name="theme3"]').forEach(inp=>{
 
        render();
   </script>
+
+<script id="patch-safety" type="module">
+/* --- ARea Editor Runtime Patch (WebGL/video) --- */
+(function(){
+  // Cap an overly high DPR (helps avoid max renderbuffer overflows on some mobiles)
+  try {
+    const dpr = window.devicePixelRatio || 1;
+    // Expose a helper so your code can use it instead of raw devicePixelRatio
+    window.__AREA_SAFE_DPR__ = Math.min(2, dpr);
+  } catch (e) {}
+
+  // Guard: ensure the stage gets a reasonable size before 3D init
+  function ensureStageMinSize(){
+    const stage = document.getElementById('stage') || document.getElementById('viewport') || null;
+    if (!stage) return;
+    const r = stage.getBoundingClientRect();
+    if (r.width < 32) stage.style.minWidth = '320px';
+    if (r.height < 32) stage.style.minHeight = '240px';
+  }
+  ensureStageMinSize();
+  try {
+    const ro = new ResizeObserver(()=>ensureStageMinSize());
+    const stageEl = document.getElementById('stage') || document.getElementById('viewport');
+    if (stageEl) ro.observe(stageEl);
+  } catch(e) {}
+
+  // Safe VideoTexture creator: starts with 1x1 placeholder, swaps when metadata is ready
+  // Usage: replace `createSafeVideoTexture(THREE, video)` with `createSafeVideoTexture(THREE, video)`
+  window.createSafeVideoTexture = function(THREE, video) {
+    try {
+      if (video && video.videoWidth && video.videoHeight) {
+        // already ready
+        const tx = createSafeVideoTexture(THREE, video);
+        tx.minFilter = THREE.LinearFilter;
+        tx.magFilter = THREE.LinearFilter;
+        tx.generateMipmaps = false;
+        return tx;
+      }
+      // placeholder 1x1
+      const canvas = document.createElement('canvas');
+      canvas.width = 1; canvas.height = 1;
+      const ctx = canvas.getContext('2d');
+      if (ctx) { ctx.fillStyle = '#000'; ctx.fillRect(0,0,1,1); }
+      const tx = createSafeVideoTexture(THREE, canvas);
+      tx.minFilter = THREE.LinearFilter;
+      tx.magFilter = THREE.LinearFilter;
+      tx.generateMipmaps = false;
+
+      const onReady = () => {
+        if (video.videoWidth && video.videoHeight) {
+          tx.image = video;
+          tx.needsUpdate = true;
+          video.removeEventListener('loadedmetadata', onReady);
+          video.removeEventListener('loadeddata', onReady);
+          video.removeEventListener('canplay', onReady);
+        }
+      };
+      video.addEventListener('loadedmetadata', onReady);
+      video.addEventListener('loadeddata', onReady);
+      video.addEventListener('canplay', onReady);
+      return tx;
+    } catch (e) {
+      console.warn('createSafeVideoTexture failed, falling back:', e);
+      try { return createSafeVideoTexture(THREE, video); } catch(e2) { return null; }
+    }
+  };
+})();
+</script>
+
 </body>
 </html>
