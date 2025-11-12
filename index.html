@@ -2667,7 +2667,7 @@ function remapAnimationClipsForExport(allClips, clonedRoot){
   return remapped;
 }
 
-async function exportSceneGLB(){
+async function exportSceneGLB(options = {}){
   const exporter = new GLTFExporter();
   const exportRoot = cloneForExport();
   const allClips = [];
