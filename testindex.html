@@ -858,9 +858,9 @@ html, body { font-family: var(--ui-font); }
 
     // Animation (UI -> State)
     a.clipName   = (val('#animClip', '*') || '*').trim();
-    a.start      = (val('#animStart', 'onPlace') || 'onPlace');
-    a.loop       = (document.querySelector('#animLoop') ? chk('#animLoop', true) : true);
-    a.iterations = Math.max(1, num('#animIterations', 9999));
+    a.start      = (val('#animStartMode', 'onStart') || 'onStart');
+    a.loop       = (val('#animLoop', 'repeat') === 'repeat');
+    a.iterations = Math.max(1, num('#animRepeats', 9999));
 
     // Note: Do NOT force clipName to 'none' when knownClipsCount()==0
     // Keep '*' (or user selection) to allow viewer to show imported animations
