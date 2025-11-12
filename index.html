@@ -1,20 +1,11 @@
 <!doctype html>
 <html lang="de" class="theme-slate">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ARea Editor v3.0</title>
-  <script>
-(function(){
-  try{
-    var t = localStorage.getItem('theme') || 'theme-nebula';
-    var html = document.documentElement;
-    ['theme-slate','theme-aurora','theme-nebula'].forEach(c=>html.classList.remove(c));
-    html.classList.add(t);
-  }catch{}
-})();
-</script>
-  <style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ARea Editor v3.0</title>
+<script>(function(){try{var t=localStorage.getItem('theme')||'theme-nebula';var html=document.documentElement;['theme-slate','theme-aurora','theme-nebula'].forEach(c=>html.classList.remove(c));html.classList.add(t);}catch{}})();</script>
+<style>
     :root { color-scheme: dark; } /* nur Globales hier rein */
 
     /* ===================== Themes ===================== */
@@ -664,26 +655,23 @@ html, body { font-family: var(--ui-font); }
 
   <!-- Minimal Config -->
 <script>
-  window.__AREA = {
-    PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish",
-    FILE_BASE:       "https://area-publish.area-webar.workers.dev",   // NEU: dient NUR zum Ausliefern /scenes/
-    PUBLISH_KEY: "",
-    VIEWER_BASE: "https://area-viewer.pages.dev"
-  };
+window.__AREA = {
+  PUBLISH_ENDPOINT:"https://area-publish-proxy.area-webar.workers.dev/publish",
+  FILE_BASE:"https://area-publish.area-webar.workers.dev",
+  PUBLISH_KEY:"",
+  VIEWER_BASE:"https://area-viewer.pages.dev"
+};
 </script>
 
-
-
-
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-      "qrcode": "https://esm.sh/qrcode@1.5.3"
-    }
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "qrcode": "https://esm.sh/qrcode@1.5.3"
   }
-  </script>
+}
+</script>
 
 <!-- === Variante A: Original-GLB Passthrough (Animationen erhalten) === -->
 <script>
@@ -832,74 +820,35 @@ html, body { font-family: var(--ui-font); }
   <script>
 /* Editor: scene.json-Export + Publish nach \"Aero/Spark-Style\" Schema */
 (function(){
-  const AREA = (window.__AREA = window.__AREA || {});
-  AREA.scene = AREA.scene || {};
+  const AREA=(window.__AREA=window.__AREA||{}); AREA.scene=AREA.scene||{};
+  function val(s,d=''){const el=document.querySelector(s);return el&&'value'in el?(el.value??d):d;}
+  function chk(s,d=false){const el=document.querySelector(s);return el&&'checked'in el?!!el.checked:d;}
+  function num(s,d){const v=parseFloat(val(s,String(d)));return Number.isFinite(v)?v:d;}
+  function file(sel){return document.querySelector(sel)?.files?.[0]||null;}
 
-  function val(sel, def=''){ const el=document.querySelector(sel); return (el && 'value' in el) ? (el.value ?? def) : def; }
-  function chk(sel, def=false){ const el=document.querySelector(sel); return (el && 'checked' in el) ? !!el.checked : def; }
-  function num(sel, def){ const v = parseFloat(val(sel, String(def))); return Number.isFinite(v) ? v : def; }
-  function file(sel){ return (document.querySelector(sel)?.files?.[0]) || null; }
-
-  // OPTIONAL: Wenn dein Stage/Lader Clips kennt, kannst du die Länge hier abfragen
-  function knownClipsCount(){
-    try {
-      if (Array.isArray(AREA.currentClips)) return AREA.currentClips.length;
-      if (Array.isArray(AREA.scene?.clips)) return AREA.scene.clips.length;
-    } catch {}
-    return undefined;
-  }
-
-  window.buildSceneJson = function buildSceneJson(){
-    const s  = (AREA.scene = AREA.scene || {});
-    const a  = (s.animation = s.animation || {});
-    const au = (s.audio = s.audio || {});
-    const ui = (s.ui = s.ui || {});
-    const wl = (ui.welcome = ui.welcome || {});
-
-    // Animation (UI -> State)
-    a.clipName   = (val('#animClip', '*') || '*').trim();
-    a.start      = (val('#animStart', 'onPlace') || 'onPlace');
-    a.loop       = (document.querySelector('#animLoop') ? chk('#animLoop', true) : true);
-    a.iterations = Math.max(1, num('#animIterations', 9999));
-
-    // Note: Do NOT force clipName to 'none' when knownClipsCount()==0
-    // Keep '*' (or user selection) to allow viewer to show imported animations
-
-    // Audio (UI -> State)
-    au.autoplay  = val('#audioAutoplay', 'withAnimation') || 'withAnimation';
-    au.loop      = (document.querySelector('#audioLoop') ? chk('#audioLoop', true) : true);
-    au.volume    = Math.max(0, Math.min(1, document.querySelector('#audioVolume') ? num('#audioVolume', 0.85) : 0.85));
-
-    // Welcome/Poster
-    wl.eyebrow   = val('#svEyebrow', '');
-    wl.title     = val('#svTitle',  (s.meta?.title || 'ARea Scene'));
-    wl.desc      = val('#svDesc',   'Tippe auf OK und platziere das 3D‑Objekt.');
-    wl.nativeCta = val('#nativeCta', 'ios-only') || 'ios-only';
-
-    // Dateien (nur Namen in JSON, die Files selbst kommen im Publish)
-    const posterF = file('#file-poster');
-    const audioF  = file('#file-audio');   // Nur Audio für diesen Patch
-    const usdzF   = file('#fileUsdz');
-
-    s.meta = s.meta || {};
-    s.meta.title = wl.title;
-    s.meta.description = wl.desc;
-    s.meta.mode = 'area-viewer';
-
-    s.model = s.model || {};
-    s.model.url = 'scene.glb';
-    if (usdzF) s.model.usdzUrl = 'model.usdz';
-    s.model.scale = (typeof s.model.scale === 'number') ? s.model.scale : 1.0;
-
-    if (posterF) wl.poster = posterF.name;   // poster.jpg|png|webp
-    if (audioF)  au.url    = audioF.name;    // audio.mp3|wav|ogg|m4a|webm
-
-    s.animation = a;
-    s.audio = au;
-    s.ui = ui;
-
-    return JSON.parse(JSON.stringify(s)); // saubere Kopie
+  window.buildSceneJson=function(){
+    const s=AREA.scene||(AREA.scene={}), a=(s.animation=s.animation||{}), au=(s.audio=s.audio||{}),
+          ui=(s.ui=s.ui||{}), wl=(ui.welcome=ui.welcome||{});
+    a.clipName=(val('#animClip','*')||'*').trim();
+    a.start=(val('#animStartMode','onStart')||'onStart');
+    a.loop=(document.querySelector('#animLoop')?chk('#animLoop',true):true);
+    a.iterations=Math.max(1,num('#animRepeats',9999));
+    au.autoplay=val('#audioAutoplay','withAnimation')||'withAnimation';
+    au.loop=(document.querySelector('#audioLoop')?chk('#audioLoop',true):true);
+    au.volume=Math.max(0,Math.min(1,document.querySelector('#audioVolume')?num('#audioVolume',0.85):0.85));
+    wl.eyebrow=val('#svEyebrow','');
+    wl.title=val('#svTitle',(s.meta?.title||'ARea Scene'));
+    wl.desc=val('#svDesc','Tippe auf OK und platziere das 3D‑Objekt.');
+    wl.nativeCta='ios-only';
+    const posterF=file('#file-poster'), audioF=file('#file-audio'), usdzF=file('#fileUsdz');
+    s.meta=s.meta||{}; s.meta.title=wl.title; s.meta.description=wl.desc; s.meta.mode='area-viewer';
+    s.model=s.model||{}; s.model.url='scene.glb'; if(usdzF) s.model.usdzUrl='model.usdz'; s.model.scale=typeof s.model.scale==='number'?s.model.scale:1;
+    if(posterF) wl.poster=posterF.name;
+    if(audioF)  au.url=audioF.name;
+    return JSON.parse(JSON.stringify(s));
   };
+})();
+</script>
 
   if (typeof buildViewerEntryForMode !== 'function') {
     window.buildViewerEntryForMode = function buildViewerEntryForMode(mode){
@@ -1069,9 +1018,7 @@ if (typeof buildRobustViewerUrl !== 'function') {
 
 
 
-  <div class="wrap"><!-- GRID START -->
-
-  <!-- LEFT: Szenenliste -->
+div class="wrap">
   <div class="panel" id="left">
     <h3>Szene</h3>
     <div class="content" id="leftContent">
@@ -1079,23 +1026,24 @@ if (typeof buildRobustViewerUrl !== 'function') {
     </div>
   </div>
 
-     <!-- CENTER -->
-    <div class="viewport">
-      <div id="stage"></div>
-      <div id="vpStatus" class="status-badge"><span id="vp-pill-space" class="status-pill">Space: Local</span><span id="vp-pill-snap" class="status-pill">Snap: Aus</span></div>
-      <button id="hintFab" class="hint-fab" aria-expanded="false" title="Hinweise">i</button>
-      <div class="hint hidden">LMB drehen · Rad zoomen · RMB/Shift+LMB schwenken · Klick = Auswahl (Shift=Mehrfach) · W/E/R Move/Rotate/Scale · D Duplizieren · F Drop-to-Floor ·  1–5 Bookmarks · Shift+1–5 Speichern · Ctrl+G Gruppieren · Ctrl+Shift+G Aufheben</div>
+  <div class="viewport">
+    <div id="stage"></div>
+    <div id="vpStatus" class="status-badge">
+      <span id="vp-pill-space" class="status-pill">Space: Local</span>
+      <span id="vp-pill-snap" class="status-pill">Snap: Aus</span>
     </div>
-
+    <button id="hintFab" class="hint-fab" aria-expanded="false" title="Hinweise">i</button>
+    <div class="hint hidden">LMB drehen …</div>
+  </div>
 
   <div class="panel">
-  <h3>Eigenschaften</h3>
-  <div class="content">
-    <div class="toolbar">
-      <button id="tool-move" class="toolbtn">Verschieben (W)</button>
-      <button id="tool-rotate" class="toolbtn">Drehen (E)</button>
-      <button id="tool-scale" class="toolbtn">Skalieren (R)</button>
+    <h3>Eigenschaften</h3>
+    <div class="content">
+      <!-- (Dein kompletter Eigenschaften-, Animation-, Media-Block) -->
+      <!-- WICHTIG: Hier endet nun wirklich .content -->
     </div>
+  </div>
+</div>
 
     <div class="toolbar">
       <button id="btn-duplicate" class="toolbtn" title="D">Duplizieren</button>
@@ -3376,6 +3324,14 @@ document.querySelectorAll('.theme-toggle3 input[name="theme3"]').forEach(inp=>{
       return false;
     }
   }
+
+  (function(){
+  const AREA=(window.__AREA=window.__AREA||{});
+  function getMode(){ return document.getElementById('anchorMode')?.value || 'surface-webxr'; }
+  window.publishScene=async function(){
+    const mode=getMode();
+    const useSceneViewerJson=(mode==='scene-viewer'||mode==='surface-guided');
+    const sceneJson= useSceneViewerJson ? buildSceneViewerJSON_CF() : buildSceneJson();
 
   async function getFormDataCloneReplacingSceneGlb(fd, fallbackFile){
     const newFd = new FormData();
