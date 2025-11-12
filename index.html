@@ -2115,12 +2115,36 @@ async function blobToBase64(blob){
     $('#snapChk').addEventListener('change', ()=>{ $('#snapPanel').style.display=$('#snapChk').checked?'block':'none'; applySnap(); });
     $('#transSnapSel').addEventListener('change', applySnap); $('#rotSnapSel').addEventListener('change', applySnap); $('#scaleSnapSel').addEventListener('change', applySnap);
 
-    function goCamera(pos,target,fov=30,dur=450){
-      const fromPos=camera.position.clone(), toPos=new THREE.Vector3(...pos);
-      const fromTarget=controls.target.clone(), toTarget=new THREE.Vector3(...target);
-      const t0=performance.now();
-      function step(){ const t=Math.min(1,(performance.now()-t0)/dur); const s=t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2; camera.position.copy(fromPos).lerp(toPos,s); const tmp=fromTarget.clone().lerp(toTarget,s); controls.target.copy(tmp); camera.fov=fov; camera.updateProjectionMatrix(); if(t<1) requestAnimationFrame(step); } step();
-    }
+    function goCamera(pos = [2, 1.6, 3], target = [0, 1, 0], fov = 30, dur = 450) {
+  // evtl. Arrays oder Vector3 erlauben
+  const toV3 = (v) => Array.isArray(v) ? new THREE.Vector3(...v) : (v?.isVector3 ? v.clone() : new THREE.Vector3());
+
+  // laufende Animation abbrechen (bei schnellem Umschalten)
+  if (typeof goCamera._raf === 'number') cancelAnimationFrame(goCamera._raf);
+
+  const fromPos    = camera.position.clone();
+  const toPos      = toV3(pos);
+  const fromTarget = controls.target.clone();
+  const toTarget   = toV3(target);
+
+  // FOV nur setzen, wenn es sich ändert
+  if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
+
+  const t0 = performance.now();
+  function step() {
+    const t = Math.min(1, (performance.now() - t0) / dur);
+    const s = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // easeInOutCubic
+
+    camera.position.copy(fromPos).lerp(toPos, s);
+    controls.target.copy(fromTarget).lerp(toTarget, s);
+    controls.update();
+
+    if (t < 1) goCamera._raf = requestAnimationFrame(step);
+    else goCamera._raf = null;
+  }
+  step();
+}
+
     $('#btn-view-iso').addEventListener('click', ()=> goCamera([15,6,15],[0,0,0]));
     $('#btn-view-front').addEventListener('click', ()=> goCamera([0,1.8,8],[0,1,0]));
     $('#btn-view-side').addEventListener('click', ()=> goCamera([8,1.8,0],[0,1,0]));
