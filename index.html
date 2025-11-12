@@ -1753,19 +1753,21 @@ const opFar  = nebula ? (0.10 + 0.24*gi) : (0.06 + 0.20*gi);
       syncPropFromSel(); rebuildList(); updateGroupButtons(); updateOutlineSelection(); syncMediaUI();
     }
 
-    function updateOutlineSelection(){
-      if(!outlinePass) return;
-      const selMeshes = [];
-      [...state.selection].forEach(id=>{
-        const rec = findRec(id);
-        if(rec && rec.group){
-          rec.group.traverse(ch=>{
-            if (ch.isMesh && !ch.userData?.__pickProxy) selMeshes.push(ch);
-          });
-        }
+    function updateOutlineSelection() {
+  if (!outlinePass) return;
+
+  outlinePass.selectedObjects = [...state.selection]
+    .map(id => findRec(id)?.group)
+    .filter(Boolean)
+    .flatMap(g => {
+      const acc = [];
+      g.traverse(o => {
+        if (o.isMesh && !o.userData?.__pickProxy) acc.push(o);
       });
-      outlinePass.selectedObjects = selMeshes;
-    }
+      return acc;
+    });
+}
+
 
     let down=null, isOrbiting=false;
     controls.addEventListener('start', ()=>{isOrbiting=true}); controls.addEventListener('end', ()=>{isOrbiting=false});
