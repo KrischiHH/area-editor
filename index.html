@@ -830,7 +830,6 @@ html, body { font-family: var(--ui-font); }
 </script>
 
   <script>
-/* Editor: scene.json-Export + Publish nach \"Aero/Spark-Style\" Schema */
 (function(){
   const AREA = (window.__AREA = window.__AREA || {});
   AREA.scene = AREA.scene || {};
@@ -840,15 +839,6 @@ html, body { font-family: var(--ui-font); }
   function num(sel, def){ const v = parseFloat(val(sel, String(def))); return Number.isFinite(v) ? v : def; }
   function file(sel){ return (document.querySelector(sel)?.files?.[0]) || null; }
 
-  // OPTIONAL: Wenn dein Stage/Lader Clips kennt, kannst du die Länge hier abfragen
-  function knownClipsCount(){
-    try {
-      if (Array.isArray(AREA.currentClips)) return AREA.currentClips.length;
-      if (Array.isArray(AREA.scene?.clips)) return AREA.scene.clips.length;
-    } catch {}
-    return undefined;
-  }
-
   window.buildSceneJson = function buildSceneJson(){
     const s  = (AREA.scene = AREA.scene || {});
     const a  = (s.animation = s.animation || {});
@@ -856,35 +846,38 @@ html, body { font-family: var(--ui-font); }
     const ui = (s.ui = s.ui || {});
     const wl = (ui.welcome = ui.welcome || {});
 
-    // Animation (UI -> State)
+    // --- Animation (UI -> State), angepasst an deine aktuelle UI ---
     a.clipName   = (val('#animClip', '*') || '*').trim();
-    a.start      = (val('#animStart', 'onPlace') || 'onPlace');
-    a.loop       = (document.querySelector('#animLoop') ? chk('#animLoop', true) : true);
-    a.iterations = Math.max(1, num('#animIterations', 9999));
+    a.start      = (document.getElementById('animStartMode')?.value || 'onStart');
 
-    // Note: Do NOT force clipName to 'none' when knownClipsCount()==0
-    // Keep '*' (or user selection) to allow viewer to show imported animations
+    // Select mit 'off' | 'once' | 'repeat'
+    const loopSel = document.getElementById('animLoop')?.value || 'repeat';
+    a.loop       = (loopSel === 'repeat'); // Viewer interpretiert bool
+    // Repeats-Input (heißt in UI 'animRepeats')
+    const repUI  = parseInt(document.getElementById('animRepeats')?.value || (a.loop ? '9999' : '1'), 10);
+    a.iterations = Math.max(1, Number.isFinite(repUI) ? repUI : (a.loop ? 9999 : 1));
 
-    // Audio (UI -> State)
+    // --- Audio ---
     au.autoplay  = val('#audioAutoplay', 'withAnimation') || 'withAnimation';
-    au.loop      = (document.querySelector('#audioLoop') ? chk('#audioLoop', true) : true);
-    au.volume    = Math.max(0, Math.min(1, document.querySelector('#audioVolume') ? num('#audioVolume', 0.85) : 0.85));
+    au.loop      = (document.getElementById('audioLoop') ? chk('#audioLoop', true) : true);
+    au.volume    = Math.max(0, Math.min(1, document.getElementById('audioVolume') ? num('#audioVolume', 0.85) : 0.85));
 
-    // Welcome/Poster
+    // --- Welcome / Poster ---
     wl.eyebrow   = val('#svEyebrow', '');
     wl.title     = val('#svTitle',  (s.meta?.title || 'ARea Scene'));
-    wl.desc      = val('#svDesc',   'Tippe auf OK und platziere das 3D‑Objekt.');
+    wl.desc      = val('#svDesc',   'Tippe auf OK und platziere das 3D-Objekt.');
     wl.nativeCta = val('#nativeCta', 'ios-only') || 'ios-only';
 
-    // Dateien (nur Namen in JSON, die Files selbst kommen im Publish)
+    // Dateien (nur Dateinamen im JSON)
     const posterF = file('#file-poster');
-    const audioF  = file('#file-audio');   // Nur Audio für diesen Patch
+    const audioF  = file('#file-audio');
     const usdzF   = file('#fileUsdz');
 
     s.meta = s.meta || {};
     s.meta.title = wl.title;
     s.meta.description = wl.desc;
-    s.meta.mode = 'area-viewer';
+    // hier den realen Modus aus dem rechten Select übernehmen
+    s.meta.mode = (document.getElementById('anchorMode')?.value || 'surface-webxr');
 
     s.model = s.model || {};
     s.model.url = 'scene.glb';
@@ -892,7 +885,7 @@ html, body { font-family: var(--ui-font); }
     s.model.scale = (typeof s.model.scale === 'number') ? s.model.scale : 1.0;
 
     if (posterF) wl.poster = posterF.name;   // poster.jpg|png|webp
-    if (audioF)  au.url    = audioF.name;    // audio.mp3|wav|ogg|m4a|webm
+    if (audioF)  au.url    = audioF.name;    // audio.mp3 ...
 
     s.animation = a;
     s.audio = au;
@@ -900,6 +893,9 @@ html, body { font-family: var(--ui-font); }
 
     return JSON.parse(JSON.stringify(s)); // saubere Kopie
   };
+})();
+</script>
+
 
   if (typeof buildViewerEntryForMode !== 'function') {
     window.buildViewerEntryForMode = function buildViewerEntryForMode(mode){
@@ -940,6 +936,105 @@ if (typeof buildRobustViewerUrl !== 'function') {
   } catch(_){}
 
 })();
+</script>
+
+  <script>
+window.previewDraft = async function previewDraft(){
+  const cfg = window.__AREA || {};
+  const PUBLISH_URL = (cfg.PUBLISH_ENDPOINT || '').trim();
+  const PUBLISH_KEY = (cfg.PUBLISH_KEY || '').trim();
+  const FILE_BASE   = (cfg.FILE_BASE || (PUBLISH_URL ? new URL(PUBLISH_URL).origin : '')).trim();
+  const VIEWER_BASE = (cfg.VIEWER_BASE || 'https://area-viewer.pages.dev').trim();
+
+  if (!PUBLISH_URL){
+    alert('Draft-Preview nicht konfiguriert: __AREA.PUBLISH_ENDPOINT fehlt.');
+    return;
+  }
+
+  // 1) ID automatisch generieren (ohne Prompt)
+  const stamp = Date.now().toString(36);
+  const rand  = Math.random().toString(36).slice(2,6);
+  const sceneId = `draft-${stamp}-${rand}`.slice(0,64);
+
+  // 2) GLB exportieren (mit Fallback auf Original, wenn ohne animations[])
+  let glbBlob = null;
+  try {
+    glbBlob = await exportSceneGLB();
+    if (window.__AREA?.__origGlb){
+      const hasAnim = await window.hasAnimationsInGlbBlob(glbBlob);
+      if (!hasAnim){
+        glbBlob = new Blob([window.__AREA.__origGlb], { type:'model/gltf-binary' });
+        console.log('[draft] Export ohne animations[] → Original-GLB verwendet.');
+      }
+    }
+  } catch (e){
+    if (window.__AREA?.__origGlb){
+      glbBlob = new Blob([window.__AREA.__origGlb], { type:'model/gltf-binary' });
+      console.log('[draft] Export fehlgeschlagen → Original-GLB verwendet.');
+    }
+  }
+  if (!glbBlob){
+    alert('Kein GLB vorhanden (weder Export noch Original).');
+    return;
+  }
+
+  // 3) scene.json auf Basis deiner UI bauen
+  const sceneJson = window.buildSceneJson?.() || {};
+  const sceneText = JSON.stringify(sceneJson);
+
+  // 4) FormData zusammenstellen
+  const fd = new FormData();
+  fd.append('sceneId', sceneId);
+  fd.append('file', new Blob([sceneText], {type:'application/json'}), 'scene.json');
+  fd.append('file', glbBlob, 'scene.glb');
+
+  // USDZ (optional)
+  const usdzF = document.getElementById('fileUsdz')?.files?.[0];
+  if (usdzF) fd.append('file', usdzF, 'model.usdz');
+
+  // Poster: User-Upload oder Canvas-Snapshot
+  const posterF = document.getElementById('file-poster')?.files?.[0];
+  if (posterF) {
+    fd.append('file', posterF, posterF.name);
+  } else {
+    try {
+      const snap = await capturePosterBlob(0.78);
+      if (snap) fd.append('file', snap, 'poster.jpg');
+    } catch {}
+  }
+
+  // Audio: Upload oder aus Media-Objekt (data:/blob:)
+  try{
+    const ai = findFirstAudio?.();
+    if (document.getElementById('file-audio')?.files?.[0]){
+      fd.append('file', document.getElementById('file-audio').files[0], 'audio.mp3');
+    } else if (ai?.fromFile){
+      fd.append('file', ai.fromFile, 'audio.mp3');
+    } else if (ai?.fromDataUrl){
+      const b = await (await fetch(ai.fromDataUrl)).blob();
+      fd.append('file', new File([b], 'audio.mp3', { type: b.type || 'audio/mpeg' }), 'audio.mp3');
+    }
+  }catch{}
+
+  // 5) Upload
+  const res = await fetch(PUBLISH_URL, {
+    method:'POST',
+    headers:{ 'X-AREA-Key': PUBLISH_KEY },
+    body: fd
+  });
+  if (!res.ok){
+    const t = await res.text().catch(()=>String(res.status));
+    alert('Draft-Upload fehlgeschlagen: '+t);
+    return;
+  }
+  // 6) Robuste Viewer-URL bauen und anzeigen
+  const mode = document.getElementById('anchorMode')?.value || 'surface-webxr';
+  const viewerUrl = buildRobustViewerUrl({ mode, sceneId, workerOrigin: FILE_BASE, viewerBase: VIEWER_BASE });
+
+  try { await navigator.clipboard.writeText(viewerUrl); } catch {}
+  showSharePanel(viewerUrl);
+  try { window.open(viewerUrl, '_blank', 'noopener'); } catch {}
+};
 </script>
 
   
@@ -1384,6 +1479,67 @@ if (typeof buildRobustViewerUrl !== 'function') {
   
   <div class="toast" id="toast" aria-live="polite"></div>
 
+    <script>
+(function(){
+  const menu     = document.getElementById('projectMenu');
+  const btn      = document.getElementById('btn-project-menu');
+  const pop      = document.getElementById('projectMenuPop');
+
+  function closeMenu(){ menu?.classList.remove('open'); btn?.setAttribute('aria-expanded','false'); }
+  function openMenu(){  menu?.classList.add('open');     btn?.setAttribute('aria-expanded','true'); }
+
+  btn?.addEventListener('click', (e)=>{
+    e.preventDefault();
+    menu.classList.toggle('open');
+    btn.setAttribute('aria-expanded', menu.classList.contains('open') ? 'true' : 'false');
+  });
+
+  document.addEventListener('click', (e)=>{
+    if (!menu || !pop) return;
+    if (menu.contains(e.target)) return;
+    closeMenu();
+  });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeMenu(); });
+
+  // Buttons
+  document.getElementById('btn-new')?.addEventListener('click', ()=>{
+    closeMenu();
+    if(!confirm('Neues Projekt starten? Ungespeicherte Änderungen gehen verloren.')) return;
+    try{ window.__AREA.__origGlb = null; }catch{}
+    document.getElementById('btn-clear')?.click();
+    const pill = document.getElementById('projNamePill');
+    if (pill) pill.textContent = 'Unbenanntes Projekt';
+    document.title = 'ARea Editor v3.0 — Unbenanntes Projekt';
+  });
+
+  document.getElementById('btn-save')?.addEventListener('click', async ()=>{
+    closeMenu();
+    try{ await window.saveProject?.({saveAs:false}); }catch{}
+  });
+
+  document.getElementById('btn-save-as')?.addEventListener('click', async ()=>{
+    closeMenu();
+    try{ await window.saveProject?.({saveAs:true}); }catch{}
+  });
+
+  document.getElementById('btn-preview')?.addEventListener('click', (e)=>{
+    e.preventDefault(); closeMenu();
+    try{ window.previewModules?.(); }catch{}
+  });
+
+  document.getElementById('btn-preview-draft')?.addEventListener('click', async (e)=>{
+    e.preventDefault(); closeMenu();
+    try{ await window.previewDraft?.(); }catch(e){ alert('Draft-Preview fehlgeschlagen: '+(e?.message||e)); }
+  });
+
+  document.getElementById('btn-publish')?.addEventListener('click', async (e)=>{
+    e.preventDefault(); closeMenu();
+    try{ await window.publishScene?.(); }catch(e){ alert('Publish fehlgeschlagen: '+(e?.message||e)); }
+  });
+})();
+</script>
+
+
 
   <script type="module">
     import * as THREE from 'three';
@@ -1526,6 +1682,8 @@ svInput?.addEventListener('change', (e)=>{
   }
 }
 
+    
+
     window.__applyThemeToThree = applyThemeToThree;
 
     const scene = new THREE.Scene();
@@ -1552,6 +1710,39 @@ camLight.visible = document.getElementById('headlight')?.checked ?? true;
 document.getElementById('headlight')?.addEventListener('change', (e)=>{
   camLight.visible = !!e.target.checked;
 });
+
+    <script>
+// Theme-Radio-Buttons mit dem System verbinden
+(function(){
+  const html = document.documentElement;
+  const radios = ['th-slate','th-aurora','th-nebula']
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+
+  function applyTheme(cls){
+    ['theme-slate','theme-aurora','theme-nebula'].forEach(c => html.classList.remove(c));
+    html.classList.add(cls);
+    try { localStorage.setItem('theme', cls); } catch {}
+    try { window.__applyThemeToThree?.(); } catch {}
+  }
+
+  // Initial den korrekten Radio setzen
+  const cur = html.classList.contains('theme-aurora') ? 'theme-aurora'
+            : html.classList.contains('theme-nebula') ? 'theme-nebula'
+            : 'theme-slate';
+  const map = { 'theme-slate':'th-slate', 'theme-aurora':'th-aurora', 'theme-nebula':'th-nebula' };
+  const active = document.getElementById(map[cur]);
+  if (active) active.checked = true;
+
+  // Änderungen übernehmen
+  radios.forEach(r => r.addEventListener('change', (e)=>{
+    if (!e.target.checked) return;
+    const cls = e.target.value; // value="theme-…"
+    applyTheme(cls);
+  }));
+})();
+</script>
+
 
 
     // Environment (IBL)
