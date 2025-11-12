@@ -857,10 +857,12 @@ html, body { font-family: var(--ui-font); }
     const wl = (ui.welcome = ui.welcome || {});
 
     // Animation (UI -> State)
-    a.clipName   = (val('#animClip', '*') || '*').trim();
-    a.start      = (val('#animStart', 'onPlace') || 'onPlace');
-    a.loop       = (document.querySelector('#animLoop') ? chk('#animLoop', true) : true);
-    a.iterations = Math.max(1, num('#animIterations', 9999));
+    a.clipName   = (typeof window.getSelectedClipNameForExport === 'function') 
+                    ? (window.getSelectedClipNameForExport() || '*')
+                    : '*';
+    a.start      = (val('#animStartMode', 'onStart') || 'onStart');
+    a.loop       = (val('#animLoop', 'repeat') === 'repeat');
+    a.iterations = Math.max(1, num('#animRepeats', 9999));
 
     // Note: Do NOT force clipName to 'none' when knownClipsCount()==0
     // Keep '*' (or user selection) to allow viewer to show imported animations
@@ -2558,7 +2560,7 @@ async function capturePosterBlob(quality = 0.75){
 async function dataUrlToBlob(u){ const r = await fetch(u); return await r.blob(); }
 
 // === Namen des Anim-Clip aus UI/Selection bestimmen ===
-function getSelectedClipNameForExport(){
+window.getSelectedClipNameForExport = function getSelectedClipNameForExport(){
   // Wenn genau 1 Objekt selektiert und Clips vorhanden → UI auslesen
   if (state.selection.size === 1){
     const rec = state.objects.find(o=>o.id===state.selectedId);
@@ -2667,7 +2669,7 @@ function remapAnimationClipsForExport(allClips, clonedRoot){
   return remapped;
 }
 
-async function exportSceneGLB(){
+async function exportSceneGLB(options = {}){
   const exporter = new GLTFExporter();
   const exportRoot = cloneForExport();
   const allClips = [];
