@@ -2672,7 +2672,8 @@ function remapAnimationClipsForExport(allClips, clonedRoot){
 
 async function exportSceneGLB(options = {}){
   const exporter = new GLTFExporter();
-  const exportRoot = cloneForExport();
+  // DEBUG: Exportiere testweise die Originalszene statt cloneForExport()
+  const exportRoot = scene;
   const allClips = [];
   state.objects.forEach(r => { if (r?.clips?.length) r.clips.forEach(c => allClips.push(c)); });
 
