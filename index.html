@@ -860,7 +860,7 @@ html, body { font-family: var(--ui-font); }
     a.clipName   = (typeof window.getSelectedClipNameForExport === 'function') 
                     ? (window.getSelectedClipNameForExport() || '*')
                     : '*';
-    a.start      = (val('#animStartMode', 'onStart') || 'onStart');
+    a.start      = (val('#animStartMode', 'onPlace') || 'onPlace');
     a.loop       = (val('#animLoop', 'repeat') === 'repeat');
     a.iterations = Math.max(1, num('#animRepeats', 9999));
 
@@ -1336,7 +1336,8 @@ if (typeof buildRobustViewerUrl !== 'function') {
         <div class="kv">
   <div>Startverhalten</div>
   <select id="animStartMode" class="select">
-    <option value="onStart" selected>Autostart</option>
+    <option value="onStart">Autostart (sofort)</option>
+    <option value="onPlace" selected>Beim Platzieren (AR)</option>
     <option value="onClick">Per Klick (Play-Button)</option>
   </select>
 </div>        
@@ -2356,7 +2357,7 @@ async function blobToBase64(blob){
       if (data.meta?.projectName) setProjectName(data.meta.projectName);
       if (data.settings?.anchorMode){
   setAnchorSel(data.settings.anchorMode);
-        (document.getElementById('animStartMode')||{}).value = data.settings?.animStartMode || 'onStart';
+        (document.getElementById('animStartMode')||{}).value = data.settings?.animStartMode || 'onPlace';
 
 }
 if (data.settings?.sceneViewer){
@@ -2753,7 +2754,7 @@ function buildSceneJSON({ sceneId, title, mode, glbUrl, usdzUrl, targetUrl }) {
     animation: {
       enabled: true,
       clipName,
-      start: (document.getElementById('animStartMode')?.value || 'onStart'),
+      start: (document.getElementById('animStartMode')?.value || 'onPlace'),
       loop:  (document.getElementById('animLoop')?.value || 'repeat') === 'repeat',
       iterations: parseInt(document.getElementById('animRepeats')?.value || '9999', 10) || 9999,
       clampWhenFinished: true
@@ -2808,7 +2809,7 @@ function buildSceneViewerJSON_CF() {
     animation: {
       enabled: true,
       clipName,
-      start: (document.getElementById('animStartMode')?.value || 'onStart'),
+      start: (document.getElementById('animStartMode')?.value || 'onPlace'),
       loop:  (document.getElementById('animLoop')?.value||'repeat') === 'repeat',
       iterations: parseInt(document.getElementById('animRepeats')?.value||'9999',10)||9999,
       clampWhenFinished: true,
