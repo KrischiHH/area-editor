@@ -639,7 +639,7 @@ html, body { font-family: var(--ui-font); }
   content:"";
   display:inline-block;
   width:16px; height:16px; flex:0 0 16px;
-  background: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer_icon.png")
+  background: url("icons/layer_icon.png")
               center / contain no-repeat;
   opacity:.95;
 }
@@ -649,9 +649,9 @@ html, body { font-family: var(--ui-font); }
   #left > h3::before{
     /* WICHTIG: PNG-Fallback NICHT killen – wir überschreiben nur die Darstellung */
     background-color: currentColor;
-    -webkit-mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer_icon.svg")
+    -webkit-mask: url("icons/layer_icon.svg")
                   no-repeat center / contain;
-            mask: url("https://raw.githubusercontent.com/KrischiHH/area/main/icons/layer_icon.svg")
+            mask: url("icons/layer_icon.svg")
                   no-repeat center / contain;
     /* Kein background: none;  → lässt Fallback intakt, falls Maske nicht lädt */
   }
