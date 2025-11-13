@@ -2658,7 +2658,7 @@ function remapAnimationClipsForExport(allClips, clonedRoot){
       const dot = tr.name.lastIndexOf('.');
       const suffix = dot >= 0 ? tr.name.slice(dot+1) : '';
       const t = tr.clone();
-      t.name = targetNode.name + (suffix ? ('.'+suffix) : '');; // bind by UUID for robustness
+      t.name = targetNode.name + (suffix ? ('.'+suffix) : ''); // bind by name for GLTFExporter compatibility
       newTracks.push(t);
     }
     if (newTracks.length){ 
