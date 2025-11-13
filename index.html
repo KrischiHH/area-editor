@@ -2706,7 +2706,7 @@ async function exportSceneGLB(options = {}){
           resolve(glbBlob);
         }catch(e){ reject(e); }
       },
-      { binary:true, onlyVisible:true, embedImages:true, animations: remappedClips }
+     { binary:true, embedImages:true, animations: remappedClips }
     );
   });
 }
