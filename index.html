@@ -2671,25 +2671,40 @@ function remapAnimationClipsForExport(allClips, clonedRoot){
 }
 
 async function exportSceneGLB(options = {}){
-  const exporter = new GLTFExporter();
+  const exporter   = new GLTFExporter();
   const exportRoot = cloneForExport();
-  const allClips = [];
-  state.objects.forEach(r => { if (r?.clips?.length) r.clips.forEach(c => allClips.push(c)); });
 
-  // Remap animation clips to cloned nodes
+  // Alle Clips aus den Objekten einsammeln
+  const allClips = [];
+  state.objects.forEach(r => {
+    if (r?.clips?.length) {
+      r.clips.forEach(c => allClips.push(c));
+    }
+  });
+
+  // Clips auf den geklonten Baum remappen
   const remappedClips = remapAnimationClipsForExport(allClips, exportRoot);
   console.log('[exportSceneGLB] Original clips:', allClips.length, 'Remapped clips:', remappedClips.length);
-  
-  // Debug: log first track names for comparison
+
   if (allClips.length > 0 && allClips[0]?.tracks?.length > 0){
     console.log('[exportSceneGLB] Original first track:', allClips[0].tracks[0].name);
   }
   if (remappedClips.length > 0 && remappedClips[0]?.tracks?.length > 0){
     console.log('[exportSceneGLB] Remapped first track:', remappedClips[0].tracks[0].name);
   }
-// Setze Animationen explizit an die exportierte Szene
-  exportRoot.animations = remappedClips;
-  
+
+  // Fallback: wenn Remap schiefgeht, nimm die Original-Clips
+  let clipsForExport = remappedClips;
+  if (!clipsForExport || !clipsForExport.length){
+    clipsForExport = allClips;
+    console.warn('[exportSceneGLB] Remap ergab keine Clips – verwende Original-Clips für Export.');
+  }
+
+  // Clips direkt am Root hinterlegen – GLTFExporter nutzt dann diese
+  if (clipsForExport && clipsForExport.length){
+    exportRoot.animations = clipsForExport;
+  }
+
   return new Promise((resolve, reject)=>{
     exporter.parse(
       exportRoot,
@@ -2702,16 +2717,25 @@ async function exportSceneGLB(options = {}){
           } else {
             glbBlob = makeGLBFromJSON(result);
           }
-          // Check if animations are present in the exported GLB
+
           const hasAnim = await window.hasAnimationsInGlbBlob(glbBlob);
           console.log('[exportSceneGLB] Exported GLB has animations:', hasAnim);
           resolve(glbBlob);
-        }catch(e){ reject(e); }
+        }catch(e){
+          reject(e);
+        }
       },
-     { binary:true, embedImages:true, animations: remappedClips }
+      {
+        binary: true,
+        onlyVisible: true,
+        embedImages: true
+        // WICHTIG: kein animations: remappedClips mehr hier,
+        // der Exporter nimmt exportRoot.animations
+      }
     );
   });
 }
+
 
 /* === Audio-Helper: erstes Audioobjekt in der Szene finden === */
 function findFirstAudio(){
