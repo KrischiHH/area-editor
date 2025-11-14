@@ -2674,27 +2674,41 @@ async function exportSceneGLB(options = {}){
   const exporter   = new GLTFExporter();
   const exportRoot = cloneForExport();
 
-  // 1) Alle Animations-Clips einsammeln, die der Editor kennt
+  // 0) Versuche zuerst: Original-GLB 1:1 verwenden (Passthrough)
+  try {
+    const AREA = window.__AREA || {};
+    const hasOrigGlb = AREA.__origGlb && AREA.__origGlb.byteLength > 0;
+
+    if (hasOrigGlb) {
+      const origBlob = new Blob([AREA.__origGlb], { type: 'model/gltf-binary' });
+      const hasAnimOrig = await window.hasAnimationsInGlbBlob(origBlob);
+      console.log('[exportSceneGLB] Using original imported GLB – has animations:', hasAnimOrig);
+      if (hasAnimOrig) {
+        // Direkt zurückgeben – das wird später als scene.glb in R2 landen
+        return origBlob;
+      } else {
+        console.warn('[exportSceneGLB] Original GLB hat keine animations[] – fallback auf Exporter.');
+      }
+    }
+  } catch (e) {
+    console.warn('[exportSceneGLB] Passthrough-Check fehlgeschlagen:', e);
+  }
+
+  // 1) Fallback: bisherige Export-Logik (für Szenen ohne Original-GLB)
   const allClips = [];
   state.objects.forEach(rec => {
-    if (rec?.clips?.length) {
-      rec.clips.forEach(c => allClips.push(c));
-    }
+    if (rec?.clips?.length) rec.clips.forEach(c => allClips.push(c));
   });
 
   console.log('[exportSceneGLB] Original clips:', allClips.length);
-
   if (allClips.length > 0 && allClips[0]?.tracks?.length > 0){
     console.log('[exportSceneGLB] First track name:', allClips[0].tracks[0].name);
   }
 
-  // 2) Clips direkt am Export-Root hinterlegen
-  //    → GLTFExporter nimmt exportRoot.animations automatisch
   if (allClips.length > 0){
     exportRoot.animations = allClips;
   }
 
-  // 3) Export ausführen (ohne animations:-Option)
   return new Promise((resolve, reject)=>{
     exporter.parse(
       exportRoot,
@@ -2705,26 +2719,22 @@ async function exportSceneGLB(options = {}){
             const ab = (result instanceof ArrayBuffer) ? result : result.buffer;
             glbBlob = new Blob([ab], { type:'model/gltf-binary' });
           } else {
-            // JSON-Result in GLB umwandeln – deine bestehende makeGLBFromJSON-Funktion
             glbBlob = makeGLBFromJSON(result);
           }
-
           const hasAnim = await window.hasAnimationsInGlbBlob(glbBlob);
           console.log('[exportSceneGLB] Exported GLB has animations:', hasAnim);
           resolve(glbBlob);
-        }catch(e){
-          reject(e);
-        }
+        }catch(e){ reject(e); }
       },
       {
-        binary: true,
-        onlyVisible: true,
-        embedImages: true
-        // WICHTIG: KEIN "animations: ..." mehr hier!
+        binary:true,
+        onlyVisible:true,
+        embedImages:true
       }
     );
   });
 }
+
 
 
 
