@@ -2930,23 +2930,11 @@ async function publish(){
       }
 
       // Fallback: wenn Original vorhanden und exportiertes GLB keine animations[] enthält → Original nutzen
-      if (AREA.__origGlb){
-        let mustFallback = false;
-        if (glbBlob){
-          const hasAnim = await window.hasAnimationsInGlbBlob(glbBlob);
-          if (!hasAnim){
-            console.warn('[publish] Exportiertes GLB ohne animations[] – fallback auf Original-GLB.');
-            mustFallback = true;
-          }
-        } else {
-          mustFallback = true;
-        }
-        if (mustFallback){
-          glbBlob = new Blob([AREA.__origGlb], { type:'model/gltf-binary' });
-          glbSource = 'fallback';
-          console.log('[publish] GLB source: fallback to original GLB (Passthrough), size:', AREA.__origGlb.byteLength, 'bytes');
-        }
-      }
+      if (AREA.__origGlb) {
+  glbBlob = new Blob([AREA.__origGlb], { type: 'model/gltf-binary' });
+  glbSource = 'original';
+  console.log('[publish] GLB source: original __origGlb (Passthrough), size:', AREA.__origGlb.byteLength, 'bytes');
+}
 
       if (glbSource === 'export'){
         console.log('[publish] GLB source: export (via exportSceneGLB)');
