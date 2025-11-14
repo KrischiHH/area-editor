@@ -2674,37 +2674,27 @@ async function exportSceneGLB(options = {}){
   const exporter   = new GLTFExporter();
   const exportRoot = cloneForExport();
 
-  // Alle Clips aus den Objekten einsammeln
+  // 1) Alle Animations-Clips einsammeln, die der Editor kennt
   const allClips = [];
-  state.objects.forEach(r => {
-    if (r?.clips?.length) {
-      r.clips.forEach(c => allClips.push(c));
+  state.objects.forEach(rec => {
+    if (rec?.clips?.length) {
+      rec.clips.forEach(c => allClips.push(c));
     }
   });
 
-  // Clips auf den geklonten Baum remappen
-  const remappedClips = remapAnimationClipsForExport(allClips, exportRoot);
-  console.log('[exportSceneGLB] Original clips:', allClips.length, 'Remapped clips:', remappedClips.length);
+  console.log('[exportSceneGLB] Original clips:', allClips.length);
 
   if (allClips.length > 0 && allClips[0]?.tracks?.length > 0){
-    console.log('[exportSceneGLB] Original first track:', allClips[0].tracks[0].name);
-  }
-  if (remappedClips.length > 0 && remappedClips[0]?.tracks?.length > 0){
-    console.log('[exportSceneGLB] Remapped first track:', remappedClips[0].tracks[0].name);
+    console.log('[exportSceneGLB] First track name:', allClips[0].tracks[0].name);
   }
 
-  // Fallback: wenn Remap schiefgeht, nimm die Original-Clips
-  let clipsForExport = remappedClips;
-  if (!clipsForExport || !clipsForExport.length){
-    clipsForExport = allClips;
-    console.warn('[exportSceneGLB] Remap ergab keine Clips – verwende Original-Clips für Export.');
+  // 2) Clips direkt am Export-Root hinterlegen
+  //    → GLTFExporter nimmt exportRoot.animations automatisch
+  if (allClips.length > 0){
+    exportRoot.animations = allClips;
   }
 
-  // Clips direkt am Root hinterlegen – GLTFExporter nutzt dann diese
-  if (clipsForExport && clipsForExport.length){
-    exportRoot.animations = clipsForExport;
-  }
-
+  // 3) Export ausführen (ohne animations:-Option)
   return new Promise((resolve, reject)=>{
     exporter.parse(
       exportRoot,
@@ -2715,6 +2705,7 @@ async function exportSceneGLB(options = {}){
             const ab = (result instanceof ArrayBuffer) ? result : result.buffer;
             glbBlob = new Blob([ab], { type:'model/gltf-binary' });
           } else {
+            // JSON-Result in GLB umwandeln – deine bestehende makeGLBFromJSON-Funktion
             glbBlob = makeGLBFromJSON(result);
           }
 
@@ -2729,12 +2720,12 @@ async function exportSceneGLB(options = {}){
         binary: true,
         onlyVisible: true,
         embedImages: true
-        // WICHTIG: kein animations: remappedClips mehr hier,
-        // der Exporter nimmt exportRoot.animations
+        // WICHTIG: KEIN "animations: ..." mehr hier!
       }
     );
   });
 }
+
 
 
 /* === Audio-Helper: erstes Audioobjekt in der Szene finden === */
