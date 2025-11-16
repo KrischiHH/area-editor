@@ -668,8 +668,73 @@ html, body { font-family: var(--ui-font); }
     PUBLISH_ENDPOINT: "https://area-publish-proxy.area-webar.workers.dev/publish",
     FILE_BASE:       "https://area-publish.area-webar.workers.dev",   // NEU: dient NUR zum Ausliefern /scenes/
     PUBLISH_KEY: "",
-    VIEWER_BASE: "https://area-viewer.pages.dev"
+    VIEWER_BASE: "https://area-viewer.pages.dev",
+    __origGlb: null  // Buffer for original GLB binary
   };
+
+  // ========== Helper: Store Original GLB from URL ==========
+  window.__AREA.rememberOriginalGlbFromUrl = async function(url) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.warn('Could not fetch original GLB from URL:', url);
+        return;
+      }
+      const buffer = await response.arrayBuffer();
+      window.__AREA.__origGlb = buffer;
+      console.log('Original GLB buffered from URL:', url, buffer.byteLength, 'bytes');
+    } catch (err) {
+      console.warn('Error fetching original GLB:', err);
+    }
+  };
+
+  // ========== Fetch Wrapper: Inject Original GLB on Publish ==========
+  (function() {
+    const originalFetch = window.fetch;
+    window.fetch = function(url, init) {
+      // Check if this is a POST to /publish with FormData and we have __origGlb
+      const isPost = init && (init.method || 'GET').toUpperCase() === 'POST';
+      // More specific check: match actual PUBLISH_ENDPOINT or any URL ending with /publish
+      const publishEndpoint = window.__AREA?.PUBLISH_ENDPOINT;
+      const isPublish = typeof url === 'string' && (
+        (publishEndpoint && url === publishEndpoint) || 
+        url.endsWith('/publish')
+      );
+      const hasOrigGlb = window.__AREA?.__origGlb;
+      const isFormData = init && init.body instanceof FormData;
+
+      if (isPost && isPublish && hasOrigGlb && isFormData) {
+        console.log('Intercepting POST /publish - injecting original GLB');
+        
+        // Clone the FormData to avoid mutation issues
+        const newForm = new FormData();
+        const oldForm = init.body;
+        
+        // Copy all entries except 'file' entries named 'scene.glb'
+        // Note: entries() iterates over ALL entries, including duplicates with the same key
+        for (const [key, value] of oldForm.entries()) {
+          if (key === 'file' && value instanceof File && value.name === 'scene.glb') {
+            // Skip the re-exported scene.glb - we'll add the original instead
+            console.log('Skipping re-exported scene.glb');
+            continue;
+          }
+          newForm.append(key, value);
+        }
+        
+        // Inject the original GLB as scene.glb (directly from ArrayBuffer)
+        const origFile = new File([window.__AREA.__origGlb], 'scene.glb', { type: 'model/gltf-binary' });
+        newForm.append('file', origFile);
+        console.log('Injected original GLB:', origFile.size, 'bytes');
+        
+        // Replace the body with our modified FormData
+        const newInit = { ...init, body: newForm };
+        return originalFetch.call(this, url, newInit);
+      }
+      
+      // Not a publish request or no original GLB - pass through unchanged
+      return originalFetch.apply(this, arguments);
+    };
+  })();
 </script>
 
 
@@ -1850,6 +1915,47 @@ async function blobToBase64(blob){
   return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); });
 }
 
+    // Helper to buffer original GLB binary data
+    function bufferOriginalGlb(arrayBuffer, source) {
+      if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+        console.warn('Cannot buffer empty GLB data from', source);
+        return false;
+      }
+      window.__AREA.__origGlb = arrayBuffer;
+      console.log('Original GLB buffered from', source + ':', arrayBuffer.byteLength, 'bytes');
+      return true;
+    }
+
+    // Helper to extract ArrayBuffer from data URL
+    function dataUrlToArrayBuffer(dataUrl) {
+      // Check if it's a GLB data URL (model/gltf-binary or application/octet-stream)
+      if (!dataUrl || !dataUrl.startsWith('data:')) return null;
+      
+      const commaIndex = dataUrl.indexOf(',');
+      if (commaIndex === -1) return null; // Invalid data URL format
+      
+      const header = dataUrl.substring(0, commaIndex);
+      const isGlbMime = header.includes('model/gltf-binary') || 
+                        header.includes('application/octet-stream');
+      if (!isGlbMime) {
+        console.warn('Data URL is not a GLB (expected model/gltf-binary or application/octet-stream)');
+        return null;
+      }
+      
+      const base64Data = dataUrl.substring(commaIndex + 1);
+      if (!base64Data || base64Data.trim() === '') return null;
+      
+      try {
+        // Efficient base64 decode using Uint8Array.from
+        const binaryString = atob(base64Data);
+        const bytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
+        return bytes.buffer;
+      } catch (err) {
+        console.warn('Failed to decode base64 data:', err);
+        return null;
+      }
+    }
+
     
     async function addFromFile(file){
       const id=uid(); const url=URL.createObjectURL(file);
@@ -1860,6 +1966,15 @@ async function blobToBase64(blob){
           ({group,root,clips} = await createFromFBX(url,name));
         } else {
           ({group,root,clips} = await createFromGLTF(url,name));
+          // Buffer original GLB for publish (only GLB binary format, not GLTF JSON)
+          if (/\.glb$/i.test(file.name)) {
+            try {
+              const buffer = await file.arrayBuffer();
+              bufferOriginalGlb(buffer, 'file: ' + file.name);
+            } catch (err) {
+              console.warn('Could not buffer original GLB:', err);
+            }
+          }
         }
         URL.revokeObjectURL(url);
         const box=new THREE.Box3().setFromObject(group); const center=new THREE.Vector3(); box.getCenter(center);
@@ -2394,7 +2509,21 @@ updateAnchorUI();
           media={kind:'audio', sound, loop:!!obj.media.loop, repeats:obj.media.repeats||1, count:0, src};
         } else {
           const url = obj.asset || null;
-          if(url){ const r = await createFromGLTF(url, name); group=r.group; root=r.root; clips=r.clips; }
+          if(url){ 
+            const r = await createFromGLTF(url, name); 
+            group=r.group; root=r.root; clips=r.clips;
+            // Buffer original GLB when loading from project (data URL)
+            if (url.startsWith('data:')) {
+              try {
+                const buffer = dataUrlToArrayBuffer(url);
+                if (buffer) {
+                  bufferOriginalGlb(buffer, 'project');
+                }
+              } catch (err) {
+                console.warn('Could not buffer original GLB from project:', err);
+              }
+            }
+          }
           else { group=new THREE.Group(); group.name=name; }
         }
 
