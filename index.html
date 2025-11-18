@@ -2,200 +2,171 @@
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <title>ARea Light Editor – GLB Animation Test</title>
+  <title>ARea Light Editor – Pipeline-Test</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      display: grid;
-      grid-template-columns: minmax(270px, 320px) 1fr;
-      height: 100vh;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      background: #050814;
-      color: #e5e9f5;
-    }
-    #panel {
-      padding: 16px;
-      border-right: 1px solid rgba(255,255,255,0.08);
-      background: radial-gradient(circle at top, #121b31, #050814);
+      min-height: 100vh;
       display: flex;
-      flex-direction: column;
-      gap: 12px;
+      align-items: stretch;
+      justify-content: center;
+      background: radial-gradient(circle at top, #1f2937, #020617);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      color: #e5e7eb;
     }
-    #panel h1 {
+    .shell {
+      width: 100%;
+      max-width: 720px;
+      padding: 20px 16px 24px;
+    }
+    h1 {
       margin: 0 0 4px;
-      font-size: 18px;
+      font-size: 20px;
     }
-    #panel small {
-      color: #8891aa;
+    small {
+      color: #9ca3af;
       line-height: 1.4;
     }
+    form {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 16px;
+      background: rgba(15,23,42,0.88);
+      border: 1px solid rgba(148,163,184,0.35);
+      box-shadow: 0 18px 40px rgba(15,23,42,0.8);
+    }
     label {
-      font-size: 13px;
-      color: #c3c9dc;
-      margin-top: 6px;
       display: block;
+      margin-top: 10px;
+      font-size: 13px;
+      color: #d1d5db;
     }
     input[type="file"],
-    select,
     input[type="text"],
-    input[type="password"] {
+    input[type="password"],
+    select {
       width: 100%;
       margin-top: 4px;
-      padding: 6px 8px;
-      border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(6,10,24,0.85);
-      color: #e5e9f5;
+      padding: 7px 9px;
+      border-radius: 10px;
+      border: 1px solid rgba(148,163,184,0.4);
+      background: rgba(15,23,42,0.9);
+      color: #e5e7eb;
       font-size: 13px;
     }
     input::placeholder {
       color: #6b7280;
     }
+    select {
+      cursor: pointer;
+    }
     button {
+      margin-top: 14px;
       border: none;
       border-radius: 999px;
-      padding: 8px 14px;
+      padding: 8px 16px;
       font-size: 13px;
+      font-weight: 500;
       cursor: pointer;
       background: linear-gradient(135deg,#4f46e5,#22d3ee);
       color: #fff;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      white-space: nowrap;
     }
     button[disabled] {
       opacity: 0.5;
       cursor: default;
     }
-    #btnRow {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-      flex-wrap: wrap;
-    }
     #status {
-      margin-top: 8px;
+      margin-top: 14px;
       font-size: 12px;
       white-space: pre-wrap;
-      max-height: 220px;
+      max-height: 260px;
       overflow: auto;
-      background: rgba(4,7,20,0.7);
-      border-radius: 8px;
+      background: rgba(15,23,42,0.9);
+      border-radius: 10px;
       padding: 8px;
-      border: 1px solid rgba(255,255,255,0.06);
-    }
-    #viewport {
-      position: relative;
-    }
-    canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
-    #overlayMsg {
-      position: absolute;
-      left: 50%;
-      top: 16px;
-      transform: translateX(-50%);
-      padding: 6px 12px;
-      border-radius: 999px;
-      background: rgba(0,0,0,0.6);
-      border: 1px solid rgba(255,255,255,0.12);
-      color: #fefefe;
-      font-size: 12px;
-      pointer-events: none;
+      border: 1px solid rgba(55,65,81,0.9);
     }
     a {
       color: #7dd3fc;
       word-break: break-all;
     }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 11px;
+      background: rgba(15,23,42,0.9);
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body>
-  <div id="panel">
+  <div class="shell">
     <h1>ARea Light Editor</h1>
     <small>
-      Minimal-Setup zum Debuggen:<br>
-      <strong>GLB mit Animation → Cloudflare /publish → Surface Viewer</strong>.
+      Minimal-Tool zum Testen der Pipeline:<br>
+      <strong>GLB → /publish → Surface Viewer</strong><br>
+      (ohne Three.js, ohne Viewport – nur Datenfluss).
     </small>
 
-    <label>
-      1. GLB mit Animation importieren
-      <input id="fileGlb" type="file" accept=".glb,model/gltf-binary" />
-    </label>
+    <form id="form">
+      <label>
+        GLB mit Animation
+        <input id="fileGlb" type="file" accept=".glb,model/gltf-binary" />
+      </label>
 
-    <label>
-      2. Animations-Clip wählen
-      <select id="clipSelect" disabled>
-        <option value="">(noch keine Animationen)</option>
-      </select>
-    </label>
+      <label>
+        Animations-Clip-Name
+        <input id="clipName" type="text" placeholder="z.B. Walk, Idle oder * für ersten Clip" />
+      </label>
 
-    <label>
-      3. Startmodus
-      <select id="startMode">
-        <option value="onPlace">onPlace – Start nach AR-Placement</option>
-        <option value="onStart">onStart – direkt beim Laden</option>
-        <option value="onClick">onClick – bei Tap/Click</option>
-        <option value="manual">manual – nur über Buttons</option>
-      </select>
-    </label>
+      <label>
+        Startmodus
+        <select id="startMode">
+          <option value="onPlace">onPlace – Start nach Placement in AR</option>
+          <option value="onStart">onStart – direkt beim Laden</option>
+          <option value="onClick">onClick – bei Tap/Click</option>
+          <option value="manual">manual – nur über Buttons</option>
+        </select>
+      </label>
 
-    <label>
-      Szene-ID (optional, sonst wird eine generiert)
-      <input id="sceneId" type="text" placeholder="z.B. testcube" />
-    </label>
+      <label>
+        Szene-ID (optional, sonst wird eine generiert)
+        <input id="sceneId" type="text" placeholder="z.B. testcube-01" />
+      </label>
 
-    <label>
-      X-AREA-Key (nur lokal, nie im Repo)
-      <input id="publishKey" type="password" placeholder="Key aus Cloudflare Worker" />
-    </label>
+      <label>
+        X-AREA-Key (aus Cloudflare Worker, bleibt nur im Browser)
+        <input id="publishKey" type="password" placeholder="geheimer Key aus area-publish Worker" />
+      </label>
 
-    <div id="btnRow">
-      <button id="btnPlay" disabled>▶ Vorschau</button>
-      <button id="btnPublish" disabled>⬆ Publish nach Cloudflare</button>
-    </div>
+      <button id="btnPublish" type="button" disabled>⬆ Publish nach Cloudflare</button>
 
-    <div id="status"></div>
+      <div id="status"></div>
+    </form>
   </div>
 
-  <div id="viewport">
-    <div id="overlayMsg">Importiere ein GLB mit Animation…</div>
-    <canvas id="canvas"></canvas>
-  </div>
-
-<script type="module">
-  // --- CONFIG: Worker & Viewer ----------------------------------------------
+<script>
+  // --- Konfiguration --------------------------------------------------------
   const PUBLISH_URL = 'https://area-publish.area-webar.workers.dev/publish';
   const VIEWER_BASE = 'https://area-viewer.pages.dev/surface-ar/area-viewer.html';
-
   const workerOrigin = new URL(PUBLISH_URL).origin;
-  const KEY_STORAGE = 'area_publish_key';
+  const KEY_STORAGE = 'area_lighteditor_publish_key';
 
-  // --- Three.js Setup -------------------------------------------------------
-  import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-  import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
-  import { GLTFLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
-
-  const canvas      = document.getElementById('canvas');
-  const overlayMsg  = document.getElementById('overlayMsg');
+  const fileInput   = document.getElementById('fileGlb');
+  const clipInput   = document.getElementById('clipName');
+  const startSelect = document.getElementById('startMode');
+  const sceneInput  = document.getElementById('sceneId');
+  const keyInput    = document.getElementById('publishKey');
+  const btnPublish  = document.getElementById('btnPublish');
   const statusEl    = document.getElementById('status');
 
-  const fileGlbInput = document.getElementById('fileGlb');
-  const clipSelect   = document.getElementById('clipSelect');
-  const startModeSel = document.getElementById('startMode');
-  const sceneIdInput = document.getElementById('sceneId');
-  const publishKeyInput = document.getElementById('publishKey');
-  const btnPlay      = document.getElementById('btnPlay');
-  const btnPublish   = document.getElementById('btnPublish');
-
-  // ggf. Key aus localStorage vorbefüllen (nur Browser-seitig)
-  const savedKey = localStorage.getItem(KEY_STORAGE);
-  if (savedKey) publishKeyInput.value = savedKey;
+  let glbFile = null;
 
   function log(msg){
     console.log(msg);
@@ -203,191 +174,65 @@
     statusEl.scrollTop = statusEl.scrollHeight;
   }
 
-  const scene   = new THREE.Scene();
-  scene.background = new THREE.Color(0x050814);
-
-  const camera  = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-  camera.position.set(2, 2, 3);
-
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x222233, 1.0);
-  scene.add(hemi);
-
-  const dir = new THREE.DirectionalLight(0xffffff, 1.2);
-  dir.position.set(3, 5, 4);
-  scene.add(dir);
-
-  const groundGeo = new THREE.CircleGeometry(4, 64);
-  const groundMat = new THREE.MeshStandardMaterial({
-    color: 0x0b1020,
-    metalness: 0,
-    roughness: 0.9
-  });
-  const ground = new THREE.Mesh(groundGeo, groundMat);
-  ground.rotation.x = -Math.PI/2;
-  ground.position.y = -0.01;
-  scene.add(ground);
-
-  let mixer = null;
-  let currentAction = null;
-  let glbAnimations = [];
-  let clock = new THREE.Clock();
-
-  let importedGlbBlob = null;
-  let importedGlbName = null;
-
-  function resize(){
-    const w = canvas.clientWidth || canvas.parentElement.clientWidth;
-    const h = canvas.clientHeight || canvas.parentElement.clientHeight;
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-    renderer.setSize(w, h, false);
+  // Key aus localStorage vorbefüllen (nur Browser-seitig)
+  const savedKey = localStorage.getItem(KEY_STORAGE);
+  if (savedKey) {
+    keyInput.value = savedKey;
   }
-  window.addEventListener('resize', resize);
-  resize();
 
-  function animate(){
-    requestAnimationFrame(animate);
-    const dt = clock.getDelta();
-    if (mixer) mixer.update(dt);
-    controls.update();
-    renderer.render(scene, camera);
-  }
-  animate();
-
-  const gltfLoader = new GLTFLoader();
-
-  // --- GLB Import -----------------------------------------------------------
-  fileGlbInput.addEventListener('change', async (e)=>{
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  // --- GLB-Auswahl ----------------------------------------------------------
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files && fileInput.files[0];
     statusEl.textContent = '';
-    log(`Datei gewählt: ${file.name} (${file.size} Bytes)`);
+    glbFile = null;
 
-    if (!file.name.toLowerCase().endsWith('.glb')){
-      log('⚠ Nur .glb wird im Light-Editor unterstützt (für Debug).');
+    if (!file) {
+      log('Bitte eine GLB-Datei auswählen.');
+      btnPublish.disabled = true;
+      return;
+    }
+    if (!file.name.toLowerCase().endsWith('.glb')) {
+      log('⚠ Gewählte Datei ist kein .glb – bitte ein GLB mit Animation wählen.');
+      btnPublish.disabled = true;
       return;
     }
 
-    importedGlbBlob = file;
-    importedGlbName = file.name;
+    glbFile = file;
+    log(`GLB gewählt: ${file.name} (${file.size} Bytes)`);
 
-    const arrayBuffer = await file.arrayBuffer();
-
-    gltfLoader.parse(arrayBuffer, '', (gltf)=>{
-      log('GLB geladen, Szene wird im Viewport angezeigt.');
-
-      // alte Szene räumen (außer Licht/Boden)
-      [...scene.children].forEach(ch=>{
-        if (ch !== hemi && ch !== dir && ch !== ground) scene.remove(ch);
-      });
-
-      const root = gltf.scene || new THREE.Group();
-      scene.add(root);
-
-      // zentrieren & skalieren
-      const box = new THREE.Box3().setFromObject(root);
-      const size = new THREE.Vector3();
-      const center = new THREE.Vector3();
-      box.getSize(size);
-      box.getCenter(center);
-
-      root.position.sub(center);
-
-      const maxDim = Math.max(size.x, size.y, size.z);
-      if (maxDim > 0){
-        const scale = 1.5 / maxDim;
-        root.scale.setScalar(scale);
-        log(`Auto-Scaling: maxDim=${maxDim.toFixed(2)}, scale=${scale.toFixed(3)}`);
-      }
-
-      camera.position.set(2, 1.5, 3);
-      controls.target.set(0, 0.7, 0);
-      controls.update();
-
-      // Animationen
-      mixer = null;
-      glbAnimations = gltf.animations || [];
-      if (glbAnimations.length){
-        mixer = new THREE.AnimationMixer(root);
-        log(`Animationen gefunden: ${glbAnimations.map(a => a.name || '(namenlos)').join(', ')}`);
-        fillClipSelect(glbAnimations);
-        btnPlay.disabled = false;
-        overlayMsg.textContent = 'Animation mit ▶ Vorschau testen – dann Publish.';
-      } else {
-        log('⚠ Keine Animationen im GLB gefunden (gltf.animations ist leer).');
-        clipSelect.innerHTML = '<option value="">(keine Animationen)</option>';
-        clipSelect.disabled = true;
-        btnPlay.disabled = true;
-        overlayMsg.textContent = 'GLB geladen – aber keine Animationen gefunden.';
-      }
-
-      btnPublish.disabled = !importedGlbBlob;
-
-    }, (err)=>{
-      console.error(err);
-      log('Fehler beim Parsen des GLB: ' + err.message);
-    });
+    btnPublish.disabled = false;
   });
 
-  function fillClipSelect(anims){
-    clipSelect.innerHTML = '';
-    anims.forEach((clip, idx)=>{
-      const opt = document.createElement('option');
-      opt.value = clip.name || String(idx);
-      opt.textContent = clip.name || `Clip #${idx}`;
-      clipSelect.appendChild(opt);
-    });
-    clipSelect.disabled = false;
-  }
+  // --- Publish --------------------------------------------------------------
+  btnPublish.addEventListener('click', async () => {
+    statusEl.textContent = '';
 
-  // --- Vorschau-Play im Editor ----------------------------------------------
-  btnPlay.addEventListener('click', ()=>{
-    if (!mixer || !glbAnimations.length) return;
-    const selName = clipSelect.value || glbAnimations[0].name || '';
-    const clip = glbAnimations.find(a => a.name === selName) || glbAnimations[0];
-
-    if (currentAction){
-      currentAction.stop();
-    }
-
-    currentAction = mixer.clipAction(clip);
-    currentAction.reset().setLoop(THREE.LoopRepeat, Infinity).play();
-    log(`Vorschau: Animation "${clip.name}" wird abgespielt.`);
-  });
-
-  // --- Publish zu Cloudflare /publish --------------------------------------
-  btnPublish.addEventListener('click', async ()=>{
-    if (!importedGlbBlob){
-      log('⚠ Kein GLB geladen – erst Datei importieren.');
+    if (!glbFile) {
+      log('⚠ Kein GLB gewählt. Bitte zuerst ein GLB mit Animation auswählen.');
       return;
     }
 
-    const PUBLISH_KEY = publishKeyInput.value.trim();
-    if (!PUBLISH_KEY){
-      log('⚠ Bitte zuerst den X-AREA-Key eingeben (aus Cloudflare Worker).');
-      publishKeyInput.focus();
+    const publishKey = keyInput.value.trim();
+    if (!publishKey) {
+      log('⚠ Bitte den X-AREA-Key aus deinem Cloudflare-Worker eintragen.');
+      keyInput.focus();
       return;
     }
-    // lokal im Browser merken (nicht im Code)
-    localStorage.setItem(KEY_STORAGE, PUBLISH_KEY);
+    // Nur im Browser merken – niemals im Code
+    localStorage.setItem(KEY_STORAGE, publishKey);
 
-    const customId = sceneIdInput.value.trim();
+    const customId = sceneInput.value.trim();
     const sceneId  = customId || ('light-' + Date.now().toString(36));
 
-    const clipName  = (clipSelect.value || '').trim() || (glbAnimations[0]?.name || '*');
-    const startMode = startModeSel.value || 'onPlace';
+    const clipName = (clipInput.value || '').trim() || '*';
+    const startMode = startSelect.value || 'onPlace';
 
-    log(`\n--- Publish startet für Scene-ID "${sceneId}" ---`);
-    log(`Clip: ${clipName}, Startmodus: ${startMode}`);
+    log(`--- Publish startet ---`);
+    log(`Scene-ID: ${sceneId}`);
+    log(`Clip-Name: ${clipName}`);
+    log(`Startmodus: ${startMode}`);
 
-    // Minimale scene.json für den Surface-Viewer
+    // scene.json minimal für deinen Surface-Viewer
     const sceneConfig = {
       meta: {
         title: sceneId,
@@ -421,38 +266,40 @@
 
     const fd = new FormData();
     fd.append('sceneId', sceneId);
-    fd.append('file', importedGlbBlob, 'scene.glb');
+    fd.append('file', glbFile, 'scene.glb');
     fd.append('file', new Blob(
       [JSON.stringify(sceneConfig, null, 2)],
       { type: 'application/json' }
     ), 'scene.json');
 
-    try{
+    try {
+      log('\nSende Daten an /publish …');
       const res = await fetch(PUBLISH_URL, {
         method: 'POST',
-        headers: { 'X-AREA-Key': PUBLISH_KEY },
+        headers: { 'X-AREA-Key': publishKey },
         body: fd
       });
 
-      if (!res.ok){
-        const txt = await res.text().catch(()=> '');
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
         throw new Error(res.status + ' ' + res.statusText + (txt ? ' – ' + txt : ''));
       }
 
-      const data = await res.json().catch(()=> ({}));
-      log('Publish erfolgreich. Worker-Antwort: ' + JSON.stringify(data, null, 2));
+      const data = await res.json().catch(() => ({}));
+      log('Publish erfolgreich.');
+      log('Antwort vom Worker: ' + JSON.stringify(data, null, 2));
 
       const returnedId   = data.sceneId || sceneId;
       const viewerUrlRaw = data.viewerUrl || (
         `${VIEWER_BASE}?scene=${encodeURIComponent(returnedId)}&base=${encodeURIComponent(workerOrigin)}`
       );
 
-      log('\nViewer-URL:');
+      log('\nSurface-Viewer-URL:');
       log(viewerUrlRaw);
 
+      // Im neuen Tab öffnen
       window.open(viewerUrlRaw, '_blank');
-
-    } catch (e){
+    } catch (e) {
       console.error(e);
       log('❌ Publish fehlgeschlagen: ' + e.message);
     }
